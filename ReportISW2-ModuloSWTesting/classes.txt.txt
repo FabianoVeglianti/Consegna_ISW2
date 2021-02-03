@@ -1,0 +1,4 @@
+bookkeeper.bookkeeper-server.src.main.java.org.apache.bookkeeper.bookie.storage.ldb.WriteCache
+bookkeeper.bookkeeper-server.src.main.java.org.apache.bookkeeper.bookie.storage.ldb.LedgerMetadataIndex
+syncope.core.spring.src.main.java.org.apache.syncope.core.spring.security.Encryptor
+syncope.core.persistence-jpa.src.main.java.org.apache.syncope.core.persistence.jpa.validation.entity.RealmValidator

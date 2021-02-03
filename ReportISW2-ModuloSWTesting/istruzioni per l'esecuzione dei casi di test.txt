@@ -1,0 +1,29 @@
+Il build del progetto in locale è stato effettuato con
+-os Ubuntu
+-version 18.04.3
+-java version 11.0.9.1
+-javac version 11.0.9.1
+
+
+Bookkeeper:
+
+Per l'esecuzione dei casi di test e la generazione dei report di Jacoco bisogna eseguire
+	mvn "-Dtest=org/apache/bookkeeper/mytests/*Test" -DfailIfNoTests=false clean verify
+i report di jacoco saranno generati in my_tests/target/site/jacoco-aggregate
+
+Per l'esecuzione dei casi di test, la generazione dei report di Jacoco e l'esecuzione di mutation testing tramite Pit bisogna eseguire
+	mvn "-Dtest=org/apache/bookkeeper/mytests/*Test" -DfailIfNoTests=false -P mutation clean verify
+i report di Pit saranno generati in bookkeeper-server/target/pit-reports/XXX
+dove XXX rappresenta la concatenazione di anno, mese, giorno, orario (ore+minuti) in cui la cartella viene creata.
+
+
+Syncope:
+
+Per l'esecuzione dei casi di test e la generazione dei report di Jacoco bisogna eseguire
+	mvn -Dtest=MyEncryptorTest,MyRealmValidatorTest -DfailIfNoTests=false clean verify
+i report di jacoco saranno generati in my_tests/target/site/jacoco-aggregate
+
+Per l'esecuzione dei casi di test, la generazione dei report di Jacoco e l'esecuzione di mutation testing tramite Pit bisogna eseguire
+	mvn -Dtest=MyEncryptorTest,MyRealmValidatorTest -DfailIfNoTests=false -P mutation clean verify
+i report di Pit saranno generati in core/spring/target/pit-reports/XXX (per Encryptor) e in core/persistence-jpa/target/pit-reports/XXX (per RealmValidator)
+dove XXX rappresenta la concatenazione di anno, mese, giorno, orario (ore+minuti) in cui la cartella viene creata.
