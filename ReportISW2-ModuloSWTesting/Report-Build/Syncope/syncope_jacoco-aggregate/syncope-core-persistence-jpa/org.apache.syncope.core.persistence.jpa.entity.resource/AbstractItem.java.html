@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>AbstractItem.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.resource</a> &gt; <span class="el_source">AbstractItem.java</span></div><h1>AbstractItem.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.resource;
+
+import javax.persistence.Column;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.MappedSuperclass;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.common.lib.types.MappingPurpose;
+import org.apache.syncope.core.persistence.api.entity.resource.Item;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractGeneratedKeyEntity;
+
+@MappedSuperclass
+<span class="nc" id="L31">public abstract class AbstractItem extends AbstractGeneratedKeyEntity implements Item {</span>
+
+    private static final long serialVersionUID = 5552380143129988272L;
+
+    @NotNull
+    private String intAttrName;
+
+    /**
+     * Target resource's field to be mapped.
+     */
+    @NotNull
+    private String extAttrName;
+
+    /**
+     * Specify if the mapped target resource's field is nullable.
+     */
+<span class="nc" id="L47">    @NotNull</span>
+<span class="nc" id="L48">    private String mandatoryCondition = Boolean.FALSE.toString();</span>
+
+    /**
+     * Specify if the mapped target resource's field is the id.
+     */
+<span class="nc" id="L53">    @NotNull</span>
+<span class="nc" id="L54">    private Boolean connObjectKey = false;</span>
+
+    /**
+     * Specify if the mapped target resource's field is the password.
+     */
+<span class="nc" id="L59">    @NotNull</span>
+<span class="nc" id="L60">    private Boolean password = false;</span>
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    private MappingPurpose purpose;
+
+    /**
+     * (Optional) JEXL expression to apply to values before propagation.
+     */
+    @Column(name = &quot;propJEXL&quot;)
+    private String propagationJEXLTransformer;
+
+    /**
+     * (Optional) JEXL expression to apply to values before pull.
+     */
+    @Column(name = &quot;pullJEXL&quot;)
+    private String pullJEXLTransformer;
+
+    @Override
+    public String getExtAttrName() {
+<span class="nc" id="L80">        return extAttrName;</span>
+    }
+
+    @Override
+    public void setExtAttrName(final String extAttrName) {
+<span class="nc" id="L85">        this.extAttrName = extAttrName;</span>
+<span class="nc" id="L86">    }</span>
+
+    @Override
+    public String getMandatoryCondition() {
+<span class="nc" id="L90">        return mandatoryCondition;</span>
+    }
+
+    @Override
+    public void setMandatoryCondition(final String mandatoryCondition) {
+<span class="nc" id="L95">        this.mandatoryCondition = mandatoryCondition;</span>
+<span class="nc" id="L96">    }</span>
+
+    @Override
+    public String getIntAttrName() {
+<span class="nc" id="L100">        return intAttrName;</span>
+    }
+
+    @Override
+    public void setIntAttrName(final String intAttrName) {
+<span class="nc" id="L105">        this.intAttrName = intAttrName;</span>
+<span class="nc" id="L106">    }</span>
+
+    @Override
+    public boolean isConnObjectKey() {
+<span class="nc" id="L110">        return connObjectKey;</span>
+    }
+
+    @Override
+    public void setConnObjectKey(final boolean connObjectKey) {
+<span class="nc" id="L115">        this.connObjectKey = connObjectKey;</span>
+<span class="nc" id="L116">    }</span>
+
+    @Override
+    public boolean isPassword() {
+<span class="nc" id="L120">        return password;</span>
+    }
+
+    @Override
+    public void setPassword(final boolean password) {
+<span class="nc" id="L125">        this.password = password;</span>
+<span class="nc" id="L126">    }</span>
+
+    @Override
+    public MappingPurpose getPurpose() {
+<span class="nc" id="L130">        return purpose;</span>
+    }
+
+    @Override
+    public void setPurpose(final MappingPurpose purpose) {
+<span class="nc" id="L135">        this.purpose = purpose;</span>
+<span class="nc" id="L136">    }</span>
+
+    @Override
+    public String getPropagationJEXLTransformer() {
+<span class="nc" id="L140">        return propagationJEXLTransformer;</span>
+    }
+
+    @Override
+    public void setPropagationJEXLTransformer(final String propagationJEXLTransformer) {
+<span class="nc" id="L145">        this.propagationJEXLTransformer = propagationJEXLTransformer;</span>
+<span class="nc" id="L146">    }</span>
+
+    @Override
+    public String getPullJEXLTransformer() {
+<span class="nc" id="L150">        return pullJEXLTransformer;</span>
+    }
+
+    @Override
+    public void setPullJEXLTransformer(final String pullJEXLTransformer) {
+<span class="nc" id="L155">        this.pullJEXLTransformer = pullJEXLTransformer;</span>
+<span class="nc" id="L156">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

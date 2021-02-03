@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPASRARoute.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity</a> &gt; <span class="el_source">JPASRARoute.java</span></div><h1>JPASRARoute.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Optional;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Lob;
+import javax.persistence.Table;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.common.lib.types.SRARouteFilter;
+import org.apache.syncope.common.lib.types.SRARoutePredicate;
+import org.apache.syncope.common.lib.types.SRARouteType;
+import org.apache.syncope.core.provisioning.api.serialization.POJOHelper;
+import org.apache.syncope.core.persistence.api.entity.SRARoute;
+import org.apache.syncope.core.persistence.jpa.validation.entity.SRARouteCheck;
+
+@Entity
+@Table(name = JPASRARoute.TABLE)
+@SRARouteCheck
+<span class="nc" id="L42">public class JPASRARoute extends AbstractGeneratedKeyEntity implements SRARoute {</span>
+
+    private static final long serialVersionUID = -8718852361106840530L;
+
+    public static final String TABLE = &quot;SRARoute&quot;;
+
+    @Column(unique = true, nullable = false)
+    private String name;
+
+    @NotNull
+    private String target;
+
+    private String error;
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    private SRARouteType routeType;
+
+<span class="nc" id="L60">    @NotNull</span>
+<span class="nc" id="L61">    private Boolean logout = false;</span>
+
+    private String postLogout;
+
+<span class="nc" id="L65">    @NotNull</span>
+<span class="nc" id="L66">    private Boolean csrf = true;</span>
+
+    private Integer routeOrder;
+
+    @Lob
+    private String predicates;
+
+    @Lob
+    private String filters;
+
+    @Override
+    public String getName() {
+<span class="nc" id="L78">        return name;</span>
+    }
+
+    @Override
+    public void setName(final String name) {
+<span class="nc" id="L83">        this.name = name;</span>
+<span class="nc" id="L84">    }</span>
+
+    @Override
+    public URI getTarget() {
+<span class="nc" id="L88">        return URI.create(target);</span>
+    }
+
+    @Override
+    public void setTarget(final URI target) {
+<span class="nc" id="L93">        this.target = Optional.ofNullable(target).map(URI::toASCIIString).orElse(null);</span>
+<span class="nc" id="L94">    }</span>
+
+    @Override
+    public URI getError() {
+<span class="nc" id="L98">        return Optional.ofNullable(error).map(URI::create).orElse(null);</span>
+    }
+
+    @Override
+    public void setError(final URI error) {
+<span class="nc" id="L103">        this.error = Optional.ofNullable(error).map(URI::toASCIIString).orElse(null);</span>
+<span class="nc" id="L104">    }</span>
+
+    @Override
+    public SRARouteType getType() {
+<span class="nc" id="L108">        return routeType;</span>
+    }
+
+    @Override
+    public void setType(final SRARouteType type) {
+<span class="nc" id="L113">        this.routeType = type;</span>
+<span class="nc" id="L114">    }</span>
+
+    @Override
+    public boolean isLogout() {
+<span class="nc" id="L118">        return logout;</span>
+    }
+
+    @Override
+    public void setLogout(final boolean logout) {
+<span class="nc" id="L123">        this.logout = logout;</span>
+<span class="nc" id="L124">    }</span>
+
+    @Override
+    public URI getPostLogout() {
+<span class="nc" id="L128">        return Optional.ofNullable(postLogout).map(URI::create).orElse(null);</span>
+    }
+
+    @Override
+    public void setPostLogout(final URI postLogout) {
+<span class="nc" id="L133">        this.postLogout = Optional.ofNullable(postLogout).map(URI::toASCIIString).orElse(null);</span>
+<span class="nc" id="L134">    }</span>
+
+    @Override
+    public boolean isCsrf() {
+<span class="nc" id="L138">        return csrf;</span>
+    }
+
+    @Override
+    public void setCsrf(final boolean csrf) {
+<span class="nc" id="L143">        this.csrf = csrf;</span>
+<span class="nc" id="L144">    }</span>
+
+    @Override
+    public int getOrder() {
+<span class="nc" id="L148">        return Optional.ofNullable(routeOrder).orElse(0);</span>
+    }
+
+    @Override
+    public void setOrder(final int order) {
+<span class="nc" id="L153">        this.routeOrder = order;</span>
+<span class="nc" id="L154">    }</span>
+
+    @Override
+    public List&lt;SRARouteFilter&gt; getFilters() {
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        return filters == null</span>
+<span class="nc" id="L159">                ? List.of()</span>
+<span class="nc" id="L160">                : List.of(POJOHelper.deserialize(filters, SRARouteFilter[].class));</span>
+    }
+
+    @Override
+    public void setFilters(final List&lt;SRARouteFilter&gt; filters) {
+<span class="nc" id="L165">        this.filters = POJOHelper.serialize(filters);</span>
+<span class="nc" id="L166">    }</span>
+
+    @Override
+    public List&lt;SRARoutePredicate&gt; getPredicates() {
+<span class="nc bnc" id="L170" title="All 2 branches missed.">        return predicates == null</span>
+<span class="nc" id="L171">                ? List.of()</span>
+<span class="nc" id="L172">                : List.of(POJOHelper.deserialize(predicates, SRARoutePredicate[].class));</span>
+    }
+
+    @Override
+    public void setPredicates(final List&lt;SRARoutePredicate&gt; predicates) {
+<span class="nc" id="L177">        this.predicates = POJOHelper.serialize(predicates);</span>
+<span class="nc" id="L178">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

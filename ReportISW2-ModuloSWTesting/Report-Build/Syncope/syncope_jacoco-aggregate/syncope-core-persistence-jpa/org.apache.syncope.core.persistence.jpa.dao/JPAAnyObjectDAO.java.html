@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAAnyObjectDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAAnyObjectDAO.java</span></div><h1>JPAAnyObjectDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.persistence.NoResultException;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.syncope.common.lib.types.AnyEntitlement;
+import org.apache.syncope.common.lib.types.AnyTypeKind;
+import org.apache.syncope.core.persistence.api.entity.Entity;
+import org.apache.syncope.core.spring.security.AuthContextUtils;
+import org.apache.syncope.core.spring.security.DelegatedAdministrationException;
+import org.apache.syncope.core.persistence.api.dao.AnyObjectDAO;
+import org.apache.syncope.core.persistence.api.dao.GroupDAO;
+import org.apache.syncope.core.persistence.api.dao.UserDAO;
+import org.apache.syncope.core.persistence.api.entity.Any;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.AnyUtils;
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.persistence.api.entity.Relationship;
+import org.apache.syncope.core.persistence.api.entity.anyobject.AMembership;
+import org.apache.syncope.core.persistence.api.entity.anyobject.ARelationship;
+import org.apache.syncope.core.persistence.api.entity.anyobject.AnyObject;
+import org.apache.syncope.core.persistence.api.entity.group.Group;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.api.entity.user.URelationship;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAMembership;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAARelationship;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAnyObject;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAURelationship;
+import org.apache.syncope.core.provisioning.api.event.AnyCreatedUpdatedEvent;
+import org.apache.syncope.core.provisioning.api.event.AnyDeletedEvent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+<span class="nc" id="L64">public class JPAAnyObjectDAO extends AbstractAnyDAO&lt;AnyObject&gt; implements AnyObjectDAO {</span>
+
+    @Autowired
+    protected UserDAO userDAO;
+
+    @Autowired
+    protected GroupDAO groupDAO;
+
+    @Override
+    protected AnyUtils init() {
+<span class="nc" id="L74">        return anyUtilsFactory.getInstance(AnyTypeKind.ANY_OBJECT);</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public String findKey(final String name) {
+<span class="nc" id="L80">        return findKey(name, JPAAnyObject.TABLE);</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public Date findLastChange(final String key) {
+<span class="nc" id="L86">        return findLastChange(key, JPAAnyObject.TABLE);</span>
+    }
+
+    @Override
+    public Map&lt;AnyType, Integer&gt; countByType() {
+<span class="nc" id="L91">        Query query = entityManager().createQuery(</span>
+<span class="nc" id="L92">                &quot;SELECT e.type, COUNT(e) AS countByType FROM  &quot; + anyUtils().anyClass().getSimpleName() + &quot; e &quot;</span>
+                + &quot;GROUP BY e.type ORDER BY countByType DESC&quot;);
+        @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L95">        List&lt;Object[]&gt; results = query.getResultList();</span>
+
+<span class="nc" id="L97">        Map&lt;AnyType, Integer&gt; countByRealm = new LinkedHashMap&lt;&gt;(results.size());</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        for (Object[] result : results) {</span>
+<span class="nc" id="L99">            countByRealm.put((AnyType) result[0], ((Number) result[1]).intValue());</span>
+<span class="nc" id="L100">        }</span>
+
+<span class="nc" id="L102">        return Collections.unmodifiableMap(countByRealm);</span>
+    }
+
+    @Override
+    public Map&lt;String, Integer&gt; countByRealm(final AnyType anyType) {
+<span class="nc" id="L107">        Query query = entityManager().createQuery(</span>
+<span class="nc" id="L108">                &quot;SELECT e.realm, COUNT(e) FROM  &quot; + anyUtils().anyClass().getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE e.type=:type GROUP BY e.realm&quot;);
+<span class="nc" id="L110">        query.setParameter(&quot;type&quot;, anyType);</span>
+
+        @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L113">        List&lt;Object[]&gt; results = query.getResultList();</span>
+<span class="nc" id="L114">        return results.stream().collect(Collectors.toMap(</span>
+<span class="nc" id="L115">                result -&gt; ((Realm) result[0]).getFullPath(),</span>
+<span class="nc" id="L116">                result -&gt; ((Number) result[1]).intValue()));</span>
+    }
+
+    @Override
+    protected void securityChecks(final AnyObject anyObject) {
+<span class="nc" id="L121">        Map&lt;String, Set&lt;String&gt;&gt; authorizations = AuthContextUtils.getAuthorizations();</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        Set&lt;String&gt; authRealms = authorizations.containsKey(AnyEntitlement.READ.getFor(anyObject.getType().getKey()))</span>
+<span class="nc" id="L123">                ? authorizations.get(AnyEntitlement.READ.getFor(anyObject.getType().getKey()))</span>
+<span class="nc" id="L124">                : Set.of();</span>
+<span class="nc" id="L125">        boolean authorized = authRealms.stream().</span>
+<span class="nc" id="L126">                anyMatch(realm -&gt; anyObject.getRealm().getFullPath().startsWith(realm));</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        if (!authorized) {</span>
+<span class="nc" id="L128">            authorized = findDynRealms(anyObject.getKey()).stream().</span>
+<span class="nc" id="L129">                    filter(authRealms::contains).</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">                    count() &gt; 0;</span>
+        }
+<span class="nc bnc" id="L132" title="All 4 branches missed.">        if (authRealms.isEmpty() || !authorized) {</span>
+<span class="nc" id="L133">            throw new DelegatedAdministrationException(</span>
+<span class="nc" id="L134">                    anyObject.getRealm().getFullPath(), AnyTypeKind.ANY_OBJECT.name(), anyObject.getKey());</span>
+        }
+<span class="nc" id="L136">    }</span>
+
+    @Override
+    public AnyObject findByName(final String name) {
+<span class="nc" id="L140">        TypedQuery&lt;AnyObject&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L141">                &quot;SELECT e FROM &quot; + anyUtils().anyClass().getSimpleName() + &quot; e WHERE e.name = :name&quot;, AnyObject.class);</span>
+<span class="nc" id="L142">        query.setParameter(&quot;name&quot;, name);</span>
+
+<span class="nc" id="L144">        AnyObject result = null;</span>
+        try {
+<span class="nc" id="L146">            result = query.getSingleResult();</span>
+<span class="nc" id="L147">        } catch (NoResultException e) {</span>
+<span class="nc" id="L148">            LOG.debug(&quot;No any object found with name {}&quot;, name, e);</span>
+<span class="nc" id="L149">        }</span>
+
+<span class="nc" id="L151">        return result;</span>
+    }
+
+    @Override
+    public AMembership findMembership(final String key) {
+<span class="nc" id="L156">        return entityManager().find(JPAAMembership.class, key);</span>
+    }
+
+    @Override
+    public List&lt;Relationship&lt;Any&lt;?&gt;, AnyObject&gt;&gt; findAllRelationships(final AnyObject anyObject) {
+<span class="nc" id="L161">        List&lt;Relationship&lt;Any&lt;?&gt;, AnyObject&gt;&gt; result = new ArrayList&lt;&gt;();</span>
+
+        @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L164">        TypedQuery&lt;Relationship&lt;Any&lt;?&gt;, AnyObject&gt;&gt; aquery =</span>
+<span class="nc" id="L165">                (TypedQuery&lt;Relationship&lt;Any&lt;?&gt;, AnyObject&gt;&gt;) entityManager().createQuery(</span>
+<span class="nc" id="L166">                        &quot;SELECT e FROM &quot; + JPAARelationship.class.getSimpleName()</span>
+                        + &quot; e WHERE e.rightEnd=:anyObject OR e.leftEnd=:anyObject&quot;);
+<span class="nc" id="L168">        aquery.setParameter(&quot;anyObject&quot;, anyObject);</span>
+<span class="nc" id="L169">        result.addAll(aquery.getResultList());</span>
+
+        @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L172">        TypedQuery&lt;Relationship&lt;Any&lt;?&gt;, AnyObject&gt;&gt; uquery =</span>
+<span class="nc" id="L173">                (TypedQuery&lt;Relationship&lt;Any&lt;?&gt;, AnyObject&gt;&gt;) entityManager().createQuery(</span>
+<span class="nc" id="L174">                        &quot;SELECT e FROM &quot; + JPAURelationship.class.getSimpleName()</span>
+                        + &quot; e WHERE e.rightEnd=:anyObject&quot;);
+<span class="nc" id="L176">        uquery.setParameter(&quot;anyObject&quot;, anyObject);</span>
+<span class="nc" id="L177">        result.addAll(uquery.getResultList());</span>
+
+<span class="nc" id="L179">        return result;</span>
+    }
+
+    @Override
+    public int count() {
+<span class="nc" id="L184">        Query query = entityManager().createQuery(</span>
+<span class="nc" id="L185">                &quot;SELECT COUNT(e) FROM  &quot; + anyUtils().anyClass().getSimpleName() + &quot; e&quot;);</span>
+<span class="nc" id="L186">        return ((Number) query.getSingleResult()).intValue();</span>
+    }
+
+    @Override
+    public List&lt;AnyObject&gt; findAll(final int page, final int itemsPerPage) {
+<span class="nc" id="L191">        TypedQuery&lt;AnyObject&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L192">                &quot;SELECT e FROM  &quot; + anyUtils().anyClass().getSimpleName() + &quot; e ORDER BY e.id&quot;, AnyObject.class);</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">        query.setFirstResult(itemsPerPage * (page &lt;= 0 ? 0 : page - 1));</span>
+<span class="nc" id="L194">        query.setMaxResults(itemsPerPage);</span>
+
+<span class="nc" id="L196">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;String&gt; findAllKeys(final int page, final int itemsPerPage) {
+<span class="nc" id="L201">        return findAllKeys(JPAAnyObject.TABLE, page, itemsPerPage);</span>
+    }
+
+    protected Pair&lt;AnyObject, Pair&lt;Set&lt;String&gt;, Set&lt;String&gt;&gt;&gt; doSave(final AnyObject anyObject) {
+<span class="nc" id="L205">        AnyObject merged = super.save(anyObject);</span>
+<span class="nc" id="L206">        publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, merged, AuthContextUtils.getDomain()));</span>
+
+<span class="nc" id="L208">        Pair&lt;Set&lt;String&gt;, Set&lt;String&gt;&gt; dynGroupMembs = groupDAO.refreshDynMemberships(merged);</span>
+<span class="nc" id="L209">        dynRealmDAO.refreshDynMemberships(merged);</span>
+
+<span class="nc" id="L211">        return Pair.of(merged, dynGroupMembs);</span>
+    }
+
+    @Override
+    public AnyObject save(final AnyObject anyObject) {
+<span class="nc" id="L216">        return doSave(anyObject).getLeft();</span>
+    }
+
+    @Override
+    public Pair&lt;Set&lt;String&gt;, Set&lt;String&gt;&gt; saveAndGetDynGroupMembs(final AnyObject anyObject) {
+<span class="nc" id="L221">        return doSave(anyObject).getRight();</span>
+    }
+
+    protected List&lt;ARelationship&gt; findARelationships(final AnyObject anyObject) {
+<span class="nc" id="L225">        TypedQuery&lt;ARelationship&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L226">                &quot;SELECT e FROM &quot; + JPAARelationship.class.getSimpleName()</span>
+                + &quot; e WHERE e.rightEnd=:anyObject&quot;, ARelationship.class);
+<span class="nc" id="L228">        query.setParameter(&quot;anyObject&quot;, anyObject);</span>
+
+<span class="nc" id="L230">        return query.getResultList();</span>
+    }
+
+    protected List&lt;URelationship&gt; findURelationships(final AnyObject anyObject) {
+<span class="nc" id="L234">        TypedQuery&lt;URelationship&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L235">                &quot;SELECT e FROM &quot; + JPAURelationship.class.getSimpleName()</span>
+                + &quot; e WHERE e.rightEnd=:anyObject&quot;, URelationship.class);
+<span class="nc" id="L237">        query.setParameter(&quot;anyObject&quot;, anyObject);</span>
+
+<span class="nc" id="L239">        return query.getResultList();</span>
+    }
+
+    @Override
+    public void delete(final AnyObject anyObject) {
+<span class="nc" id="L244">        groupDAO.removeDynMemberships(anyObject);</span>
+<span class="nc" id="L245">        dynRealmDAO.removeDynMemberships(anyObject.getKey());</span>
+
+<span class="nc" id="L247">        findARelationships(anyObject).forEach(relationship -&gt; {</span>
+<span class="nc" id="L248">            relationship.getLeftEnd().getRelationships().remove(relationship);</span>
+<span class="nc" id="L249">            save(relationship.getLeftEnd());</span>
+
+<span class="nc" id="L251">            entityManager().remove(relationship);</span>
+<span class="nc" id="L252">        });</span>
+<span class="nc" id="L253">        findURelationships(anyObject).forEach(relationship -&gt; {</span>
+<span class="nc" id="L254">            relationship.getLeftEnd().getRelationships().remove(relationship);</span>
+<span class="nc" id="L255">            userDAO.save(relationship.getLeftEnd());</span>
+
+<span class="nc" id="L257">            entityManager().remove(relationship);</span>
+<span class="nc" id="L258">        });</span>
+
+<span class="nc" id="L260">        entityManager().remove(anyObject);</span>
+<span class="nc" id="L261">        publisher.publishEvent(new AnyDeletedEvent(</span>
+<span class="nc" id="L262">                this, AnyTypeKind.ANY_OBJECT, anyObject.getKey(), anyObject.getName(), AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L263">    }</span>
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public List&lt;Group&gt; findDynGroups(final String key) {
+<span class="nc" id="L269">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT group_id FROM &quot; + JPAGroupDAO.ADYNMEMB_TABLE + &quot; WHERE any_id=?&quot;);
+<span class="nc" id="L271">        query.setParameter(1, key);</span>
+
+<span class="nc" id="L273">        List&lt;Group&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L274" title="All 2 branches missed.">        query.getResultList().stream().map(resultKey -&gt; resultKey instanceof Object[]</span>
+<span class="nc" id="L275">                ? (String) ((Object[]) resultKey)[0]</span>
+<span class="nc" id="L276">                : ((String) resultKey)).</span>
+<span class="nc" id="L277">                forEach(groupKey -&gt; {</span>
+<span class="nc" id="L278">                    Group group = groupDAO.find(groupKey.toString());</span>
+<span class="nc bnc" id="L279" title="All 2 branches missed.">                    if (group == null) {</span>
+<span class="nc" id="L280">                        LOG.error(&quot;Could not find group {}, even though returned by the native query&quot;, groupKey);</span>
+<span class="nc bnc" id="L281" title="All 2 branches missed.">                    } else if (!result.contains(group)) {</span>
+<span class="nc" id="L282">                        result.add(group);</span>
+                    }
+<span class="nc" id="L284">                });</span>
+<span class="nc" id="L285">        return result;</span>
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    @Override
+    public Collection&lt;Group&gt; findAllGroups(final AnyObject anyObject) {
+<span class="nc" id="L291">        Set&lt;Group&gt; result = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L292">        result.addAll(anyObject.getMemberships().stream().</span>
+<span class="nc" id="L293">                map(Relationship::getRightEnd).collect(Collectors.toSet()));</span>
+<span class="nc" id="L294">        result.addAll(findDynGroups(anyObject.getKey()));</span>
+
+<span class="nc" id="L296">        return result;</span>
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    @Override
+    public Collection&lt;String&gt; findAllGroupKeys(final AnyObject anyObject) {
+<span class="nc" id="L302">        return findAllGroups(anyObject).stream().map(Entity::getKey).collect(Collectors.toList());</span>
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    @Override
+    public Collection&lt;ExternalResource&gt; findAllResources(final AnyObject anyObject) {
+<span class="nc" id="L308">        Set&lt;ExternalResource&gt; result = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L309">        result.addAll(anyObject.getResources());</span>
+<span class="nc" id="L310">        findAllGroups(anyObject).forEach(group -&gt; result.addAll(group.getResources()));</span>
+
+<span class="nc" id="L312">        return result;</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public Collection&lt;String&gt; findAllResourceKeys(final String key) {
+<span class="nc" id="L318">        return findAllResources(authFind(key)).stream().map(Entity::getKey).collect(Collectors.toList());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

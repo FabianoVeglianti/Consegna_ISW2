@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAVirSchemaDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAVirSchemaDAO.java</span></div><h1>JPAVirSchemaDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
+import org.apache.syncope.core.persistence.api.dao.ExternalResourceDAO;
+import org.apache.syncope.core.persistence.api.dao.VirSchemaDAO;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.VirSchema;
+import org.apache.syncope.core.persistence.api.entity.resource.Provision;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyType;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyTypeClass;
+import org.apache.syncope.core.persistence.jpa.entity.JPAConnInstance;
+import org.apache.syncope.core.persistence.jpa.entity.JPAVirSchema;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAccountPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPasswordPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPullPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAExternalResource;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAMapping;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAProvision;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Repository;
+
+@Repository
+<span class="nc" id="L46">public class JPAVirSchemaDAO extends AbstractDAO&lt;VirSchema&gt; implements VirSchemaDAO {</span>
+
+    @Autowired
+    @Lazy
+    private ExternalResourceDAO resourceDAO;
+
+    @Override
+    public VirSchema find(final String key) {
+<span class="nc" id="L54">        return entityManager().find(JPAVirSchema.class, key);</span>
+    }
+
+    @Override
+    public List&lt;VirSchema&gt; findByAnyTypeClasses(final Collection&lt;AnyTypeClass&gt; anyTypeClasses) {
+<span class="nc" id="L59">        StringBuilder queryString = new StringBuilder(&quot;SELECT e FROM &quot;).</span>
+<span class="nc" id="L60">                append(JPAVirSchema.class.getSimpleName()).</span>
+<span class="nc" id="L61">                append(&quot; e WHERE &quot;);</span>
+<span class="nc" id="L62">        anyTypeClasses.forEach(anyTypeClass -&gt; queryString.</span>
+<span class="nc" id="L63">                append(&quot;e.anyTypeClass.id='&quot;).</span>
+<span class="nc" id="L64">                append(anyTypeClass.getKey()).append(&quot;' OR &quot;));</span>
+
+<span class="nc" id="L66">        TypedQuery&lt;VirSchema&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L67">                queryString.substring(0, queryString.length() - 4), VirSchema.class);</span>
+
+<span class="nc" id="L69">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;VirSchema&gt; findByProvision(final Provision provision) {
+<span class="nc" id="L74">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT t0.id FROM VirSchema t0 &quot;
+                + &quot;LEFT OUTER JOIN &quot; + JPAAnyTypeClass.TABLE + &quot; t1 ON t0.ANYTYPECLASS_ID = t1.id &quot;
+                + &quot;LEFT OUTER JOIN &quot; + JPAProvision.TABLE + &quot; t2 ON t0.PROVISION_ID = t2.id &quot;
+                + &quot;LEFT OUTER JOIN &quot; + JPAAnyType.TABLE + &quot; t3 ON t2.ANYTYPE_ID = t3.id &quot;
+                + &quot;LEFT OUTER JOIN &quot; + JPAMapping.TABLE + &quot; t4 ON t2.id = t4.PROVISION_ID &quot;
+                + &quot;LEFT OUTER JOIN &quot; + JPAExternalResource.TABLE + &quot; t5 ON t2.RESOURCE_ID = t5.id &quot;
+                + &quot;LEFT OUTER JOIN &quot; + JPAAccountPolicy.TABLE + &quot; t6 ON t5.ACCOUNTPOLICY_ID = t6.id &quot;
+                + &quot;LEFT OUTER JOIN &quot; + JPAConnInstance.TABLE + &quot; t7 ON t5.CONNECTOR_ID = t7.id &quot;
+                + &quot;LEFT OUTER JOIN &quot; + JPAPasswordPolicy.TABLE + &quot; t8 ON t5.PASSWORDPOLICY_ID = t8.id &quot;
+                + &quot;LEFT OUTER JOIN &quot; + JPAPullPolicy.TABLE + &quot; t9 ON t5.PULLPOLICY_ID = t9.id &quot;
+                + &quot;WHERE t0.PROVISION_ID = ?1&quot;);
+<span class="nc" id="L86">        query.setParameter(1, provision.getKey());</span>
+
+<span class="nc" id="L88">        List&lt;VirSchema&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        for (Object key : query.getResultList()) {</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">            String actualKey = key instanceof Object[]</span>
+<span class="nc" id="L91">                    ? (String) ((Object[]) key)[0]</span>
+<span class="nc" id="L92">                    : ((String) key);</span>
+
+<span class="nc" id="L94">            VirSchema virSchema = find(actualKey);</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">            if (virSchema == null) {</span>
+<span class="nc" id="L96">                LOG.error(&quot;Could not find schema with id {}, even though returned by the native query&quot;, actualKey);</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">            } else if (!result.contains(virSchema)) {</span>
+<span class="nc" id="L98">                result.add(virSchema);</span>
+            }
+<span class="nc" id="L100">        }</span>
+<span class="nc" id="L101">        return result;</span>
+    }
+
+    @Override
+    public List&lt;VirSchema&gt; findByKeyword(final String keyword) {
+<span class="nc" id="L106">        TypedQuery&lt;VirSchema&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L107">                &quot;SELECT e FROM &quot; + JPAVirSchema.class.getSimpleName() + &quot; e&quot;</span>
+                + &quot; WHERE e.id LIKE :keyword&quot;, VirSchema.class);
+<span class="nc" id="L109">        query.setParameter(&quot;keyword&quot;, keyword);</span>
+<span class="nc" id="L110">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;VirSchema&gt; findAll() {
+<span class="nc" id="L115">        TypedQuery&lt;VirSchema&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L116">                &quot;SELECT e FROM &quot; + JPAVirSchema.class.getSimpleName() + &quot; e&quot;, VirSchema.class);</span>
+<span class="nc" id="L117">        return query.getResultList();</span>
+    }
+
+    @Override
+    public VirSchema save(final VirSchema virSchema) {
+<span class="nc" id="L122">        return entityManager().merge(virSchema);</span>
+    }
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L127">        VirSchema schema = find(key);</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if (schema == null) {</span>
+<span class="nc" id="L129">            return;</span>
+        }
+
+<span class="nc" id="L132">        schema.getLabels().forEach(label -&gt; label.setSchema(null));</span>
+
+<span class="nc" id="L134">        resourceDAO.deleteMapping(key);</span>
+
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        if (schema.getAnyTypeClass() != null) {</span>
+<span class="nc" id="L137">            schema.getAnyTypeClass().getVirSchemas().remove(schema);</span>
+        }
+
+<span class="nc" id="L140">        entityManager().remove(schema);</span>
+<span class="nc" id="L141">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

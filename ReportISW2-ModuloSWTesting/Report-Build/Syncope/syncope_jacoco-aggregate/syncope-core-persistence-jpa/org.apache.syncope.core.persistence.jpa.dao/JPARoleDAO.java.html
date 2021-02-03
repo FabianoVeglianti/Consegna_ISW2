@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPARoleDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPARoleDAO.java</span></div><h1>JPARoleDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.ArrayList;
+import java.util.List;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
+import org.apache.syncope.common.lib.types.AnyTypeKind;
+import org.apache.syncope.core.persistence.api.dao.AnyMatchDAO;
+import org.apache.syncope.core.persistence.api.search.SearchCondConverter;
+import org.apache.syncope.core.persistence.api.dao.RoleDAO;
+import org.apache.syncope.core.persistence.api.dao.AnySearchDAO;
+import org.apache.syncope.core.persistence.api.entity.Privilege;
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.persistence.api.entity.Role;
+import org.apache.syncope.core.persistence.api.entity.user.User;
+import org.apache.syncope.core.persistence.api.search.SearchCondVisitor;
+import org.apache.syncope.core.persistence.jpa.entity.JPARole;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUser;
+import org.apache.syncope.core.provisioning.api.event.AnyCreatedUpdatedEvent;
+import org.apache.syncope.core.spring.security.AuthContextUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+<span class="nc" id="L45">public class JPARoleDAO extends AbstractDAO&lt;Role&gt; implements RoleDAO {</span>
+
+    public static final String DYNMEMB_TABLE = &quot;DynRoleMembers&quot;;
+
+    @Autowired
+    private AnyMatchDAO anyMatchDAO;
+
+    @Autowired
+    private ApplicationEventPublisher publisher;
+
+    @Autowired
+    private AnySearchDAO searchDAO;
+
+    @Autowired
+    private SearchCondVisitor searchCondVisitor;
+
+    @Override
+    public int count() {
+<span class="nc" id="L63">        Query query = entityManager().createQuery(</span>
+<span class="nc" id="L64">                &quot;SELECT COUNT(e) FROM  &quot; + JPARole.class.getSimpleName() + &quot; e&quot;);</span>
+<span class="nc" id="L65">        return ((Number) query.getSingleResult()).intValue();</span>
+    }
+
+    @Override
+    public Role find(final String key) {
+<span class="nc" id="L70">        return entityManager().find(JPARole.class, key);</span>
+    }
+
+    @Override
+    public List&lt;Role&gt; findByRealm(final Realm realm) {
+<span class="nc" id="L75">        TypedQuery&lt;Role&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L76">                &quot;SELECT e FROM &quot; + JPARole.class.getSimpleName() + &quot; e WHERE :realm MEMBER OF e.realms&quot;, Role.class);</span>
+<span class="nc" id="L77">        query.setParameter(&quot;realm&quot;, realm);</span>
+<span class="nc" id="L78">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;Role&gt; findByPrivilege(final Privilege privilege) {
+<span class="nc" id="L83">        TypedQuery&lt;Role&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L84">                &quot;SELECT e FROM &quot; + JPARole.class.getSimpleName() + &quot; e WHERE :privilege MEMBER OF e.privileges&quot;,</span>
+                Role.class);
+<span class="nc" id="L86">        query.setParameter(&quot;privilege&quot;, privilege);</span>
+<span class="nc" id="L87">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;Role&gt; findAll() {
+<span class="nc" id="L92">        TypedQuery&lt;Role&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L93">                &quot;SELECT e FROM &quot; + JPARole.class.getSimpleName() + &quot; e &quot;, Role.class);</span>
+<span class="nc" id="L94">        return query.getResultList();</span>
+    }
+
+    @Override
+    public Role save(final Role role) {
+<span class="nc" id="L99">        return entityManager().merge(role);</span>
+    }
+
+    @Override
+    public Role saveAndRefreshDynMemberships(final Role role) {
+<span class="nc" id="L104">        Role merged = save(role);</span>
+
+        // refresh dynamic memberships
+<span class="nc" id="L107">        clearDynMembers(merged);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (merged.getDynMembership() != null) {</span>
+<span class="nc" id="L109">            List&lt;User&gt; matching = searchDAO.search(</span>
+<span class="nc" id="L110">                    SearchCondConverter.convert(searchCondVisitor, merged.getDynMembership().getFIQLCond()),</span>
+                    AnyTypeKind.USER);
+
+<span class="nc" id="L113">            matching.forEach((user) -&gt; {</span>
+<span class="nc" id="L114">                Query insert = entityManager().createNativeQuery(&quot;INSERT INTO &quot; + DYNMEMB_TABLE + &quot; VALUES(?, ?)&quot;);</span>
+<span class="nc" id="L115">                insert.setParameter(1, user.getKey());</span>
+<span class="nc" id="L116">                insert.setParameter(2, merged.getKey());</span>
+<span class="nc" id="L117">                insert.executeUpdate();</span>
+
+<span class="nc" id="L119">                publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, user, AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L120">            });</span>
+        }
+
+<span class="nc" id="L123">        return merged;</span>
+    }
+
+    @Override
+    public void delete(final Role role) {
+<span class="nc" id="L128">        TypedQuery&lt;User&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L129">                &quot;SELECT e FROM &quot; + JPAUser.class.getSimpleName() + &quot; e WHERE :role MEMBER OF e.roles&quot;, User.class);</span>
+<span class="nc" id="L130">        query.setParameter(&quot;role&quot;, role);</span>
+
+<span class="nc" id="L132">        query.getResultList().forEach(user -&gt; {</span>
+<span class="nc" id="L133">            user.getRoles().remove(role);</span>
+<span class="nc" id="L134">            publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, user, AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L135">        });</span>
+
+<span class="nc" id="L137">        clearDynMembers(role);</span>
+
+<span class="nc" id="L139">        entityManager().remove(role);</span>
+<span class="nc" id="L140">    }</span>
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L144">        Role role = find(key);</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">        if (role == null) {</span>
+<span class="nc" id="L146">            return;</span>
+        }
+
+<span class="nc" id="L149">        delete(role);</span>
+<span class="nc" id="L150">    }</span>
+
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public List&lt;String&gt; findDynMembers(final Role role) {
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        if (role.getDynMembership() == null) {</span>
+<span class="nc" id="L156">            return List.of();</span>
+        }
+
+<span class="nc" id="L159">        Query query = entityManager().createNativeQuery(&quot;SELECT any_id FROM &quot; + DYNMEMB_TABLE + &quot; WHERE role_id=?&quot;);</span>
+<span class="nc" id="L160">        query.setParameter(1, role.getKey());</span>
+
+<span class="nc" id="L162">        List&lt;String&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">        query.getResultList().stream().map(key -&gt; key instanceof Object[]</span>
+<span class="nc" id="L164">                ? (String) ((Object[]) key)[0]</span>
+<span class="nc" id="L165">                : ((String) key)).</span>
+<span class="nc" id="L166">                forEach(user -&gt; result.add((String) user));</span>
+<span class="nc" id="L167">        return result;</span>
+    }
+
+    @Override
+    public void clearDynMembers(final Role role) {
+<span class="nc" id="L172">        Query delete = entityManager().createNativeQuery(&quot;DELETE FROM &quot; + DYNMEMB_TABLE + &quot; WHERE role_id=?&quot;);</span>
+<span class="nc" id="L173">        delete.setParameter(1, role.getKey());</span>
+<span class="nc" id="L174">        delete.executeUpdate();</span>
+<span class="nc" id="L175">    }</span>
+
+    @Transactional
+    @Override
+    public void refreshDynMemberships(final User user) {
+<span class="nc" id="L180">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT role_id FROM &quot; + DYNMEMB_TABLE + &quot; WHERE any_id=?&quot;);
+<span class="nc" id="L182">        query.setParameter(1, user.getKey());</span>
+
+<span class="nc bnc" id="L184" title="All 2 branches missed.">        findAll().stream().filter(role -&gt; role.getDynMembership() != null).forEach(role -&gt; {</span>
+<span class="nc" id="L185">            boolean matches = anyMatchDAO.matches(</span>
+<span class="nc" id="L186">                    user, SearchCondConverter.convert(searchCondVisitor, role.getDynMembership().getFIQLCond()));</span>
+
+<span class="nc" id="L188">            Query find = entityManager().createNativeQuery(</span>
+                    &quot;SELECT any_id FROM &quot; + DYNMEMB_TABLE + &quot; WHERE role_id=?&quot;);
+<span class="nc" id="L190">            find.setParameter(1, role.getKey());</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">            boolean existing = !find.getResultList().isEmpty();</span>
+
+<span class="nc bnc" id="L193" title="All 4 branches missed.">            if (matches &amp;&amp; !existing) {</span>
+<span class="nc" id="L194">                Query insert = entityManager().createNativeQuery(</span>
+                        &quot;INSERT INTO &quot; + DYNMEMB_TABLE + &quot; VALUES(?, ?)&quot;);
+<span class="nc" id="L196">                insert.setParameter(1, user.getKey());</span>
+<span class="nc" id="L197">                insert.setParameter(2, role.getKey());</span>
+<span class="nc" id="L198">                insert.executeUpdate();</span>
+<span class="nc bnc" id="L199" title="All 4 branches missed.">            } else if (!matches &amp;&amp; existing) {</span>
+<span class="nc" id="L200">                Query delete = entityManager().createNativeQuery(</span>
+                        &quot;DELETE FROM &quot; + DYNMEMB_TABLE + &quot; WHERE role_id=? AND any_id=?&quot;);
+<span class="nc" id="L202">                delete.setParameter(1, role.getKey());</span>
+<span class="nc" id="L203">                delete.setParameter(2, user.getKey());</span>
+<span class="nc" id="L204">                delete.executeUpdate();</span>
+            }
+<span class="nc" id="L206">        });</span>
+<span class="nc" id="L207">    }</span>
+
+    @Override
+    public void removeDynMemberships(final String key) {
+<span class="nc" id="L211">        Query delete = entityManager().createNativeQuery(&quot;DELETE FROM &quot; + DYNMEMB_TABLE + &quot; WHERE any_id=?&quot;);</span>
+<span class="nc" id="L212">        delete.setParameter(1, key);</span>
+<span class="nc" id="L213">        delete.executeUpdate();</span>
+<span class="nc" id="L214">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

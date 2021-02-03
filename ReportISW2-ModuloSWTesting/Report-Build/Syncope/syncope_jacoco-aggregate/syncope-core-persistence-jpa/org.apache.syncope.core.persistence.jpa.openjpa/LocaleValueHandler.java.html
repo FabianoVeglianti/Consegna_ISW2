@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>LocaleValueHandler.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.openjpa</a> &gt; <span class="el_source">LocaleValueHandler.java</span></div><h1>LocaleValueHandler.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.openjpa;
+
+import java.util.Locale;
+import java.util.Optional;
+
+import org.apache.commons.lang3.LocaleUtils;
+import org.apache.openjpa.jdbc.identifier.DBIdentifier;
+import org.apache.openjpa.jdbc.kernel.JDBCStore;
+import org.apache.openjpa.jdbc.meta.ValueMapping;
+import org.apache.openjpa.jdbc.meta.strats.AbstractValueHandler;
+import org.apache.openjpa.jdbc.schema.Column;
+import org.apache.openjpa.jdbc.schema.ColumnIO;
+import org.apache.openjpa.jdbc.sql.DBDictionary;
+import org.apache.openjpa.meta.JavaTypes;
+
+<span class="nc" id="L34">public class LocaleValueHandler extends AbstractValueHandler {</span>
+
+    private static final long serialVersionUID = 487849441377630981L;
+
+<span class="nc" id="L38">    private static final LocaleValueHandler INSTANCE = new LocaleValueHandler();</span>
+
+    public static LocaleValueHandler getInstance() {
+<span class="nc" id="L41">        return INSTANCE;</span>
+    }
+
+    @Override
+    @Deprecated
+    public Column[] map(final ValueMapping vm, final String name, final ColumnIO io, final boolean adapt) {
+<span class="nc" id="L47">        DBDictionary dict = vm.getMappingRepository().getDBDictionary();</span>
+<span class="nc" id="L48">        DBIdentifier colName = DBIdentifier.newColumn(</span>
+<span class="nc" id="L49">                name, Optional.ofNullable(dict).filter(DBDictionary::delimitAll).isPresent());</span>
+<span class="nc" id="L50">        return map(colName);</span>
+    }
+
+    public static Column[] map(final DBIdentifier name) {
+<span class="nc" id="L54">        Column col = new Column();</span>
+<span class="nc" id="L55">        col.setIdentifier(name);</span>
+<span class="nc" id="L56">        col.setJavaType(JavaTypes.STRING);</span>
+<span class="nc" id="L57">        return new Column[] { col };</span>
+    }
+
+    @Override
+    public Object toDataStoreValue(final ValueMapping vm, final Object val, final JDBCStore store) {
+<span class="nc" id="L62">        return Optional.ofNullable(val).map(o -&gt; ((Locale) o).toString()).orElse(null);</span>
+    }
+
+    @Override
+    public Object toObjectValue(final ValueMapping vm, final Object val) {
+<span class="nc" id="L67">        return Optional.ofNullable(val).map(o -&gt; LocaleUtils.toLocale((String) o)).orElse(null);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

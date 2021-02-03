@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>StartupDomainLoader.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa</a> &gt; <span class="el_source">StartupDomainLoader.java</span></div><h1>StartupDomainLoader.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.Enumeration;
+import java.util.Map;
+import java.util.Properties;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.cxf.helpers.IOUtils;
+import org.apache.syncope.common.keymaster.client.api.DomainOps;
+import org.apache.syncope.common.keymaster.client.api.model.Domain;
+import org.apache.syncope.common.lib.PropertyUtils;
+import org.apache.syncope.common.lib.types.CipherAlgorithm;
+import org.apache.syncope.core.persistence.api.DomainHolder;
+import org.apache.syncope.core.persistence.api.DomainRegistry;
+import org.apache.syncope.core.persistence.api.SyncopeCoreLoader;
+import org.apache.syncope.core.spring.ResourceWithFallbackLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.Ordered;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Component;
+
+@Component
+<span class="nc" id="L49">public class StartupDomainLoader implements SyncopeCoreLoader {</span>
+
+<span class="nc" id="L51">    private static final Logger LOG = LoggerFactory.getLogger(StartupDomainLoader.class);</span>
+
+<span class="nc" id="L53">    private static final ObjectMapper MAPPER = new ObjectMapper();</span>
+
+    @Autowired
+    private DomainOps domainOps;
+
+    @Autowired
+    private ConfigurableApplicationContext ctx;
+
+    @Autowired
+    private DomainHolder domainHolder;
+
+    @Autowired
+    private DomainRegistry domainRegistry;
+
+    @Value(&quot;${content.directory}&quot;)
+    private String contentDirectory;
+
+    @Override
+    public int getOrder() {
+<span class="nc" id="L72">        return Ordered.LOWEST_PRECEDENCE;</span>
+    }
+
+    @Override
+    public void load() {
+        try {
+<span class="nc" id="L78">            Map&lt;String, Domain&gt; keymasterDomains = domainOps.list().stream().</span>
+<span class="nc" id="L79">                    collect(Collectors.toMap(Domain::getKey, Function.identity()));</span>
+
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            for (Resource domainProp : ctx.getResources(&quot;classpath:/domains/*.properties&quot;)) {</span>
+<span class="nc" id="L82">                String domainPropFile = StringUtils.substringAfterLast(domainProp.getURL().toExternalForm(), &quot;/&quot;);</span>
+<span class="nc" id="L83">                String key = StringUtils.substringBefore(domainPropFile, &quot;.&quot;);</span>
+
+<span class="nc bnc" id="L85" title="All 2 branches missed.">                if (!domainHolder.getDomains().containsKey(key)) {</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">                    if (keymasterDomains.containsKey(key)) {</span>
+<span class="nc" id="L87">                        LOG.info(&quot;Domain {} initialization&quot;, key);</span>
+
+<span class="nc" id="L89">                        domainRegistry.register(keymasterDomains.get(key));</span>
+
+<span class="nc" id="L91">                        LOG.info(&quot;Domain {} successfully inited&quot;, key);</span>
+                    } else {
+<span class="nc" id="L93">                        Domain.Builder builder = new Domain.Builder(key);</span>
+
+<span class="nc" id="L95">                        Properties props = PropertyUtils.read(getClass(),</span>
+                                &quot;domains/&quot; + domainPropFile, contentDirectory);
+<span class="nc bnc" id="L97" title="All 2 branches missed.">                        for (Enumeration&lt;?&gt; e = props.propertyNames(); e.hasMoreElements();) {</span>
+<span class="nc" id="L98">                            String prop = (String) e.nextElement();</span>
+
+<span class="nc bnc" id="L100" title="All 2 branches missed.">                            if (prop.endsWith(&quot;.driverClassName&quot;)) {</span>
+<span class="nc" id="L101">                                builder.jdbcDriver(props.getProperty(prop));</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">                            } else if (prop.endsWith(&quot;.url&quot;)) {</span>
+<span class="nc" id="L103">                                builder.jdbcURL(props.getProperty(prop));</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">                            } else if (prop.endsWith(&quot;.schema&quot;)) {</span>
+<span class="nc" id="L105">                                builder.dbSchema(props.getProperty(prop));</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">                            } else if (prop.endsWith(&quot;.username&quot;)) {</span>
+<span class="nc" id="L107">                                builder.dbUsername(props.getProperty(prop));</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">                            } else if (prop.endsWith(&quot;.password&quot;)) {</span>
+<span class="nc" id="L109">                                builder.dbPassword(props.getProperty(prop));</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">                            } else if (prop.endsWith(&quot;.databasePlatform&quot;)) {</span>
+<span class="nc" id="L111">                                builder.databasePlatform(props.getProperty(prop));</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">                            } else if (prop.endsWith(&quot;.orm&quot;)) {</span>
+<span class="nc" id="L113">                                builder.orm(props.getProperty(prop));</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">                            } else if (prop.endsWith(&quot;.pool.maxActive&quot;)) {</span>
+<span class="nc" id="L115">                                builder.poolMaxActive(Integer.parseInt(props.getProperty(prop)));</span>
+<span class="nc bnc" id="L116" title="All 2 branches missed.">                            } else if (prop.endsWith(&quot;.pool.minIdle&quot;)) {</span>
+<span class="nc" id="L117">                                builder.poolMinIdle(Integer.parseInt(props.getProperty(prop)));</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">                            } else if (prop.endsWith(&quot;.audit.sql&quot;)) {</span>
+<span class="nc" id="L119">                                builder.auditSql(props.getProperty(prop));</span>
+                            }
+<span class="nc" id="L121">                        }</span>
+
+<span class="nc" id="L123">                        ResourceWithFallbackLoader content =</span>
+<span class="nc" id="L124">                                ctx.getBeanFactory().createBean(ResourceWithFallbackLoader.class);</span>
+<span class="nc" id="L125">                        content.setPrimary(&quot;file:&quot; + contentDirectory + &quot;/domains/&quot; + key + &quot;Content.xml&quot;);</span>
+<span class="nc" id="L126">                        content.setFallback(&quot;classpath:domains/&quot; + key + &quot;Content.xml&quot;);</span>
+<span class="nc" id="L127">                        builder.content(IOUtils.toString(content.getResource().getInputStream()));</span>
+
+<span class="nc" id="L129">                        ResourceWithFallbackLoader keymasterConfParams =</span>
+<span class="nc" id="L130">                                ctx.getBeanFactory().createBean(ResourceWithFallbackLoader.class);</span>
+<span class="nc" id="L131">                        keymasterConfParams.setPrimary(</span>
+                                &quot;file:&quot; + contentDirectory + &quot;/domains/&quot; + key + &quot;KeymasterConfParams.json&quot;);
+<span class="nc" id="L133">                        keymasterConfParams.setFallback(&quot;classpath:domains/&quot; + key + &quot;KeymasterConfParams.json&quot;);</span>
+<span class="nc" id="L134">                        builder.keymasterConfParams(</span>
+<span class="nc" id="L135">                                IOUtils.toString(keymasterConfParams.getResource().getInputStream()));</span>
+
+<span class="nc" id="L137">                        ResourceWithFallbackLoader security =</span>
+<span class="nc" id="L138">                                ctx.getBeanFactory().createBean(ResourceWithFallbackLoader.class);</span>
+<span class="nc" id="L139">                        security.setPrimary(&quot;file:&quot; + contentDirectory + &quot;/domains/&quot; + key + &quot;Security.json&quot;);</span>
+<span class="nc" id="L140">                        security.setFallback(&quot;classpath:domains/&quot; + key + &quot;Security.json&quot;);</span>
+
+<span class="nc" id="L142">                        JsonNode securityInfo = MAPPER.readTree(security.getResource().getInputStream());</span>
+<span class="nc" id="L143">                        builder.adminPassword(securityInfo.get(&quot;password&quot;).asText());</span>
+<span class="nc" id="L144">                        builder.adminCipherAlgorithm(</span>
+<span class="nc" id="L145">                                CipherAlgorithm.valueOf(securityInfo.get(&quot;cipherAlgorithm&quot;).asText()));</span>
+
+<span class="nc" id="L147">                        domainOps.create(builder.build());</span>
+                    }
+                }
+            }
+<span class="nc" id="L151">        } catch (IOException | NumberFormatException e) {</span>
+<span class="nc" id="L152">            LOG.error(&quot;Error during domain initialization&quot;, e);</span>
+<span class="nc" id="L153">        }</span>
+<span class="nc" id="L154">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

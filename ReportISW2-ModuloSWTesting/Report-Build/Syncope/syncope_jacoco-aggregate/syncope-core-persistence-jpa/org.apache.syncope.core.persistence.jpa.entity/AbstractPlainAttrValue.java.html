@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>AbstractPlainAttrValue.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity</a> &gt; <span class="el_source">AbstractPlainAttrValue.java</span></div><h1>AbstractPlainAttrValue.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity;
+
+import java.util.Base64;
+import java.util.Date;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import javax.persistence.Lob;
+import javax.persistence.MappedSuperclass;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.syncope.common.lib.SyncopeConstants;
+import org.apache.syncope.common.lib.types.AttrSchemaType;
+import org.apache.syncope.core.provisioning.api.utils.FormatUtils;
+import org.apache.syncope.core.persistence.api.attrvalue.validation.ParsingValidationException;
+import org.apache.syncope.core.persistence.api.entity.PlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.jpa.validation.entity.PlainAttrValueCheck;
+import org.apache.syncope.core.spring.ApplicationContextProvider;
+import org.apache.syncope.core.spring.security.Encryptor;
+
+@MappedSuperclass
+@PlainAttrValueCheck
+<span class="nc" id="L44">public abstract class AbstractPlainAttrValue extends AbstractGeneratedKeyEntity implements PlainAttrValue {</span>
+
+    private static final long serialVersionUID = -9141923816611244785L;
+
+<span class="nc bnc" id="L48" title="All 16 branches missed.">    private static final Pattern SPRING_ENV_PROPERTY = Pattern.compile(&quot;^\\$\\{.*\\}$&quot;);</span>
+
+    private String stringValue;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date dateValue;
+
+    private Boolean booleanValue;
+
+    private Long longValue;
+
+    private Double doubleValue;
+
+    @Lob
+    private byte[] binaryValue;
+
+    @Override
+    public Boolean getBooleanValue() {
+<span class="nc" id="L66">        return booleanValue;</span>
+    }
+
+    @Override
+    public void setBooleanValue(final Boolean booleanValue) {
+<span class="nc" id="L71">        this.booleanValue = booleanValue;</span>
+<span class="nc" id="L72">    }</span>
+
+    @Override
+    public Date getDateValue() {
+<span class="nc" id="L76">        return Optional.ofNullable(dateValue).map(value -&gt; new Date(value.getTime())).orElse(null);</span>
+    }
+
+    @Override
+    public void setDateValue(final Date dateValue) {
+<span class="nc" id="L81">        this.dateValue = Optional.ofNullable(dateValue).map(value -&gt; new Date(value.getTime())).orElse(null);</span>
+<span class="nc" id="L82">    }</span>
+
+    @Override
+    public Double getDoubleValue() {
+<span class="nc" id="L86">        return doubleValue;</span>
+    }
+
+    @Override
+    public void setDoubleValue(final Double doubleValue) {
+<span class="nc" id="L91">        this.doubleValue = doubleValue;</span>
+<span class="nc" id="L92">    }</span>
+
+    @Override
+    public Long getLongValue() {
+<span class="nc" id="L96">        return longValue;</span>
+    }
+
+    @Override
+    public void setLongValue(final Long longValue) {
+<span class="nc" id="L101">        this.longValue = longValue;</span>
+<span class="nc" id="L102">    }</span>
+
+    @Override
+    public String getStringValue() {
+        // workaround for Oracle DB considering empty string values as NULL (SYNCOPE-664)
+<span class="nc" id="L107">        return dateValue == null</span>
+                &amp;&amp; booleanValue == null
+                &amp;&amp; longValue == null
+                &amp;&amp; doubleValue == null
+                &amp;&amp; binaryValue == null
+<span class="nc bnc" id="L112" title="All 12 branches missed.">                &amp;&amp; stringValue == null</span>
+<span class="nc" id="L113">                        ? StringUtils.EMPTY</span>
+<span class="nc" id="L114">                        : stringValue;</span>
+    }
+
+    @Override
+    public void setStringValue(final String stringValue) {
+<span class="nc" id="L119">        this.stringValue = stringValue;</span>
+<span class="nc" id="L120">    }</span>
+
+    @Override
+    public byte[] getBinaryValue() {
+<span class="nc" id="L124">        return binaryValue;</span>
+    }
+
+    @Override
+    public void setBinaryValue(final byte[] binaryValue) {
+<span class="nc" id="L129">        this.binaryValue = ArrayUtils.clone(binaryValue);</span>
+<span class="nc" id="L130">    }</span>
+
+    protected String getSecretKey(final PlainSchema schema) {
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        return SPRING_ENV_PROPERTY.matcher(schema.getSecretKey()).matches()</span>
+<span class="nc" id="L134">                ? ApplicationContextProvider.getApplicationContext().getEnvironment().</span>
+<span class="nc" id="L135">                        getProperty(StringUtils.substringBetween(schema.getSecretKey(), &quot;${&quot;, &quot;}&quot;))</span>
+<span class="nc" id="L136">                : schema.getSecretKey();</span>
+    }
+
+    @Override
+    public void parseValue(final PlainSchema schema, final String value) {
+<span class="nc" id="L141">        Exception exception = null;</span>
+
+<span class="nc bnc" id="L143" title="All 7 branches missed.">        switch (schema.getType()) {</span>
+
+            case Boolean:
+<span class="nc" id="L146">                this.setBooleanValue(Boolean.parseBoolean(value));</span>
+<span class="nc" id="L147">                break;</span>
+
+            case Long:
+                try {
+<span class="nc bnc" id="L151" title="All 2 branches missed.">                this.setLongValue(schema.getConversionPattern() == null</span>
+<span class="nc" id="L152">                        ? Long.valueOf(value)</span>
+<span class="nc" id="L153">                        : FormatUtils.parseNumber(value, schema.getConversionPattern()).longValue());</span>
+<span class="nc" id="L154">            } catch (Exception pe) {</span>
+<span class="nc" id="L155">                exception = pe;</span>
+<span class="nc" id="L156">            }</span>
+<span class="nc" id="L157">            break;</span>
+
+            case Double:
+                try {
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                this.setDoubleValue(schema.getConversionPattern() == null</span>
+<span class="nc" id="L162">                        ? Double.valueOf(value)</span>
+<span class="nc" id="L163">                        : FormatUtils.parseNumber(value, schema.getConversionPattern()).doubleValue());</span>
+<span class="nc" id="L164">            } catch (Exception pe) {</span>
+<span class="nc" id="L165">                exception = pe;</span>
+<span class="nc" id="L166">            }</span>
+<span class="nc" id="L167">            break;</span>
+
+            case Date:
+                try {
+<span class="nc bnc" id="L171" title="All 2 branches missed.">                this.setDateValue(schema.getConversionPattern() == null</span>
+<span class="nc" id="L172">                        ? FormatUtils.parseDate(value)</span>
+<span class="nc" id="L173">                        : new Date(FormatUtils.parseDate(value, schema.getConversionPattern()).getTime()));</span>
+<span class="nc" id="L174">            } catch (Exception pe) {</span>
+<span class="nc" id="L175">                exception = pe;</span>
+<span class="nc" id="L176">            }</span>
+<span class="nc" id="L177">            break;</span>
+
+            case Encrypted:
+                try {
+<span class="nc" id="L181">                this.setStringValue(Encryptor.getInstance(getSecretKey(schema)).</span>
+<span class="nc" id="L182">                        encode(value, schema.getCipherAlgorithm()));</span>
+<span class="nc" id="L183">            } catch (Exception pe) {</span>
+<span class="nc" id="L184">                exception = pe;</span>
+<span class="nc" id="L185">            }</span>
+<span class="nc" id="L186">            break;</span>
+
+            case Binary:
+<span class="nc" id="L189">                this.setBinaryValue(Base64.getDecoder().decode(value));</span>
+<span class="nc" id="L190">                break;</span>
+
+            case String:
+            case Enum:
+            default:
+<span class="nc" id="L195">                this.setStringValue(value);</span>
+        }
+
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        if (exception != null) {</span>
+<span class="nc" id="L199">            throw new ParsingValidationException(</span>
+<span class="nc" id="L200">                    &quot;While trying to parse '&quot; + value + &quot;' as &quot; + schema.getKey(), exception);</span>
+        }
+<span class="nc" id="L202">    }</span>
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    @Override
+    public &lt;T&gt; T getValue() {
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        return (T) (booleanValue != null</span>
+<span class="nc" id="L208">                ? getBooleanValue()</span>
+<span class="nc bnc" id="L209" title="All 2 branches missed.">                : dateValue != null</span>
+<span class="nc" id="L210">                        ? getDateValue()</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">                        : doubleValue != null</span>
+<span class="nc" id="L212">                                ? getDoubleValue()</span>
+<span class="nc bnc" id="L213" title="All 2 branches missed.">                                : longValue != null</span>
+<span class="nc" id="L214">                                        ? getLongValue()</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">                                        : binaryValue != null</span>
+<span class="nc" id="L216">                                                ? getBinaryValue()</span>
+<span class="nc" id="L217">                                                : getStringValue());</span>
+    }
+
+    private Object getValue(final AttrSchemaType type) {
+        Object value;
+<span class="nc bnc" id="L222" title="All 7 branches missed.">        switch (type) {</span>
+
+            case Boolean:
+<span class="nc" id="L225">                value = getBooleanValue();</span>
+<span class="nc" id="L226">                break;</span>
+
+            case Long:
+<span class="nc" id="L229">                value = getLongValue();</span>
+<span class="nc" id="L230">                break;</span>
+
+            case Double:
+<span class="nc" id="L233">                value = getDoubleValue();</span>
+<span class="nc" id="L234">                break;</span>
+
+            case Date:
+<span class="nc" id="L237">                value = getDateValue();</span>
+<span class="nc" id="L238">                break;</span>
+
+            case Binary:
+<span class="nc" id="L241">                value = getBinaryValue();</span>
+<span class="nc" id="L242">                break;</span>
+
+            case String:
+            case Enum:
+            case Encrypted:
+<span class="nc" id="L247">                value = getStringValue();</span>
+<span class="nc" id="L248">                break;</span>
+
+            default:
+<span class="nc" id="L251">                value = null;</span>
+        }
+
+<span class="nc" id="L254">        return value;</span>
+    }
+
+    private String getValueAsString(final AttrSchemaType type, final PlainSchema schema) {
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        if (getValue(type) == null) {</span>
+<span class="nc" id="L259">            LOG.warn(&quot;Could not find expected value for type {} in {}, reverting to getValue().toString()&quot;, type, this);</span>
+
+<span class="nc" id="L261">            Object value = getValue();</span>
+<span class="nc" id="L262">            return Optional.ofNullable(value).map(Object::toString).orElse(null);</span>
+        }
+
+        String result;
+<span class="nc bnc" id="L266" title="All 7 branches missed.">        switch (type) {</span>
+
+            case Boolean:
+<span class="nc" id="L269">                result = getBooleanValue().toString();</span>
+<span class="nc" id="L270">                break;</span>
+
+            case Long:
+<span class="nc bnc" id="L273" title="All 4 branches missed.">                result = schema == null || schema.getConversionPattern() == null</span>
+<span class="nc" id="L274">                        ? getLongValue().toString()</span>
+<span class="nc" id="L275">                        : FormatUtils.format(getLongValue(), schema.getConversionPattern());</span>
+<span class="nc" id="L276">                break;</span>
+
+            case Double:
+<span class="nc bnc" id="L279" title="All 4 branches missed.">                result = schema == null || schema.getConversionPattern() == null</span>
+<span class="nc" id="L280">                        ? getDoubleValue().toString()</span>
+<span class="nc" id="L281">                        : FormatUtils.format(getDoubleValue(), schema.getConversionPattern());</span>
+<span class="nc" id="L282">                break;</span>
+
+            case Date:
+<span class="nc bnc" id="L285" title="All 4 branches missed.">                result = schema == null || schema.getConversionPattern() == null</span>
+<span class="nc" id="L286">                        ? FormatUtils.format(getDateValue())</span>
+<span class="nc" id="L287">                        : FormatUtils.format(getDateValue(), false, schema.getConversionPattern());</span>
+<span class="nc" id="L288">                break;</span>
+
+            case Binary:
+<span class="nc" id="L291">                result = Base64.getEncoder().encodeToString(getBinaryValue());</span>
+<span class="nc" id="L292">                break;</span>
+
+            case Encrypted:
+<span class="nc bnc" id="L295" title="All 2 branches missed.">                if (schema == null</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">                        || !SyncopeConstants.ENCRYPTED_DECODE_CONVERSION_PATTERN.equals(schema.getConversionPattern())</span>
+<span class="nc bnc" id="L297" title="All 2 branches missed.">                        || !schema.getCipherAlgorithm().isInvertible()) {</span>
+
+<span class="nc" id="L299">                    result = getStringValue();</span>
+                } else {
+                    try {
+<span class="nc" id="L302">                        result = Encryptor.getInstance(getSecretKey(schema)).</span>
+<span class="nc" id="L303">                                decode(getStringValue(), schema.getCipherAlgorithm());</span>
+<span class="nc" id="L304">                    } catch (Exception e) {</span>
+<span class="nc" id="L305">                        LOG.error(&quot;Could not decode encrypted value {} for schema {}&quot;, getStringValue(), schema, e);</span>
+<span class="nc" id="L306">                        result = getStringValue();</span>
+<span class="nc" id="L307">                    }</span>
+                }
+<span class="nc" id="L309">                break;</span>
+
+            case String:
+            case Enum:
+            default:
+<span class="nc" id="L314">                result = getStringValue();</span>
+        }
+
+<span class="nc" id="L317">        return result;</span>
+    }
+
+    @Override
+    public String getValueAsString() {
+<span class="nc bnc" id="L322" title="All 4 branches missed.">        PlainSchema schema = getAttr() == null || getAttr().getSchema() == null</span>
+<span class="nc" id="L323">                ? null</span>
+<span class="nc" id="L324">                : getAttr().getSchema();</span>
+<span class="nc bnc" id="L325" title="All 4 branches missed.">        AttrSchemaType type = schema == null || schema.getType() == null</span>
+<span class="nc" id="L326">                ? AttrSchemaType.String</span>
+<span class="nc" id="L327">                : getAttr().getSchema().getType();</span>
+
+<span class="nc" id="L329">        return getValueAsString(type, schema);</span>
+    }
+
+    @Override
+    public String getValueAsString(final AttrSchemaType type) {
+<span class="nc" id="L334">        return getValueAsString(</span>
+                type,
+<span class="nc bnc" id="L336" title="All 4 branches missed.">                getAttr() == null || getAttr().getSchema() == null ? null : getAttr().getSchema());</span>
+    }
+
+    @Override
+    public String getValueAsString(final PlainSchema schema) {
+<span class="nc" id="L341">        return getValueAsString(schema.getType(), schema);</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L346">        return new ToStringBuilder(this).</span>
+<span class="nc" id="L347">                append(getKey()).</span>
+<span class="nc" id="L348">                append(stringValue).</span>
+<span class="nc" id="L349">                append(dateValue).</span>
+<span class="nc" id="L350">                append(booleanValue).</span>
+<span class="nc" id="L351">                append(longValue).</span>
+<span class="nc" id="L352">                append(doubleValue).</span>
+<span class="nc" id="L353">                append(binaryValue).</span>
+<span class="nc" id="L354">                build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

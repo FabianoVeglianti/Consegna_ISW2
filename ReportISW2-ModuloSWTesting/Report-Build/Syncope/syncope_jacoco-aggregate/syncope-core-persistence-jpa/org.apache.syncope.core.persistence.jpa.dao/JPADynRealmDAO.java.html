@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPADynRealmDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPADynRealmDAO.java</span></div><h1>JPADynRealmDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.ArrayList;
+import java.util.List;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
+import org.apache.syncope.core.persistence.api.dao.AnySearchDAO;
+import org.apache.syncope.core.persistence.api.dao.DynRealmDAO;
+import org.apache.syncope.core.persistence.api.entity.Any;
+import org.apache.syncope.core.persistence.api.entity.DynRealm;
+import org.apache.syncope.core.persistence.api.search.SearchCondConverter;
+import org.apache.syncope.core.persistence.jpa.entity.JPADynRealm;
+import org.apache.syncope.core.provisioning.api.event.AnyCreatedUpdatedEvent;
+import org.apache.syncope.core.spring.security.AuthContextUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+import org.apache.syncope.core.persistence.api.dao.AnyMatchDAO;
+import org.apache.syncope.core.persistence.api.dao.AnyObjectDAO;
+import org.apache.syncope.core.persistence.api.dao.GroupDAO;
+import org.apache.syncope.core.persistence.api.dao.UserDAO;
+import org.apache.syncope.core.persistence.api.search.SearchCondVisitor;
+
+@Repository
+<span class="nc" id="L44">public class JPADynRealmDAO extends AbstractDAO&lt;DynRealm&gt; implements DynRealmDAO {</span>
+
+    public static final String DYNMEMB_TABLE = &quot;DynRealmMembers&quot;;
+
+    @Autowired
+    private ApplicationEventPublisher publisher;
+
+    @Autowired
+    private UserDAO userDAO;
+
+    @Autowired
+    private GroupDAO groupDAO;
+
+    @Autowired
+    private AnyObjectDAO anyObjectDAO;
+
+    @Autowired
+    private AnySearchDAO searchDAO;
+
+    @Autowired
+    private AnyMatchDAO anyMatchDAO;
+
+    @Autowired
+    private SearchCondVisitor searchCondVisitor;
+
+    @Override
+    public DynRealm find(final String key) {
+<span class="nc" id="L71">        return entityManager().find(JPADynRealm.class, key);</span>
+    }
+
+    @Override
+    public List&lt;DynRealm&gt; findAll() {
+<span class="nc" id="L76">        TypedQuery&lt;DynRealm&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L77">                &quot;SELECT e FROM &quot; + JPADynRealm.class.getSimpleName() + &quot; e &quot;, DynRealm.class);</span>
+<span class="nc" id="L78">        return query.getResultList();</span>
+    }
+
+    @Override
+    public DynRealm save(final DynRealm dynRealm) {
+<span class="nc" id="L83">        return entityManager().merge(dynRealm);</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    private List&lt;String&gt; clearDynMembers(final DynRealm dynRealm) {
+<span class="nc" id="L88">        Query find = entityManager().createNativeQuery(</span>
+                &quot;SELECT any_id FROM &quot; + DYNMEMB_TABLE + &quot; WHERE dynRealm_id=?&quot;);
+<span class="nc" id="L90">        find.setParameter(1, dynRealm.getKey());</span>
+
+<span class="nc" id="L92">        List&lt;String&gt; cleared = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        find.getResultList().stream().map(key -&gt; key instanceof Object[]</span>
+<span class="nc" id="L94">                ? (String) ((Object[]) key)[0]</span>
+<span class="nc" id="L95">                : ((String) key)).</span>
+<span class="nc" id="L96">                forEach(key -&gt; cleared.add((String) key));</span>
+
+<span class="nc" id="L98">        Query delete = entityManager().createNativeQuery(&quot;DELETE FROM &quot; + DYNMEMB_TABLE + &quot; WHERE dynRealm_id=?&quot;);</span>
+<span class="nc" id="L99">        delete.setParameter(1, dynRealm.getKey());</span>
+<span class="nc" id="L100">        delete.executeUpdate();</span>
+
+<span class="nc" id="L102">        return cleared;</span>
+    }
+
+    private void notifyDynMembershipRemoval(final List&lt;String&gt; anyKeys) {
+<span class="nc" id="L106">        anyKeys.forEach(key -&gt; {</span>
+<span class="nc" id="L107">            Any&lt;?&gt; any = userDAO.find(key);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">            if (any == null) {</span>
+<span class="nc" id="L109">                any = groupDAO.find(key);</span>
+            }
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            if (any == null) {</span>
+<span class="nc" id="L112">                any = anyObjectDAO.find(key);</span>
+            }
+<span class="nc bnc" id="L114" title="All 2 branches missed.">            if (any != null) {</span>
+<span class="nc" id="L115">                publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, any, AuthContextUtils.getDomain()));</span>
+            }
+<span class="nc" id="L117">        });</span>
+<span class="nc" id="L118">    }</span>
+
+    @Override
+    public DynRealm saveAndRefreshDynMemberships(final DynRealm dynRealm) {
+<span class="nc" id="L122">        DynRealm merged = save(dynRealm);</span>
+
+        // refresh dynamic memberships
+<span class="nc" id="L125">        List&lt;String&gt; cleared = clearDynMembers(merged);</span>
+
+<span class="nc" id="L127">        merged.getDynMemberships().stream().map(memb -&gt; searchDAO.search(</span>
+<span class="nc" id="L128">                SearchCondConverter.convert(searchCondVisitor, memb.getFIQLCond()), memb.getAnyType().getKind())).</span>
+<span class="nc" id="L129">                forEach(matching -&gt; matching.forEach(any -&gt; {</span>
+
+<span class="nc" id="L131">            Query insert = entityManager().createNativeQuery(&quot;INSERT INTO &quot; + DYNMEMB_TABLE + &quot; VALUES(?, ?)&quot;);</span>
+<span class="nc" id="L132">            insert.setParameter(1, any.getKey());</span>
+<span class="nc" id="L133">            insert.setParameter(2, merged.getKey());</span>
+<span class="nc" id="L134">            insert.executeUpdate();</span>
+
+<span class="nc" id="L136">            publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, any, AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L137">            cleared.remove(any.getKey());</span>
+<span class="nc" id="L138">        }));</span>
+
+<span class="nc" id="L140">        notifyDynMembershipRemoval(cleared);</span>
+
+<span class="nc" id="L142">        return merged;</span>
+    }
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L147">        DynRealm dynRealm = find(key);</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">        if (dynRealm == null) {</span>
+<span class="nc" id="L149">            return;</span>
+        }
+
+<span class="nc" id="L152">        notifyDynMembershipRemoval(clearDynMembers(dynRealm));</span>
+
+<span class="nc" id="L154">        entityManager().remove(dynRealm);</span>
+<span class="nc" id="L155">    }</span>
+
+    @Transactional
+    @Override
+    public void refreshDynMemberships(final Any&lt;?&gt; any) {
+<span class="nc" id="L160">        findAll().forEach(dynRealm -&gt; dynRealm.getDynMembership(any.getType()).ifPresent(memb -&gt; {</span>
+<span class="nc" id="L161">            boolean matches = anyMatchDAO.matches(</span>
+<span class="nc" id="L162">                    any, SearchCondConverter.convert(searchCondVisitor, memb.getFIQLCond()));</span>
+
+<span class="nc" id="L164">            Query find = entityManager().createNativeQuery(</span>
+                    &quot;SELECT dynRealm_id FROM &quot; + DYNMEMB_TABLE + &quot; WHERE any_id=?&quot;);
+<span class="nc" id="L166">            find.setParameter(1, any.getKey());</span>
+<span class="nc bnc" id="L167" title="All 2 branches missed.">            boolean existing = !find.getResultList().isEmpty();</span>
+
+<span class="nc bnc" id="L169" title="All 4 branches missed.">            if (matches &amp;&amp; !existing) {</span>
+<span class="nc" id="L170">                Query insert = entityManager().</span>
+<span class="nc" id="L171">                        createNativeQuery(&quot;INSERT INTO &quot; + DYNMEMB_TABLE + &quot; VALUES(?, ?)&quot;);</span>
+<span class="nc" id="L172">                insert.setParameter(1, any.getKey());</span>
+<span class="nc" id="L173">                insert.setParameter(2, dynRealm.getKey());</span>
+<span class="nc" id="L174">                insert.executeUpdate();</span>
+<span class="nc bnc" id="L175" title="All 4 branches missed.">            } else if (!matches &amp;&amp; existing) {</span>
+<span class="nc" id="L176">                Query delete = entityManager().createNativeQuery(</span>
+                        &quot;DELETE FROM &quot; + DYNMEMB_TABLE + &quot; WHERE dynRealm_id=? AND any_id=?&quot;);
+<span class="nc" id="L178">                delete.setParameter(1, dynRealm.getKey());</span>
+<span class="nc" id="L179">                delete.setParameter(2, any.getKey());</span>
+<span class="nc" id="L180">                delete.executeUpdate();</span>
+            }
+<span class="nc" id="L182">        }));</span>
+<span class="nc" id="L183">    }</span>
+
+    @Override
+    public void removeDynMemberships(final String anyKey) {
+<span class="nc" id="L187">        Query delete = entityManager().createNativeQuery(&quot;DELETE FROM &quot; + DYNMEMB_TABLE + &quot; WHERE any_id=?&quot;);</span>
+<span class="nc" id="L188">        delete.setParameter(1, anyKey);</span>
+<span class="nc" id="L189">        delete.executeUpdate();</span>
+<span class="nc" id="L190">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

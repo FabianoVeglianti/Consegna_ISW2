@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>PersistenceContext.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa</a> &gt; <span class="el_source">PersistenceContext.java</span></div><h1>PersistenceContext.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa;
+
+import java.lang.reflect.InvocationTargetException;
+import java.util.HashMap;
+import java.util.Map;
+import javax.persistence.ValidationMode;
+import javax.validation.Validator;
+import org.apache.syncope.core.persistence.api.dao.AnyObjectDAO;
+import org.apache.syncope.core.persistence.api.dao.AnySearchDAO;
+import org.apache.syncope.core.persistence.api.dao.GroupDAO;
+import org.apache.syncope.core.persistence.api.dao.LoggerDAO;
+import org.apache.syncope.core.persistence.api.dao.PlainAttrDAO;
+import org.apache.syncope.core.persistence.api.dao.PlainAttrValueDAO;
+import org.apache.syncope.core.persistence.api.dao.PlainSchemaDAO;
+import org.apache.syncope.core.persistence.api.dao.UserDAO;
+import org.apache.syncope.core.persistence.api.entity.EntityFactory;
+import org.apache.syncope.core.persistence.api.search.SearchCondVisitor;
+import org.apache.syncope.core.persistence.jpa.spring.CommonEntityManagerFactoryConf;
+import org.apache.syncope.core.persistence.jpa.spring.DomainTransactionInterceptorInjector;
+import org.apache.syncope.core.persistence.jpa.spring.MultiJarAwarePersistenceUnitPostProcessor;
+import org.apache.syncope.core.spring.ResourceWithFallbackLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.Environment;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+
+@PropertySource(&quot;classpath:persistence.properties&quot;)
+@PropertySource(value = &quot;file:${conf.directory}/persistence.properties&quot;, ignoreResourceNotFound = true)
+@ComponentScan(&quot;org.apache.syncope.core.persistence.jpa&quot;)
+@Configuration
+<span class="nc" id="L56">public class PersistenceContext implements EnvironmentAware {</span>
+
+<span class="nc" id="L58">    private static final Logger OPENJPA_LOG = LoggerFactory.getLogger(&quot;org.apache.openjpa&quot;);</span>
+
+    private Environment env;
+
+    @Override
+    public void setEnvironment(final Environment env) {
+<span class="nc" id="L64">        this.env = env;</span>
+<span class="nc" id="L65">    }</span>
+
+    @Bean
+    public static BeanFactoryPostProcessor domainTransactionInterceptorInjector() {
+<span class="nc" id="L69">        return new DomainTransactionInterceptorInjector();</span>
+    }
+
+    @ConditionalOnMissingBean
+    @Bean
+    public CommonEntityManagerFactoryConf commonEMFConf() {
+<span class="nc" id="L75">        CommonEntityManagerFactoryConf commonEMFConf = new CommonEntityManagerFactoryConf();</span>
+<span class="nc" id="L76">        commonEMFConf.setPackagesToScan(&quot;org.apache.syncope.core.persistence.jpa.entity&quot;);</span>
+<span class="nc" id="L77">        commonEMFConf.setValidationMode(ValidationMode.NONE);</span>
+<span class="nc" id="L78">        commonEMFConf.setPersistenceUnitPostProcessors(new MultiJarAwarePersistenceUnitPostProcessor());</span>
+<span class="nc" id="L79">        Map&lt;String, Object&gt; jpaPropertyMap = new HashMap&lt;&gt;();</span>
+
+<span class="nc" id="L81">        jpaPropertyMap.put(&quot;openjpa.Log&quot;, &quot;slf4j&quot;);</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        if (OPENJPA_LOG.isDebugEnabled()) {</span>
+<span class="nc" id="L83">            jpaPropertyMap.put(&quot;openjpa.Log&quot;, &quot;SQL=TRACE&quot;);</span>
+<span class="nc" id="L84">            jpaPropertyMap.put(&quot;openjpa.ConnectionFactoryProperties&quot;,</span>
+                    &quot;PrintParameters=true, PrettyPrint=true, PrettyPrintLineLength=120&quot;);
+        }
+
+<span class="nc" id="L88">        jpaPropertyMap.put(&quot;openjpa.NontransactionalWrite&quot;, false);</span>
+
+<span class="nc" id="L90">        jpaPropertyMap.put(&quot;openjpa.jdbc.MappingDefaults&quot;,</span>
+                &quot;ForeignKeyDeleteAction=restrict, JoinForeignKeyDeleteAction=restrict,&quot;
+                + &quot;FieldStrategies='&quot;
+                + &quot;java.util.Locale=org.apache.syncope.core.persistence.jpa.openjpa.LocaleValueHandler,&quot;
+                + &quot;java.lang.Boolean=org.apache.syncope.core.persistence.jpa.openjpa.BooleanValueHandler'&quot;);
+
+<span class="nc" id="L96">        jpaPropertyMap.put(&quot;openjpa.DataCache&quot;, &quot;true&quot;);</span>
+<span class="nc" id="L97">        jpaPropertyMap.put(&quot;openjpa.QueryCache&quot;, &quot;true&quot;);</span>
+
+<span class="nc" id="L99">        jpaPropertyMap.put(&quot;openjpa.RemoteCommitProvider&quot;, env.getProperty(&quot;openjpa.RemoteCommitProvider&quot;, &quot;sjvm&quot;));</span>
+
+<span class="nc" id="L101">        commonEMFConf.setJpaPropertyMap(jpaPropertyMap);</span>
+<span class="nc" id="L102">        return commonEMFConf;</span>
+    }
+
+    @Bean
+    public EntityFactory entityFactory()
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException,
+            IllegalArgumentException, InvocationTargetException {
+
+<span class="nc" id="L110">        return (EntityFactory) Class.forName(env.getProperty(&quot;entity.factory&quot;)).getConstructor().newInstance();</span>
+    }
+
+    @ConditionalOnMissingBean(name = &quot;plainSchemaDAO&quot;)
+    @Bean
+    public PlainSchemaDAO plainSchemaDAO()
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException,
+            IllegalArgumentException, InvocationTargetException {
+
+<span class="nc" id="L119">        return (PlainSchemaDAO) Class.forName(env.getProperty(&quot;plainSchema.dao&quot;)).getConstructor().newInstance();</span>
+    }
+
+    @ConditionalOnMissingBean(name = &quot;plainAttrDAO&quot;)
+    @Bean
+    public PlainAttrDAO plainAttrDAO()
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException,
+            IllegalArgumentException, InvocationTargetException {
+
+<span class="nc" id="L128">        return (PlainAttrDAO) Class.forName(env.getProperty(&quot;plainAttr.dao&quot;)).getConstructor().newInstance();</span>
+    }
+
+    @ConditionalOnMissingBean(name = &quot;plainAttrValueDAO&quot;)
+    @Bean
+    public PlainAttrValueDAO plainAttrValueDAO()
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException,
+            IllegalArgumentException, InvocationTargetException {
+
+<span class="nc" id="L137">        return (PlainAttrValueDAO) Class.forName(env.getProperty(&quot;plainAttrValue.dao&quot;)).getConstructor().newInstance();</span>
+    }
+
+    @ConditionalOnMissingBean(name = &quot;anySearchDAO&quot;)
+    @Bean
+    public AnySearchDAO anySearchDAO()
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException,
+            IllegalArgumentException, InvocationTargetException {
+
+<span class="nc" id="L146">        return (AnySearchDAO) Class.forName(env.getProperty(&quot;any.search.dao&quot;)).getConstructor().newInstance();</span>
+    }
+
+    @ConditionalOnMissingBean(name = &quot;anySearchVisitor&quot;)
+    @Bean
+    public SearchCondVisitor anySearchVisitor()
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException,
+            IllegalArgumentException, InvocationTargetException {
+
+<span class="nc" id="L155">        return (SearchCondVisitor) Class.forName(env.getProperty(&quot;any.search.visitor&quot;)).getConstructor().newInstance();</span>
+    }
+
+    @ConditionalOnMissingBean(name = &quot;userDAO&quot;)
+    @Bean
+    public UserDAO userDAO()
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException,
+            IllegalArgumentException, InvocationTargetException {
+
+<span class="nc" id="L164">        return (UserDAO) Class.forName(env.getProperty(&quot;user.dao&quot;)).getConstructor().newInstance();</span>
+    }
+
+    @ConditionalOnMissingBean(name = &quot;groupDAO&quot;)
+    @Bean
+    public GroupDAO groupDAO()
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException,
+            IllegalArgumentException, InvocationTargetException {
+
+<span class="nc" id="L173">        return (GroupDAO) Class.forName(env.getProperty(&quot;group.dao&quot;)).getConstructor().newInstance();</span>
+    }
+
+    @ConditionalOnMissingBean(name = &quot;anyObjectDAO&quot;)
+    @Bean
+    public AnyObjectDAO anyObjectDAO()
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException,
+            IllegalArgumentException, InvocationTargetException {
+
+<span class="nc" id="L182">        return (AnyObjectDAO) Class.forName(env.getProperty(&quot;anyObject.dao&quot;)).getConstructor().newInstance();</span>
+    }
+
+    @ConditionalOnMissingBean(name = &quot;loggerDAO&quot;)
+    @Bean
+    public LoggerDAO loggerDAO()
+            throws ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException,
+            IllegalArgumentException, InvocationTargetException {
+
+<span class="nc" id="L191">        return (LoggerDAO) Class.forName(env.getProperty(&quot;logger.dao&quot;)).getConstructor().newInstance();</span>
+    }
+
+    @Bean
+    public Validator localValidatorFactoryBean() {
+<span class="nc" id="L196">        return new LocalValidatorFactoryBean();</span>
+    }
+
+    @ConditionalOnMissingBean(name = &quot;viewsXML&quot;)
+    @Bean
+    public ResourceWithFallbackLoader viewsXML() {
+<span class="nc" id="L202">        ResourceWithFallbackLoader viewsXML = new ResourceWithFallbackLoader();</span>
+<span class="nc" id="L203">        viewsXML.setPrimary(&quot;file:&quot; + env.getProperty(&quot;content.directory&quot;) + &quot;/views.xml&quot;);</span>
+<span class="nc" id="L204">        viewsXML.setFallback(&quot;classpath:views.xml&quot;);</span>
+<span class="nc" id="L205">        return viewsXML;</span>
+    }
+
+    @ConditionalOnMissingBean(name = &quot;indexesXML&quot;)
+    @Bean
+    public ResourceWithFallbackLoader indexesXML() {
+<span class="nc" id="L211">        ResourceWithFallbackLoader indexesXML = new ResourceWithFallbackLoader();</span>
+<span class="nc" id="L212">        indexesXML.setPrimary(&quot;file:&quot; + env.getProperty(&quot;content.directory&quot;) + &quot;/indexes.xml&quot;);</span>
+<span class="nc" id="L213">        indexesXML.setFallback(&quot;classpath:indexes.xml&quot;);</span>
+<span class="nc" id="L214">        return indexesXML;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

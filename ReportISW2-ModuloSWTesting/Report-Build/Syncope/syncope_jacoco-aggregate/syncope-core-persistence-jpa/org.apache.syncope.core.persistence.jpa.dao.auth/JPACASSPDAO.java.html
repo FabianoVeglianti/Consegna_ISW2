@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPACASSPDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao.auth</a> &gt; <span class="el_source">JPACASSPDAO.java</span></div><h1>JPACASSPDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao.auth;
+
+import org.apache.syncope.core.persistence.api.dao.auth.CASSPDAO;
+import org.apache.syncope.core.persistence.api.entity.auth.CASSP;
+import org.apache.syncope.core.persistence.jpa.dao.AbstractDAO;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPACASSP;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.persistence.NoResultException;
+import javax.persistence.TypedQuery;
+
+import java.util.List;
+
+@Repository
+<span class="nc" id="L34">public class JPACASSPDAO extends AbstractDAO&lt;CASSP&gt; implements CASSPDAO {</span>
+
+    @Override
+    public CASSP find(final String key) {
+<span class="nc" id="L38">        return entityManager().find(JPACASSP.class, key);</span>
+    }
+
+    private CASSP find(final String column, final Object value) {
+<span class="nc" id="L42">        TypedQuery&lt;CASSP&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L43">                &quot;SELECT e FROM &quot; + JPACASSP.class.getSimpleName() + &quot; e WHERE e.&quot; + column + &quot;=:value&quot;,</span>
+            CASSP.class);
+<span class="nc" id="L45">        query.setParameter(&quot;value&quot;, value);</span>
+
+<span class="nc" id="L47">        CASSP result = null;</span>
+        try {
+<span class="nc" id="L49">            result = query.getSingleResult();</span>
+<span class="nc" id="L50">        } catch (final NoResultException e) {</span>
+<span class="nc" id="L51">            LOG.debug(&quot;No OIDCRP found with &quot; + column + &quot; {}&quot;, value, e);</span>
+<span class="nc" id="L52">        }</span>
+
+<span class="nc" id="L54">        return result;</span>
+    }
+
+    @Override
+    public CASSP findByClientAppId(final Long clientAppId) {
+<span class="nc" id="L59">        return find(&quot;clientAppId&quot;, clientAppId);</span>
+    }
+
+    @Override
+    public CASSP findByName(final String name) {
+<span class="nc" id="L64">        return find(&quot;name&quot;, name);</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List&lt;CASSP&gt; findAll() {
+<span class="nc" id="L70">        TypedQuery&lt;CASSP&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L71">                &quot;SELECT e FROM &quot; + JPACASSP.class.getSimpleName() + &quot; e&quot;, CASSP.class);</span>
+
+<span class="nc" id="L73">        return query.getResultList();</span>
+    }
+
+    @Override
+    public CASSP save(final CASSP clientApp) {
+<span class="nc" id="L78">        return entityManager().merge(clientApp);</span>
+    }
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L83">        CASSP rpTO = find(key);</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if (rpTO == null) {</span>
+<span class="nc" id="L85">            return;</span>
+        }
+
+<span class="nc" id="L88">        delete(rpTO);</span>
+<span class="nc" id="L89">    }</span>
+
+    @Override
+    public void delete(final CASSP clientApp) {
+<span class="nc" id="L93">        entityManager().remove(clientApp);</span>
+<span class="nc" id="L94">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

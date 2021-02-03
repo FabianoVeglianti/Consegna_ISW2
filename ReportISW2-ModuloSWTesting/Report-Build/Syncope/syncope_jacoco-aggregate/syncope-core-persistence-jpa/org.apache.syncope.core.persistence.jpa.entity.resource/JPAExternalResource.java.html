@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAExternalResource.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.resource</a> &gt; <span class="el_source">JPAExternalResource.java</span></div><h1>JPAExternalResource.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.resource;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import javax.persistence.CascadeType;
+import javax.persistence.CollectionTable;
+import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.Lob;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import javax.validation.constraints.NotNull;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.syncope.common.lib.types.ConnConfProperty;
+import org.apache.syncope.common.lib.types.ConnectorCapability;
+import org.apache.syncope.common.lib.types.IdMImplementationType;
+import org.apache.syncope.common.lib.types.TraceLevel;
+import org.apache.syncope.core.persistence.api.entity.policy.AccountPolicy;
+import org.apache.syncope.core.persistence.api.entity.ConnInstance;
+import org.apache.syncope.core.persistence.api.entity.policy.PasswordPolicy;
+import org.apache.syncope.core.persistence.jpa.validation.entity.ExternalResourceCheck;
+import org.apache.syncope.core.provisioning.api.serialization.POJOHelper;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.api.entity.resource.Provision;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAccountPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.JPAConnInstance;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPasswordPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPullPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.PullPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.PushPolicy;
+import org.apache.syncope.core.persistence.api.entity.resource.OrgUnit;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractProvidedKeyEntity;
+import org.apache.syncope.core.persistence.jpa.entity.JPAImplementation;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPushPolicy;
+import org.identityconnectors.framework.common.objects.ObjectClass;
+
+/**
+ * Resource for propagation and pull.
+ */
+@Entity
+@Table(name = JPAExternalResource.TABLE)
+@ExternalResourceCheck
+<span class="nc" id="L76">public class JPAExternalResource extends AbstractProvidedKeyEntity implements ExternalResource {</span>
+
+    private static final long serialVersionUID = -6937712883512073278L;
+
+    public static final String TABLE = &quot;ExternalResource&quot;;
+
+    /**
+     * Should this resource enforce the mandatory constraints?
+     */
+<span class="nc" id="L85">    @NotNull</span>
+<span class="nc" id="L86">    private Boolean enforceMandatoryCondition = false;</span>
+
+    /**
+     * The resource type is identified by the associated connector.
+     */
+    @ManyToOne(fetch = FetchType.EAGER, cascade = { CascadeType.MERGE })
+    private JPAConnInstance connector;
+
+<span class="nc" id="L94">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY, mappedBy = &quot;resource&quot;)</span>
+    private List&lt;JPAProvision&gt; provisions = new ArrayList&lt;&gt;();
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY, mappedBy = &quot;resource&quot;)
+    private JPAOrgUnit orgUnit;
+
+    /**
+     * Priority index for propagation ordering.
+     */
+    private Integer propagationPriority;
+
+    /**
+     * Generate random password, if not provided.
+     */
+<span class="nc" id="L108">    @NotNull</span>
+<span class="nc" id="L109">    private Boolean randomPwdIfNotProvided = false;</span>
+
+<span class="nc" id="L111">    @Enumerated(EnumType.STRING)</span>
+    @NotNull
+    private TraceLevel createTraceLevel = TraceLevel.FAILURES;
+
+<span class="nc" id="L115">    @Enumerated(EnumType.STRING)</span>
+    @NotNull
+    private TraceLevel updateTraceLevel = TraceLevel.FAILURES;
+
+<span class="nc" id="L119">    @Enumerated(EnumType.STRING)</span>
+    @NotNull
+    private TraceLevel deleteTraceLevel = TraceLevel.FAILURES;
+
+<span class="nc" id="L123">    @Enumerated(EnumType.STRING)</span>
+    @NotNull
+    private TraceLevel provisioningTraceLevel = TraceLevel.FAILURES;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    private JPAPasswordPolicy passwordPolicy;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    private JPAAccountPolicy accountPolicy;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    private JPAPullPolicy pullPolicy;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    private JPAPushPolicy pushPolicy;
+
+    @ManyToOne
+    private JPAImplementation provisionSorter;
+
+    /**
+     * Configuration properties that are overridden from the connector instance.
+     */
+    @Lob
+    private String jsonConf;
+
+<span class="nc" id="L148">    @NotNull</span>
+<span class="nc" id="L149">    private Boolean overrideCapabilities = false;</span>
+
+<span class="nc" id="L151">    @ElementCollection(fetch = FetchType.EAGER)</span>
+    @Enumerated(EnumType.STRING)
+    @Column(name = &quot;capabilityOverride&quot;)
+    @CollectionTable(name = &quot;ExternalResource_capOverride&quot;,
+            joinColumns =
+            @JoinColumn(name = &quot;resource_id&quot;, referencedColumnName = &quot;id&quot;))
+    private Set&lt;ConnectorCapability&gt; capabilitiesOverride = new HashSet&lt;&gt;();
+
+<span class="nc" id="L159">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(name = TABLE + &quot;PropAction&quot;,
+            joinColumns =
+            @JoinColumn(name = &quot;resource_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;implementation_id&quot;),
+            uniqueConstraints =
+            @UniqueConstraint(columnNames = { &quot;resource_id&quot;, &quot;implementation_id&quot; }))
+    private List&lt;JPAImplementation&gt; propagationActions = new ArrayList&lt;&gt;();
+
+    @Override
+    public boolean isEnforceMandatoryCondition() {
+<span class="nc" id="L171">        return enforceMandatoryCondition;</span>
+    }
+
+    @Override
+    public void setEnforceMandatoryCondition(final boolean enforceMandatoryCondition) {
+<span class="nc" id="L176">        this.enforceMandatoryCondition = enforceMandatoryCondition;</span>
+<span class="nc" id="L177">    }</span>
+
+    @Override
+    public ConnInstance getConnector() {
+<span class="nc" id="L181">        return connector;</span>
+    }
+
+    @Override
+    public void setConnector(final ConnInstance connector) {
+<span class="nc" id="L186">        checkType(connector, JPAConnInstance.class);</span>
+<span class="nc" id="L187">        this.connector = (JPAConnInstance) connector;</span>
+<span class="nc" id="L188">    }</span>
+
+    @Override
+    public boolean add(final Provision provision) {
+<span class="nc" id="L192">        checkType(provision, JPAProvision.class);</span>
+<span class="nc" id="L193">        return this.provisions.add((JPAProvision) provision);</span>
+    }
+
+    @Override
+    public Optional&lt;? extends Provision&gt; getProvision(final String anyType) {
+<span class="nc" id="L198">        return getProvisions().stream().</span>
+<span class="nc" id="L199">                filter(provision -&gt; provision.getAnyType().getKey().equals(anyType)).findFirst();</span>
+    }
+
+    @Override
+    public Optional&lt;? extends Provision&gt; getProvision(final AnyType anyType) {
+<span class="nc" id="L204">        return getProvisions().stream().</span>
+<span class="nc" id="L205">                filter(provision -&gt; provision.getAnyType().equals(anyType)).findFirst();</span>
+    }
+
+    @Override
+    public Optional&lt;? extends Provision&gt; getProvision(final ObjectClass objectClass) {
+<span class="nc" id="L210">        return getProvisions().stream().</span>
+<span class="nc" id="L211">                filter(provision -&gt; provision.getObjectClass().equals(objectClass)).findFirst();</span>
+    }
+
+    @Override
+    public List&lt;? extends Provision&gt; getProvisions() {
+<span class="nc bnc" id="L216" title="All 2 branches missed.">        return provisions == null ? List.of() : provisions;</span>
+    }
+
+    @Override
+    public OrgUnit getOrgUnit() {
+<span class="nc" id="L221">        return orgUnit;</span>
+    }
+
+    @Override
+    public void setOrgUnit(final OrgUnit orgUnit) {
+<span class="nc" id="L226">        checkType(orgUnit, JPAOrgUnit.class);</span>
+<span class="nc" id="L227">        this.orgUnit = (JPAOrgUnit) orgUnit;</span>
+<span class="nc" id="L228">    }</span>
+
+    @Override
+    public Integer getPropagationPriority() {
+<span class="nc" id="L232">        return propagationPriority;</span>
+    }
+
+    @Override
+    public void setPropagationPriority(final Integer propagationPriority) {
+<span class="nc" id="L237">        this.propagationPriority = propagationPriority;</span>
+<span class="nc" id="L238">    }</span>
+
+    @Override
+    public boolean isRandomPwdIfNotProvided() {
+<span class="nc" id="L242">        return randomPwdIfNotProvided;</span>
+    }
+
+    @Override
+    public void setRandomPwdIfNotProvided(final boolean randomPwdIfNotProvided) {
+<span class="nc" id="L247">        this.randomPwdIfNotProvided = randomPwdIfNotProvided;</span>
+<span class="nc" id="L248">    }</span>
+
+    @Override
+    public TraceLevel getCreateTraceLevel() {
+<span class="nc" id="L252">        return createTraceLevel;</span>
+    }
+
+    @Override
+    public void setCreateTraceLevel(final TraceLevel createTraceLevel) {
+<span class="nc" id="L257">        this.createTraceLevel = createTraceLevel;</span>
+<span class="nc" id="L258">    }</span>
+
+    @Override
+
+    public TraceLevel getDeleteTraceLevel() {
+<span class="nc" id="L263">        return deleteTraceLevel;</span>
+    }
+
+    @Override
+    public void setDeleteTraceLevel(final TraceLevel deleteTraceLevel) {
+<span class="nc" id="L268">        this.deleteTraceLevel = deleteTraceLevel;</span>
+<span class="nc" id="L269">    }</span>
+
+    @Override
+    public TraceLevel getUpdateTraceLevel() {
+<span class="nc" id="L273">        return updateTraceLevel;</span>
+    }
+
+    @Override
+    public void setUpdateTraceLevel(final TraceLevel updateTraceLevel) {
+<span class="nc" id="L278">        this.updateTraceLevel = updateTraceLevel;</span>
+<span class="nc" id="L279">    }</span>
+
+    @Override
+    public TraceLevel getProvisioningTraceLevel() {
+<span class="nc" id="L283">        return provisioningTraceLevel;</span>
+    }
+
+    @Override
+    public void setProvisioningTraceLevel(final TraceLevel provisioningTraceLevel) {
+<span class="nc" id="L288">        this.provisioningTraceLevel = provisioningTraceLevel;</span>
+<span class="nc" id="L289">    }</span>
+
+    @Override
+    public AccountPolicy getAccountPolicy() {
+<span class="nc" id="L293">        return accountPolicy;</span>
+    }
+
+    @Override
+    public void setAccountPolicy(final AccountPolicy accountPolicy) {
+<span class="nc" id="L298">        checkType(accountPolicy, JPAAccountPolicy.class);</span>
+<span class="nc" id="L299">        this.accountPolicy = (JPAAccountPolicy) accountPolicy;</span>
+<span class="nc" id="L300">    }</span>
+
+    @Override
+    public PasswordPolicy getPasswordPolicy() {
+<span class="nc" id="L304">        return passwordPolicy;</span>
+    }
+
+    @Override
+    public void setPasswordPolicy(final PasswordPolicy passwordPolicy) {
+<span class="nc" id="L309">        checkType(passwordPolicy, JPAPasswordPolicy.class);</span>
+<span class="nc" id="L310">        this.passwordPolicy = (JPAPasswordPolicy) passwordPolicy;</span>
+<span class="nc" id="L311">    }</span>
+
+    @Override
+    public PullPolicy getPullPolicy() {
+<span class="nc" id="L315">        return pullPolicy;</span>
+    }
+
+    @Override
+    public void setPullPolicy(final PullPolicy pullPolicy) {
+<span class="nc" id="L320">        checkType(pullPolicy, JPAPullPolicy.class);</span>
+<span class="nc" id="L321">        this.pullPolicy = (JPAPullPolicy) pullPolicy;</span>
+<span class="nc" id="L322">    }</span>
+
+    @Override
+    public PushPolicy getPushPolicy() {
+<span class="nc" id="L326">        return pushPolicy;</span>
+    }
+
+    @Override
+    public void setPushPolicy(final PushPolicy pushPolicy) {
+<span class="nc" id="L331">        checkType(pushPolicy, JPAPushPolicy.class);</span>
+<span class="nc" id="L332">        this.pushPolicy = (JPAPushPolicy) pushPolicy;</span>
+<span class="nc" id="L333">    }</span>
+
+    @Override
+    public Implementation getProvisionSorter() {
+<span class="nc" id="L337">        return provisionSorter;</span>
+    }
+
+    @Override
+    public void setProvisionSorter(final Implementation provisionSorter) {
+<span class="nc" id="L342">        checkType(provisionSorter, JPAImplementation.class);</span>
+<span class="nc" id="L343">        checkImplementationType(provisionSorter, IdMImplementationType.PROVISION_SORTER);</span>
+<span class="nc" id="L344">        this.provisionSorter = (JPAImplementation) provisionSorter;</span>
+<span class="nc" id="L345">    }</span>
+
+    @Override
+    public Set&lt;ConnConfProperty&gt; getConfOverride() {
+<span class="nc" id="L349">        Set&lt;ConnConfProperty&gt; confOverride = new HashSet&lt;&gt;();</span>
+<span class="nc bnc" id="L350" title="All 2 branches missed.">        if (!StringUtils.isBlank(jsonConf)) {</span>
+<span class="nc" id="L351">            confOverride.addAll(List.of(POJOHelper.deserialize(jsonConf, ConnConfProperty[].class)));</span>
+        }
+
+<span class="nc" id="L354">        return confOverride;</span>
+    }
+
+    @Override
+    public void setConfOverride(final Set&lt;ConnConfProperty&gt; confOverride) {
+<span class="nc" id="L359">        jsonConf = POJOHelper.serialize(new HashSet&lt;&gt;(confOverride));</span>
+<span class="nc" id="L360">    }</span>
+
+    @Override
+    public boolean isOverrideCapabilities() {
+<span class="nc" id="L364">        return overrideCapabilities;</span>
+    }
+
+    @Override
+    public void setOverrideCapabilities(final boolean overrideCapabilities) {
+<span class="nc" id="L369">        this.overrideCapabilities = overrideCapabilities;</span>
+<span class="nc" id="L370">    }</span>
+
+    @Override
+    public Set&lt;ConnectorCapability&gt; getCapabilitiesOverride() {
+<span class="nc" id="L374">        return capabilitiesOverride;</span>
+    }
+
+    @Override
+    public boolean add(final Implementation propagationAction) {
+<span class="nc" id="L379">        checkType(propagationAction, JPAImplementation.class);</span>
+<span class="nc" id="L380">        checkImplementationType(propagationAction, IdMImplementationType.PROPAGATION_ACTIONS);</span>
+<span class="nc bnc" id="L381" title="All 2 branches missed.">        return propagationActions.contains((JPAImplementation) propagationAction)</span>
+<span class="nc bnc" id="L382" title="All 2 branches missed.">                || propagationActions.add((JPAImplementation) propagationAction);</span>
+    }
+
+    @Override
+    public List&lt;? extends Implementation&gt; getPropagationActions() {
+<span class="nc" id="L387">        return propagationActions;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

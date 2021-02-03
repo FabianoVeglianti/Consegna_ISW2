@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAAuthProfileDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao.auth</a> &gt; <span class="el_source">JPAAuthProfileDAO.java</span></div><h1>JPAAuthProfileDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao.auth;
+
+import org.apache.syncope.core.persistence.api.dao.auth.AuthProfileDAO;
+import org.apache.syncope.core.persistence.api.entity.auth.AuthProfile;
+import org.apache.syncope.core.persistence.jpa.dao.AbstractDAO;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPAAuthProfile;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.persistence.NoResultException;
+import javax.persistence.TypedQuery;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+<span class="nc" id="L35">public class JPAAuthProfileDAO extends AbstractDAO&lt;AuthProfile&gt; implements AuthProfileDAO {</span>
+
+    @Override
+    @Transactional(readOnly = true)
+    public List&lt;AuthProfile&gt; findAll() {
+<span class="nc" id="L40">        TypedQuery&lt;AuthProfile&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L41">            &quot;SELECT e FROM &quot; + JPAAuthProfile.class.getSimpleName() + &quot; e &quot;,</span>
+            AuthProfile.class);
+<span class="nc" id="L43">        return query.getResultList();</span>
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional&lt;AuthProfile&gt; findByOwner(final String owner) {
+        try {
+<span class="nc" id="L50">            TypedQuery&lt;AuthProfile&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L51">                &quot;SELECT e FROM &quot; + JPAAuthProfile.class.getSimpleName()</span>
+                    + &quot; e WHERE e.owner=:owner&quot;, AuthProfile.class);
+<span class="nc" id="L53">            query.setParameter(&quot;owner&quot;, owner);</span>
+<span class="nc" id="L54">            return Optional.ofNullable(query.getSingleResult());</span>
+<span class="nc" id="L55">        } catch (final NoResultException e) {</span>
+<span class="nc" id="L56">            LOG.debug(&quot;No auth profile could be found for owner {}&quot;, owner);</span>
+        }
+<span class="nc" id="L58">        return Optional.empty();</span>
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional&lt;AuthProfile&gt; findByKey(final String key) {
+        try {
+<span class="nc" id="L65">            return Optional.ofNullable(entityManager().find(JPAAuthProfile.class, key));</span>
+<span class="nc" id="L66">        } catch (final NoResultException e) {</span>
+<span class="nc" id="L67">            LOG.debug(&quot;No auth profile could be found for {}&quot;, key);</span>
+        }
+<span class="nc" id="L69">        return Optional.empty();</span>
+    }
+
+    @Override
+    public AuthProfile save(final AuthProfile profile) {
+<span class="nc" id="L74">        return entityManager().merge(profile);</span>
+    }
+
+    @Override
+    public void deleteByKey(final String key) {
+<span class="nc" id="L79">        findByKey(key).ifPresent(this::delete);</span>
+<span class="nc" id="L80">    }</span>
+
+    @Override
+    public void deleteByOwner(final String owner) {
+<span class="nc" id="L84">        findByOwner(owner).ifPresent(this::delete);</span>
+<span class="nc" id="L85">    }</span>
+
+    @Override
+    public void delete(final AuthProfile authProfile) {
+<span class="nc" id="L89">        entityManager().remove(authProfile);</span>
+<span class="nc" id="L90">    }</span>
+
+    @Override
+    public void deleteAll() {
+<span class="nc" id="L94">        entityManager().</span>
+<span class="nc" id="L95">            createQuery(&quot;DELETE FROM &quot; + JPAAuthProfile.class.getSimpleName()).</span>
+<span class="nc" id="L96">            executeUpdate();</span>
+<span class="nc" id="L97">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

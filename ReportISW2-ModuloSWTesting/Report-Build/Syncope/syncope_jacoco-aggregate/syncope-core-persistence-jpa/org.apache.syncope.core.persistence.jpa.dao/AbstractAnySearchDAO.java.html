@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>AbstractAnySearchDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">AbstractAnySearchDAO.java</span></div><h1>AbstractAnySearchDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.validation.ValidationException;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
+import org.apache.syncope.common.lib.SyncopeConstants;
+import org.apache.syncope.common.lib.types.AnyTypeKind;
+import org.apache.syncope.common.lib.types.AttrSchemaType;
+import org.apache.syncope.core.persistence.api.dao.AnyObjectDAO;
+import org.apache.syncope.core.persistence.api.dao.AnySearchDAO;
+import org.apache.syncope.core.persistence.api.dao.DynRealmDAO;
+import org.apache.syncope.core.persistence.api.dao.GroupDAO;
+import org.apache.syncope.core.persistence.api.dao.PlainSchemaDAO;
+import org.apache.syncope.core.persistence.api.dao.RealmDAO;
+import org.apache.syncope.core.persistence.api.dao.UserDAO;
+import org.apache.syncope.core.persistence.api.dao.search.AnyCond;
+import org.apache.syncope.core.persistence.api.dao.search.AssignableCond;
+import org.apache.syncope.core.persistence.api.dao.search.AttrCond;
+import org.apache.syncope.core.persistence.api.dao.search.DynRealmCond;
+import org.apache.syncope.core.persistence.api.dao.search.MemberCond;
+import org.apache.syncope.core.persistence.api.dao.search.MembershipCond;
+import org.apache.syncope.core.persistence.api.dao.search.OrderByClause;
+import org.apache.syncope.core.persistence.api.dao.search.RelationshipCond;
+import org.apache.syncope.core.persistence.api.dao.search.SearchCond;
+import org.apache.syncope.core.persistence.api.entity.Any;
+import org.apache.syncope.core.persistence.api.entity.AnyUtils;
+import org.apache.syncope.core.persistence.api.entity.AnyUtilsFactory;
+import org.apache.syncope.core.persistence.api.entity.Entity;
+import org.apache.syncope.core.persistence.api.entity.EntityFactory;
+import org.apache.syncope.core.persistence.api.entity.PlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.persistence.api.entity.anyobject.AnyObject;
+import org.apache.syncope.core.persistence.jpa.entity.JPAPlainSchema;
+import org.springframework.beans.factory.annotation.Autowired;
+
+<span class="nc" id="L65">public abstract class AbstractAnySearchDAO extends AbstractDAO&lt;Any&lt;?&gt;&gt; implements AnySearchDAO {</span>
+
+<span class="nc" id="L67">    private static final String[] ORDER_BY_NOT_ALLOWED = {</span>
+        &quot;serialVersionUID&quot;, &quot;password&quot;, &quot;securityQuestion&quot;, &quot;securityAnswer&quot;, &quot;token&quot;, &quot;tokenExpireTime&quot;
+    };
+
+<span class="nc" id="L71">    protected static final String[] RELATIONSHIP_FIELDS = new String[] { &quot;realm&quot;, &quot;userOwner&quot;, &quot;groupOwner&quot; };</span>
+
+    @Autowired
+    protected RealmDAO realmDAO;
+
+    @Autowired
+    protected DynRealmDAO dynRealmDAO;
+
+    @Autowired
+    protected AnyObjectDAO anyObjectDAO;
+
+    @Autowired
+    protected UserDAO userDAO;
+
+    @Autowired
+    protected GroupDAO groupDAO;
+
+    @Autowired
+    protected PlainSchemaDAO schemaDAO;
+
+    @Autowired
+    protected EntityFactory entityFactory;
+
+    @Autowired
+    protected AnyUtilsFactory anyUtilsFactory;
+
+    protected static SearchCond buildEffectiveCond(final SearchCond cond, final Set&lt;String&gt; dynRealmKeys) {
+<span class="nc" id="L98">        List&lt;SearchCond&gt; effectiveConds = dynRealmKeys.stream().map(dynRealmKey -&gt; {</span>
+<span class="nc" id="L99">            DynRealmCond dynRealmCond = new DynRealmCond();</span>
+<span class="nc" id="L100">            dynRealmCond.setDynRealm(dynRealmKey);</span>
+<span class="nc" id="L101">            return SearchCond.getLeaf(dynRealmCond);</span>
+<span class="nc" id="L102">        }).collect(Collectors.toList());</span>
+<span class="nc" id="L103">        effectiveConds.add(cond);</span>
+
+<span class="nc" id="L105">        return SearchCond.getAnd(effectiveConds);</span>
+    }
+
+    protected abstract int doCount(Set&lt;String&gt; adminRealms, SearchCond cond, AnyTypeKind kind);
+
+    @Override
+    public int count(final Set&lt;String&gt; adminRealms, final SearchCond cond, final AnyTypeKind kind) {
+<span class="nc bnc" id="L112" title="All 4 branches missed.">        if (adminRealms == null || adminRealms.isEmpty()) {</span>
+<span class="nc" id="L113">            LOG.error(&quot;No realms provided&quot;);</span>
+<span class="nc" id="L114">            return 0;</span>
+        }
+
+<span class="nc" id="L117">        LOG.debug(&quot;Search condition:\n{}&quot;, cond);</span>
+<span class="nc bnc" id="L118" title="All 4 branches missed.">        if (cond == null || !cond.isValid()) {</span>
+<span class="nc" id="L119">            LOG.error(&quot;Invalid search condition:\n{}&quot;, cond);</span>
+<span class="nc" id="L120">            return 0;</span>
+        }
+
+<span class="nc" id="L123">        return doCount(adminRealms, cond, kind);</span>
+    }
+
+    @Override
+    public &lt;T extends Any&lt;?&gt;&gt; List&lt;T&gt; search(final SearchCond cond, final AnyTypeKind kind) {
+<span class="nc" id="L128">        return search(cond, List.of(), kind);</span>
+    }
+
+    @Override
+    public &lt;T extends Any&lt;?&gt;&gt; List&lt;T&gt; search(
+            final SearchCond cond, final List&lt;OrderByClause&gt; orderBy, final AnyTypeKind kind) {
+
+<span class="nc" id="L135">        return search(SyncopeConstants.FULL_ADMIN_REALMS, cond, -1, -1, orderBy, kind);</span>
+    }
+
+    protected abstract &lt;T extends Any&lt;?&gt;&gt; List&lt;T&gt; doSearch(
+            Set&lt;String&gt; adminRealms,
+            SearchCond searchCondition,
+            int page,
+            int itemsPerPage,
+            List&lt;OrderByClause&gt; orderBy,
+            AnyTypeKind kind);
+
+    protected Pair&lt;PlainSchema, PlainAttrValue&gt; check(final AttrCond cond, final AnyTypeKind kind) {
+<span class="nc" id="L147">        AnyUtils anyUtils = anyUtilsFactory.getInstance(kind);</span>
+
+<span class="nc" id="L149">        PlainSchema schema = schemaDAO.find(cond.getSchema());</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        if (schema == null) {</span>
+<span class="nc" id="L151">            LOG.warn(&quot;Ignoring invalid schema '{}'&quot;, cond.getSchema());</span>
+<span class="nc" id="L152">            throw new IllegalArgumentException();</span>
+        }
+
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        PlainAttrValue attrValue = schema.isUniqueConstraint()</span>
+<span class="nc" id="L156">                ? anyUtils.newPlainAttrUniqueValue()</span>
+<span class="nc" id="L157">                : anyUtils.newPlainAttrValue();</span>
+        try {
+<span class="nc bnc" id="L159" title="All 2 branches missed.">            if (cond.getType() != AttrCond.Type.LIKE</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">                    &amp;&amp; cond.getType() != AttrCond.Type.ILIKE</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                    &amp;&amp; cond.getType() != AttrCond.Type.ISNULL</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                    &amp;&amp; cond.getType() != AttrCond.Type.ISNOTNULL) {</span>
+
+<span class="nc" id="L164">                ((JPAPlainSchema) schema).validator().validate(cond.getExpression(), attrValue);</span>
+            }
+<span class="nc" id="L166">        } catch (ValidationException e) {</span>
+<span class="nc" id="L167">            LOG.error(&quot;Could not validate expression '&quot; + cond.getExpression() + '\'', e);</span>
+<span class="nc" id="L168">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L169">        }</span>
+
+<span class="nc" id="L171">        return Pair.of(schema, attrValue);</span>
+    }
+
+    protected Triple&lt;PlainSchema, PlainAttrValue, AnyCond&gt; check(final AnyCond cond, final AnyTypeKind kind) {
+<span class="nc" id="L175">        AnyCond computed = new AnyCond(cond.getType());</span>
+<span class="nc" id="L176">        computed.setSchema(cond.getSchema());</span>
+<span class="nc" id="L177">        computed.setExpression(cond.getExpression());</span>
+
+<span class="nc" id="L179">        AnyUtils anyUtils = anyUtilsFactory.getInstance(kind);</span>
+
+<span class="nc" id="L181">        Field anyField = anyUtils.getField(computed.getSchema());</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        if (anyField == null) {</span>
+<span class="nc" id="L183">            LOG.warn(&quot;Ignoring invalid field '{}'&quot;, computed.getSchema());</span>
+<span class="nc" id="L184">            throw new IllegalArgumentException();</span>
+        }
+        // Keeps track of difference between entity's getKey() and JPA @Id fields
+<span class="nc bnc" id="L187" title="All 2 branches missed.">        if (&quot;key&quot;.equals(computed.getSchema())) {</span>
+<span class="nc" id="L188">            computed.setSchema(&quot;id&quot;);</span>
+        }
+
+<span class="nc" id="L191">        PlainSchema schema = entityFactory.newEntity(PlainSchema.class);</span>
+<span class="nc" id="L192">        schema.setKey(anyField.getName());</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">        for (AttrSchemaType attrSchemaType : AttrSchemaType.values()) {</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">            if (anyField.getType().isAssignableFrom(attrSchemaType.getType())) {</span>
+<span class="nc" id="L195">                schema.setType(attrSchemaType);</span>
+            }
+        }
+
+        // Deal with any Integer fields logically mapping to boolean values
+<span class="nc" id="L200">        boolean foundBooleanMin = false;</span>
+<span class="nc" id="L201">        boolean foundBooleanMax = false;</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">        if (Integer.class.equals(anyField.getType())) {</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">            for (Annotation annotation : anyField.getAnnotations()) {</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">                if (Min.class.equals(annotation.annotationType())) {</span>
+<span class="nc bnc" id="L205" title="All 2 branches missed.">                    foundBooleanMin = ((Min) annotation).value() == 0;</span>
+<span class="nc bnc" id="L206" title="All 2 branches missed.">                } else if (Max.class.equals(annotation.annotationType())) {</span>
+<span class="nc bnc" id="L207" title="All 2 branches missed.">                    foundBooleanMax = ((Max) annotation).value() == 1;</span>
+                }
+            }
+        }
+<span class="nc bnc" id="L211" title="All 4 branches missed.">        if (foundBooleanMin &amp;&amp; foundBooleanMax) {</span>
+<span class="nc" id="L212">            schema.setType(AttrSchemaType.Boolean);</span>
+        }
+
+        // Deal with any fields representing relationships to other entities
+<span class="nc bnc" id="L216" title="All 2 branches missed.">        if (ArrayUtils.contains(RELATIONSHIP_FIELDS, computed.getSchema())) {</span>
+<span class="nc" id="L217">            computed.setSchema(computed.getSchema() + &quot;_id&quot;);</span>
+<span class="nc" id="L218">            schema.setType(AttrSchemaType.String);</span>
+        }
+
+<span class="nc" id="L221">        PlainAttrValue attrValue = anyUtils.newPlainAttrValue();</span>
+<span class="nc bnc" id="L222" title="All 2 branches missed.">        if (computed.getType() != AttrCond.Type.LIKE</span>
+<span class="nc bnc" id="L223" title="All 2 branches missed.">                &amp;&amp; computed.getType() != AttrCond.Type.ILIKE</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">                &amp;&amp; computed.getType() != AttrCond.Type.ISNULL</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">                &amp;&amp; computed.getType() != AttrCond.Type.ISNOTNULL) {</span>
+
+            try {
+<span class="nc" id="L228">                ((JPAPlainSchema) schema).validator().validate(computed.getExpression(), attrValue);</span>
+<span class="nc" id="L229">            } catch (ValidationException e) {</span>
+<span class="nc" id="L230">                LOG.error(&quot;Could not validate expression '&quot; + computed.getExpression() + '\'', e);</span>
+<span class="nc" id="L231">                throw new IllegalArgumentException();</span>
+<span class="nc" id="L232">            }</span>
+        }
+
+<span class="nc" id="L235">        return Triple.of(schema, attrValue, computed);</span>
+    }
+
+    protected List&lt;String&gt; check(final MembershipCond cond) {
+<span class="nc bnc" id="L239" title="All 2 branches missed.">        if (SyncopeConstants.UUID_PATTERN.matcher(cond.getGroup()).matches()) {</span>
+<span class="nc" id="L240">            return List.of(cond.getGroup());</span>
+        }
+
+<span class="nc bnc" id="L243" title="All 2 branches missed.">        List&lt;String&gt; matching = cond.getGroup().indexOf('%') == -1</span>
+<span class="nc" id="L244">                ? Optional.ofNullable(groupDAO.findKey(cond.getGroup())).map(List::of).orElseGet(() -&gt; List.of())</span>
+<span class="nc" id="L245">                : groupDAO.findKeysByNamePattern(cond.getGroup());</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">        if (matching.isEmpty()) {</span>
+<span class="nc" id="L247">            LOG.error(&quot;Could not find group(s) for '&quot; + cond.getGroup() + '\'');</span>
+<span class="nc" id="L248">            throw new IllegalArgumentException();</span>
+        }
+
+<span class="nc" id="L251">        return matching;</span>
+    }
+
+    protected String check(final RelationshipCond cond) {
+        String rightAnyObjectKey;
+<span class="nc bnc" id="L256" title="All 2 branches missed.">        if (SyncopeConstants.UUID_PATTERN.matcher(cond.getAnyObject()).matches()) {</span>
+<span class="nc" id="L257">            rightAnyObjectKey = cond.getAnyObject();</span>
+        } else {
+<span class="nc" id="L259">            AnyObject anyObject = anyObjectDAO.findByName(cond.getAnyObject());</span>
+<span class="nc" id="L260">            rightAnyObjectKey = Optional.ofNullable(anyObject).map(Entity::getKey).orElse(null);</span>
+        }
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        if (rightAnyObjectKey == null) {</span>
+<span class="nc" id="L263">            LOG.error(&quot;Could not find any object for '&quot; + cond.getAnyObject() + '\'');</span>
+<span class="nc" id="L264">            throw new IllegalArgumentException();</span>
+        }
+
+<span class="nc" id="L267">        return rightAnyObjectKey;</span>
+    }
+
+    protected Realm check(final AssignableCond cond) {
+<span class="nc" id="L271">        Realm realm = realmDAO.findByFullPath(cond.getRealmFullPath());</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">        if (realm == null) {</span>
+<span class="nc" id="L273">            LOG.error(&quot;Could not find realm for '&quot; + cond.getRealmFullPath() + '\'');</span>
+<span class="nc" id="L274">            throw new IllegalArgumentException();</span>
+        }
+
+<span class="nc" id="L277">        return realm;</span>
+    }
+
+    protected String check(final MemberCond cond) {
+        String memberKey;
+<span class="nc bnc" id="L282" title="All 2 branches missed.">        if (SyncopeConstants.UUID_PATTERN.matcher(cond.getMember()).matches()) {</span>
+<span class="nc" id="L283">            memberKey = cond.getMember();</span>
+        } else {
+<span class="nc" id="L285">            Any&lt;?&gt; member = userDAO.findByUsername(cond.getMember());</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">            if (member == null) {</span>
+<span class="nc" id="L287">                member = anyObjectDAO.findByName(cond.getMember());</span>
+            }
+<span class="nc" id="L289">            memberKey = Optional.ofNullable(member).map(Entity::getKey).orElse(null);</span>
+        }
+<span class="nc bnc" id="L291" title="All 2 branches missed.">        if (memberKey == null) {</span>
+<span class="nc" id="L292">            LOG.error(&quot;Could not find user or any object for '&quot; + cond.getMember() + '\'');</span>
+<span class="nc" id="L293">            throw new IllegalArgumentException();</span>
+        }
+
+<span class="nc" id="L296">        return memberKey;</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    protected &lt;T extends Any&lt;?&gt;&gt; List&lt;T&gt; buildResult(final List&lt;Object&gt; raw, final AnyTypeKind kind) {
+<span class="nc" id="L301">        List&lt;String&gt; keys = raw.stream().</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">                map(key -&gt; key instanceof Object[] ? (String) ((Object[]) key)[0] : ((String) key)).</span>
+<span class="nc" id="L303">                collect(Collectors.toList());</span>
+
+        // sort anys according to keys' sorting, as their ordering is same as raw, e.g. the actual sql query results
+<span class="nc" id="L306">        List&lt;Any&lt;?&gt;&gt; anys = anyUtilsFactory.getInstance(kind).dao().findByKeys(keys).stream().</span>
+<span class="nc" id="L307">                sorted(Comparator.comparing(any -&gt; keys.indexOf(any.getKey()))).collect(Collectors.toList());</span>
+
+<span class="nc bnc" id="L309" title="All 2 branches missed.">        keys.stream().filter(key -&gt; !anys.stream().anyMatch(any -&gt; key.equals(any.getKey()))).</span>
+<span class="nc" id="L310">                forEach(key -&gt; LOG.error(&quot;Could not find {} with id {}, even if returned by native query&quot;, kind, key));</span>
+
+<span class="nc" id="L312">        return (List&lt;T&gt;) anys;</span>
+    }
+
+    @Override
+    public &lt;T extends Any&lt;?&gt;&gt; List&lt;T&gt; search(
+            final Set&lt;String&gt; adminRealms,
+            final SearchCond cond,
+            final int page,
+            final int itemsPerPage,
+            final List&lt;OrderByClause&gt; orderBy,
+            final AnyTypeKind kind) {
+
+<span class="nc bnc" id="L324" title="All 4 branches missed.">        if (adminRealms == null || adminRealms.isEmpty()) {</span>
+<span class="nc" id="L325">            LOG.error(&quot;No realms provided&quot;);</span>
+<span class="nc" id="L326">            return List.of();</span>
+        }
+
+<span class="nc" id="L329">        LOG.debug(&quot;Search condition:\n{}&quot;, cond);</span>
+<span class="nc bnc" id="L330" title="All 4 branches missed.">        if (cond == null || !cond.isValid()) {</span>
+<span class="nc" id="L331">            LOG.error(&quot;Invalid search condition:\n{}&quot;, cond);</span>
+<span class="nc" id="L332">            return List.of();</span>
+        }
+
+        List&lt;OrderByClause&gt; effectiveOrderBy;
+<span class="nc bnc" id="L336" title="All 2 branches missed.">        if (orderBy.isEmpty()) {</span>
+<span class="nc" id="L337">            OrderByClause keyClause = new OrderByClause();</span>
+<span class="nc bnc" id="L338" title="All 2 branches missed.">            keyClause.setField(kind == AnyTypeKind.USER ? &quot;username&quot; : &quot;name&quot;);</span>
+<span class="nc" id="L339">            keyClause.setDirection(OrderByClause.Direction.ASC);</span>
+<span class="nc" id="L340">            effectiveOrderBy = List.of(keyClause);</span>
+<span class="nc" id="L341">        } else {</span>
+<span class="nc" id="L342">            effectiveOrderBy = orderBy.stream().</span>
+<span class="nc bnc" id="L343" title="All 2 branches missed.">                    filter(clause -&gt; !ArrayUtils.contains(ORDER_BY_NOT_ALLOWED, clause.getField())).</span>
+<span class="nc" id="L344">                    collect(Collectors.toList());</span>
+        }
+
+<span class="nc" id="L347">        return doSearch(adminRealms, cond, page, itemsPerPage, effectiveOrderBy, kind);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

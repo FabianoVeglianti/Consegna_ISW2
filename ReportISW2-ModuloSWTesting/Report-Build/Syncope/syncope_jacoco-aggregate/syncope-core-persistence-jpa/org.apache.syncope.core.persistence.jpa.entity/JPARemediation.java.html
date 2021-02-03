@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPARemediation.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity</a> &gt; <span class="el_source">JPARemediation.java</span></div><h1>JPARemediation.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity;
+
+import java.util.Date;
+import java.util.Optional;
+
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Lob;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.common.lib.request.AnyCR;
+import org.apache.syncope.common.lib.request.AnyUR;
+import org.apache.syncope.common.lib.types.ResourceOperation;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.Remediation;
+import org.apache.syncope.core.persistence.api.entity.task.PullTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPAPullTask;
+import org.apache.syncope.core.persistence.jpa.validation.entity.RemediationCheck;
+import org.apache.syncope.core.provisioning.api.serialization.POJOHelper;
+
+@Entity
+@Table(name = JPARemediation.TABLE)
+@RemediationCheck
+<span class="nc" id="L46">public class JPARemediation extends AbstractGeneratedKeyEntity implements Remediation {</span>
+
+    private static final long serialVersionUID = -1612530286294448682L;
+
+    public static final String TABLE = &quot;Remediation&quot;;
+
+    @ManyToOne
+    private JPAAnyType anyType;
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    private ResourceOperation operation;
+
+    @NotNull
+    @Lob
+    private String payload;
+
+    @NotNull
+    @Lob
+    private String error;
+
+    @NotNull
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date instant;
+
+    @ManyToOne
+    private JPAPullTask pullTask;
+
+    @NotNull
+    private String remoteName;
+
+    @Override
+    public AnyType getAnyType() {
+<span class="nc" id="L79">        return anyType;</span>
+    }
+
+    @Override
+    public void setAnyType(final AnyType anyType) {
+<span class="nc" id="L84">        checkType(anyType, JPAAnyType.class);</span>
+<span class="nc" id="L85">        this.anyType = (JPAAnyType) anyType;</span>
+<span class="nc" id="L86">    }</span>
+
+    @Override
+    public ResourceOperation getOperation() {
+<span class="nc" id="L90">        return operation;</span>
+    }
+
+    @Override
+    public void setOperation(final ResourceOperation operation) {
+<span class="nc" id="L95">        this.operation = operation;</span>
+<span class="nc" id="L96">    }</span>
+
+    @Override
+    public &lt;C extends AnyCR&gt; C getPayloadAsCR(final Class&lt;C&gt; reference) {
+<span class="nc" id="L100">        return POJOHelper.deserialize(this.payload, reference);</span>
+    }
+
+    @Override
+    public &lt;U extends AnyUR&gt; U getPayloadAsUR(final Class&lt;U&gt; reference) {
+<span class="nc" id="L105">        return POJOHelper.deserialize(this.payload, reference);</span>
+    }
+
+    @Override
+    public String getPayloadAsKey() {
+<span class="nc" id="L110">        return this.payload;</span>
+    }
+
+    @Override
+    public void setPayload(final AnyCR anyCR) {
+<span class="nc" id="L115">        this.payload = POJOHelper.serialize(anyCR);</span>
+<span class="nc" id="L116">    }</span>
+
+    @Override
+    public void setPayload(final AnyUR anyUR) {
+<span class="nc" id="L120">        this.payload = POJOHelper.serialize(anyUR);</span>
+<span class="nc" id="L121">    }</span>
+
+    @Override
+    public void setPayload(final String key) {
+<span class="nc" id="L125">        this.payload = key;</span>
+<span class="nc" id="L126">    }</span>
+
+    @Override
+    public String getError() {
+<span class="nc" id="L130">        return error;</span>
+    }
+
+    @Override
+    public void setError(final String error) {
+<span class="nc" id="L135">        this.error = error;</span>
+<span class="nc" id="L136">    }</span>
+
+    @Override
+    public Date getInstant() {
+<span class="nc" id="L140">        return Optional.ofNullable(instant).map(date -&gt; new Date(date.getTime())).orElse(null);</span>
+    }
+
+    @Override
+    public void setInstant(final Date instant) {
+<span class="nc" id="L145">        this.instant = Optional.ofNullable(instant).map(date -&gt; new Date(date.getTime())).orElse(null);</span>
+<span class="nc" id="L146">    }</span>
+
+    @Override
+    public PullTask getPullTask() {
+<span class="nc" id="L150">        return pullTask;</span>
+    }
+
+    @Override
+    public void setPullTask(final PullTask pullTask) {
+<span class="nc" id="L155">        checkType(pullTask, JPAPullTask.class);</span>
+<span class="nc" id="L156">        this.pullTask = (JPAPullTask) pullTask;</span>
+<span class="nc" id="L157">    }</span>
+
+    @Override
+    public String getRemoteName() {
+<span class="nc" id="L161">        return remoteName;</span>
+    }
+
+    @Override
+    public void setRemoteName(final String remoteName) {
+<span class="nc" id="L166">        this.remoteName = remoteName;</span>
+<span class="nc" id="L167">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

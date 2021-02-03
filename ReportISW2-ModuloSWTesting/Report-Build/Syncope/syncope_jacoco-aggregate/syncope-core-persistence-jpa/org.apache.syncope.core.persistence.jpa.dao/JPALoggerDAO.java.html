@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPALoggerDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPALoggerDAO.java</span></div><h1>JPALoggerDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.sql.Clob;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.syncope.common.lib.log.AuditEntry;
+import org.apache.syncope.common.lib.types.AuditElements;
+import org.apache.syncope.common.lib.types.LoggerLevel;
+import org.apache.syncope.common.lib.types.LoggerType;
+import org.apache.syncope.core.persistence.api.dao.LoggerDAO;
+import org.apache.syncope.core.persistence.api.dao.search.OrderByClause;
+import org.apache.syncope.core.persistence.api.entity.Logger;
+import org.apache.syncope.core.persistence.jpa.entity.JPALogger;
+import org.apache.syncope.core.provisioning.api.serialization.POJOHelper;
+import org.springframework.transaction.annotation.Transactional;
+
+<span class="nc" id="L40">public class JPALoggerDAO extends AbstractDAO&lt;Logger&gt; implements LoggerDAO {</span>
+
+<span class="nc" id="L42">    protected static class MessageCriteriaBuilder {</span>
+
+<span class="nc" id="L44">        protected final StringBuilder query = new StringBuilder();</span>
+
+        protected MessageCriteriaBuilder entityKey(final String entityKey) {
+<span class="nc bnc" id="L47" title="All 2 branches missed.">            if (entityKey == null) {</span>
+<span class="nc" id="L48">                query.append(&quot; 1=1&quot;);</span>
+            } else {
+<span class="nc" id="L50">                query.append(' ').append(AUDIT_MESSAGE_COLUMN).append(&quot; LIKE '%key%&quot;).append(entityKey).append(&quot;%'&quot;);</span>
+            }
+<span class="nc" id="L52">            return this;</span>
+        }
+
+        public MessageCriteriaBuilder type(final AuditElements.EventCategoryType type) {
+<span class="nc bnc" id="L56" title="All 2 branches missed.">            if (type != null) {</span>
+<span class="nc" id="L57">                query.append(&quot; AND &quot;).append(AUDIT_MESSAGE_COLUMN).</span>
+<span class="nc" id="L58">                        append(&quot; LIKE '%\&quot;type\&quot;:\&quot;&quot;).append(type.name()).append(&quot;\&quot;%'&quot;);</span>
+            }
+<span class="nc" id="L60">            return this;</span>
+        }
+
+        public MessageCriteriaBuilder category(final String category) {
+<span class="nc bnc" id="L64" title="All 2 branches missed.">            if (StringUtils.isNotBlank(category)) {</span>
+<span class="nc" id="L65">                query.append(&quot; AND &quot;).append(AUDIT_MESSAGE_COLUMN).</span>
+<span class="nc" id="L66">                        append(&quot; LIKE '%\&quot;category\&quot;:\&quot;&quot;).append(category).append(&quot;\&quot;%'&quot;);</span>
+            }
+<span class="nc" id="L68">            return this;</span>
+        }
+
+        public MessageCriteriaBuilder subcategory(final String subcategory) {
+<span class="nc bnc" id="L72" title="All 2 branches missed.">            if (StringUtils.isNotBlank(subcategory)) {</span>
+<span class="nc" id="L73">                query.append(&quot; AND &quot;).append(AUDIT_MESSAGE_COLUMN).</span>
+<span class="nc" id="L74">                        append(&quot; LIKE '%\&quot;subcategory\&quot;:\&quot;&quot;).append(subcategory).append(&quot;\&quot;%'&quot;);</span>
+            }
+<span class="nc" id="L76">            return this;</span>
+        }
+
+        public MessageCriteriaBuilder events(final List&lt;String&gt; events) {
+<span class="nc bnc" id="L80" title="All 2 branches missed.">            if (!events.isEmpty()) {</span>
+<span class="nc" id="L81">                query.append(&quot; AND ( &quot;).</span>
+<span class="nc" id="L82">                        append(events.stream().</span>
+<span class="nc" id="L83">                                map(event -&gt; AUDIT_MESSAGE_COLUMN + &quot; LIKE '%\&quot;event\&quot;:\&quot;&quot; + event + &quot;\&quot;%'&quot;).</span>
+<span class="nc" id="L84">                                collect(Collectors.joining(&quot; OR &quot;))).</span>
+<span class="nc" id="L85">                        append(&quot; )&quot;);</span>
+            }
+<span class="nc" id="L87">            return this;</span>
+        }
+
+        public MessageCriteriaBuilder result(final AuditElements.Result result) {
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            if (result != null) {</span>
+<span class="nc" id="L92">                query.append(&quot; AND &quot;).append(AUDIT_MESSAGE_COLUMN).</span>
+<span class="nc" id="L93">                        append(&quot; LIKE '%\&quot;result\&quot;:\&quot;&quot;).append(result.name()).append(&quot;\&quot;%' &quot;);</span>
+            }
+<span class="nc" id="L95">            return this;</span>
+        }
+
+        public String build() {
+<span class="nc" id="L99">            return query.toString();</span>
+        }
+    }
+
+    @Override
+    public Logger find(final String key) {
+<span class="nc" id="L105">        return entityManager().find(JPALogger.class, key);</span>
+    }
+
+    @Override
+    public List&lt;Logger&gt; findAll(final LoggerType type) {
+<span class="nc" id="L110">        TypedQuery&lt;Logger&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L111">                &quot;SELECT e FROM &quot; + JPALogger.class.getSimpleName() + &quot; e WHERE e.type=:type&quot;, Logger.class);</span>
+<span class="nc" id="L112">        query.setParameter(&quot;type&quot;, type);</span>
+<span class="nc" id="L113">        return query.getResultList();</span>
+    }
+
+    @Override
+    public Logger save(final Logger logger) {
+        // Audit loggers must be either OFF or DEBUG, no more options
+<span class="nc bnc" id="L119" title="All 4 branches missed.">        if (LoggerType.AUDIT == logger.getType() &amp;&amp; LoggerLevel.OFF != logger.getLevel()) {</span>
+<span class="nc" id="L120">            logger.setLevel(LoggerLevel.DEBUG);</span>
+        }
+<span class="nc" id="L122">        return entityManager().merge(logger);</span>
+    }
+
+    @Override
+    public void delete(final Logger logger) {
+<span class="nc" id="L127">        entityManager().remove(logger);</span>
+<span class="nc" id="L128">    }</span>
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L132">        Logger logger = find(key);</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        if (logger == null) {</span>
+<span class="nc" id="L134">            return;</span>
+        }
+
+<span class="nc" id="L137">        delete(logger);</span>
+<span class="nc" id="L138">    }</span>
+
+    protected MessageCriteriaBuilder messageCriteriaBuilder(final String entityKey) {
+<span class="nc" id="L141">        return new MessageCriteriaBuilder().entityKey(entityKey);</span>
+    }
+
+    @Override
+    public int countAuditEntries(final String entityKey,
+            final AuditElements.EventCategoryType type,
+            final String category,
+            final String subcategory,
+            final List&lt;String&gt; events,
+            final AuditElements.Result result) {
+<span class="nc" id="L151">        String queryString = &quot;SELECT COUNT(0) FROM &quot; + AUDIT_TABLE</span>
+<span class="nc" id="L152">                + &quot; WHERE &quot; + messageCriteriaBuilder(entityKey).</span>
+<span class="nc" id="L153">                        type(type).</span>
+<span class="nc" id="L154">                        category(category).</span>
+<span class="nc" id="L155">                        subcategory(subcategory).</span>
+<span class="nc" id="L156">                        result(result).</span>
+<span class="nc" id="L157">                        events(events).</span>
+<span class="nc" id="L158">                        build();</span>
+<span class="nc" id="L159">        Query countQuery = entityManager().createNativeQuery(queryString);</span>
+
+<span class="nc" id="L161">        return ((Number) countQuery.getSingleResult()).intValue();</span>
+    }
+
+    protected String select() {
+<span class="nc" id="L165">        return AUDIT_MESSAGE_COLUMN;</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List&lt;AuditEntry&gt; findAuditEntries(
+            final String entityKey,
+            final int page,
+            final int itemsPerPage,
+            final AuditElements.EventCategoryType type,
+            final String category,
+            final String subcategory,
+            final List&lt;String&gt; events,
+            final AuditElements.Result result,
+            final List&lt;OrderByClause&gt; orderByClauses) {
+
+<span class="nc" id="L181">        String queryString = &quot;SELECT &quot; + select()</span>
+                + &quot; FROM &quot; + AUDIT_TABLE
+<span class="nc" id="L183">                + &quot; WHERE &quot; + messageCriteriaBuilder(entityKey).</span>
+<span class="nc" id="L184">                        type(type).</span>
+<span class="nc" id="L185">                        category(category).</span>
+<span class="nc" id="L186">                        subcategory(subcategory).</span>
+<span class="nc" id="L187">                        result(result).</span>
+<span class="nc" id="L188">                        events(events).</span>
+<span class="nc" id="L189">                        build();</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">        if (!orderByClauses.isEmpty()) {</span>
+<span class="nc" id="L191">            queryString += &quot; ORDER BY &quot; + orderByClauses.stream().</span>
+<span class="nc" id="L192">                    map(orderBy -&gt; orderBy.getField() + ' ' + orderBy.getDirection().name()).</span>
+<span class="nc" id="L193">                    collect(Collectors.joining(&quot;,&quot;));</span>
+        }
+
+<span class="nc" id="L196">        Query query = entityManager().createNativeQuery(queryString);</span>
+<span class="nc bnc" id="L197" title="All 2 branches missed.">        query.setFirstResult(itemsPerPage * (page &lt;= 0 ? 0 : page - 1));</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        if (itemsPerPage &gt;= 0) {</span>
+<span class="nc" id="L199">            query.setMaxResults(itemsPerPage);</span>
+        }
+
+        @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L203">        List&lt;Object&gt; entries = query.getResultList();</span>
+<span class="nc" id="L204">        return entries.stream().map(row -&gt; {</span>
+            String value;
+<span class="nc bnc" id="L206" title="All 2 branches missed.">            if (row instanceof Clob) {</span>
+<span class="nc" id="L207">                Clob clob = (Clob) row;</span>
+                try {
+<span class="nc" id="L209">                    value = clob.getSubString(1, (int) clob.length());</span>
+<span class="nc" id="L210">                } catch (SQLException e) {</span>
+<span class="nc" id="L211">                    LOG.error(&quot;Unexpected error reading Audit Entry for entity key {}&quot;, entityKey, e);</span>
+<span class="nc" id="L212">                    return null;</span>
+<span class="nc" id="L213">                }</span>
+<span class="nc" id="L214">            } else {</span>
+<span class="nc" id="L215">                value = row.toString();</span>
+            }
+<span class="nc" id="L217">            return POJOHelper.deserialize(value, AuditEntry.class);</span>
+<span class="nc" id="L218">        }).filter(Objects::nonNull).collect(Collectors.toList());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

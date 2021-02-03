@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPANotification.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity</a> &gt; <span class="el_source">JPANotification.java</span></div><h1>JPANotification.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import javax.persistence.CascadeType;
+import javax.persistence.CollectionTable;
+import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.common.lib.types.IdRepoImplementationType;
+import org.apache.syncope.common.lib.types.TraceLevel;
+import org.apache.syncope.core.persistence.api.entity.AnyAbout;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.MailTemplate;
+import org.apache.syncope.core.persistence.api.entity.Notification;
+
+@Entity
+@Table(name = JPANotification.TABLE)
+<span class="nc" id="L47">public class JPANotification extends AbstractGeneratedKeyEntity implements Notification {</span>
+
+    private static final long serialVersionUID = 3112582296912757537L;
+
+    public static final String TABLE = &quot;Notification&quot;;
+
+<span class="nc" id="L53">    @ElementCollection(fetch = FetchType.EAGER)</span>
+    @Column(name = &quot;event&quot;)
+    @CollectionTable(name = &quot;Notification_events&quot;,
+            joinColumns =
+            @JoinColumn(name = &quot;notification_id&quot;, referencedColumnName = &quot;id&quot;))
+    private List&lt;String&gt; events = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L60">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER, mappedBy = &quot;notification&quot;)</span>
+    private List&lt;JPAAnyAbout&gt; abouts = new ArrayList&lt;&gt;();
+
+    private String recipientsFIQL;
+
+<span class="nc" id="L65">    @ElementCollection(fetch = FetchType.EAGER)</span>
+    @CollectionTable(name = &quot;Notification_staticRecipients&quot;,
+            joinColumns =
+            @JoinColumn(name = &quot;notification_id&quot;, referencedColumnName = &quot;id&quot;))
+    @Column(name = &quot;staticRecipients&quot;)
+    private List&lt;String&gt; staticRecipients = new ArrayList&lt;&gt;();
+
+    @NotNull
+    private String recipientAttrName;
+
+    @ManyToOne
+    private JPAImplementation recipientsProvider;
+
+<span class="nc" id="L78">    @NotNull</span>
+<span class="nc" id="L79">    private Boolean selfAsRecipient = false;</span>
+
+    @NotNull
+    private String sender;
+
+    @NotNull
+    private String subject;
+
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = &quot;template_id&quot;)
+    private JPAMailTemplate template;
+
+<span class="nc" id="L91">    @NotNull</span>
+    @Enumerated(EnumType.STRING)
+    private TraceLevel traceLevel = TraceLevel.ALL;
+
+<span class="nc" id="L95">    @NotNull</span>
+<span class="nc" id="L96">    private Boolean active = true;</span>
+
+    @Override
+    public String getRecipientsFIQL() {
+<span class="nc" id="L100">        return recipientsFIQL;</span>
+    }
+
+    @Override
+    public void setRecipientsFIQL(final String recipientsFIQL) {
+<span class="nc" id="L105">        this.recipientsFIQL = recipientsFIQL;</span>
+<span class="nc" id="L106">    }</span>
+
+    @Override
+    public String getRecipientAttrName() {
+<span class="nc" id="L110">        return recipientAttrName;</span>
+    }
+
+    @Override
+    public void setRecipientAttrName(final String recipientAttrName) {
+<span class="nc" id="L115">        this.recipientAttrName = recipientAttrName;</span>
+<span class="nc" id="L116">    }</span>
+
+    @Override
+    public Implementation getRecipientsProvider() {
+<span class="nc" id="L120">        return recipientsProvider;</span>
+    }
+
+    @Override
+    public void setRecipientsProvider(final Implementation recipientsProvider) {
+<span class="nc" id="L125">        checkType(recipientsProvider, JPAImplementation.class);</span>
+<span class="nc" id="L126">        checkImplementationType(recipientsProvider, IdRepoImplementationType.RECIPIENTS_PROVIDER);</span>
+<span class="nc" id="L127">        this.recipientsProvider = (JPAImplementation) recipientsProvider;</span>
+<span class="nc" id="L128">    }</span>
+
+    @Override
+    public List&lt;String&gt; getEvents() {
+<span class="nc" id="L132">        return events;</span>
+    }
+
+    @Override
+    public boolean add(final AnyAbout about) {
+<span class="nc" id="L137">        checkType(about, JPAAnyAbout.class);</span>
+<span class="nc" id="L138">        return this.abouts.add((JPAAnyAbout) about);</span>
+    }
+
+    @Override
+    public Optional&lt;? extends AnyAbout&gt; getAbout(final AnyType anyType) {
+<span class="nc bnc" id="L143" title="All 4 branches missed.">        return abouts.stream().filter(about -&gt; anyType != null &amp;&amp; anyType.equals(about.getAnyType())).findFirst();</span>
+    }
+
+    @Override
+    public List&lt;? extends AnyAbout&gt; getAbouts() {
+<span class="nc" id="L148">        return abouts;</span>
+    }
+
+    @Override
+    public List&lt;String&gt; getStaticRecipients() {
+<span class="nc" id="L153">        return staticRecipients;</span>
+    }
+
+    @Override
+    public boolean isSelfAsRecipient() {
+<span class="nc" id="L158">        return selfAsRecipient;</span>
+    }
+
+    @Override
+    public void setSelfAsRecipient(final boolean selfAsRecipient) {
+<span class="nc" id="L163">        this.selfAsRecipient = selfAsRecipient;</span>
+<span class="nc" id="L164">    }</span>
+
+    @Override
+    public String getSender() {
+<span class="nc" id="L168">        return sender;</span>
+    }
+
+    @Override
+    public void setSender(final String sender) {
+<span class="nc" id="L173">        this.sender = sender;</span>
+<span class="nc" id="L174">    }</span>
+
+    @Override
+    public String getSubject() {
+<span class="nc" id="L178">        return subject;</span>
+    }
+
+    @Override
+
+    public void setSubject(final String subject) {
+<span class="nc" id="L184">        this.subject = subject;</span>
+<span class="nc" id="L185">    }</span>
+
+    @Override
+    public MailTemplate getTemplate() {
+<span class="nc" id="L189">        return template;</span>
+    }
+
+    @Override
+    public void setTemplate(final MailTemplate template) {
+<span class="nc" id="L194">        checkType(template, JPAMailTemplate.class);</span>
+<span class="nc" id="L195">        this.template = (JPAMailTemplate) template;</span>
+<span class="nc" id="L196">    }</span>
+
+    @Override
+    public TraceLevel getTraceLevel() {
+<span class="nc" id="L200">        return traceLevel;</span>
+    }
+
+    @Override
+    public void setTraceLevel(final TraceLevel traceLevel) {
+<span class="nc" id="L205">        this.traceLevel = traceLevel;</span>
+<span class="nc" id="L206">    }</span>
+
+    @Override
+    public boolean isActive() {
+<span class="nc" id="L210">        return active;</span>
+    }
+
+    @Override
+    public void setActive(final boolean active) {
+<span class="nc" id="L215">        this.active = active;</span>
+<span class="nc" id="L216">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

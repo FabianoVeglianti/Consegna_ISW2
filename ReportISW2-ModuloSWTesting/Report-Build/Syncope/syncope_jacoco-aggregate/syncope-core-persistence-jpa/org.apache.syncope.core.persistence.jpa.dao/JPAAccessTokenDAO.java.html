@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAAccessTokenDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAAccessTokenDAO.java</span></div><h1>JPAAccessTokenDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.Date;
+import java.util.List;
+import javax.persistence.NoResultException;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.syncope.core.persistence.api.dao.AccessTokenDAO;
+import org.apache.syncope.core.persistence.api.dao.search.OrderByClause;
+import org.apache.syncope.core.persistence.api.entity.AccessToken;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAccessToken;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ReflectionUtils;
+
+@Repository
+<span class="nc" id="L36">public class JPAAccessTokenDAO extends AbstractDAO&lt;AccessToken&gt; implements AccessTokenDAO {</span>
+
+    @Transactional(readOnly = true)
+    @Override
+    public AccessToken find(final String key) {
+<span class="nc" id="L41">        return entityManager().find(JPAAccessToken.class, key);</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public AccessToken findByOwner(final String username) {
+<span class="nc" id="L47">        TypedQuery&lt;AccessToken&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L48">                &quot;SELECT e FROM &quot; + JPAAccessToken.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE e.owner=:username&quot;, AccessToken.class);
+<span class="nc" id="L50">        query.setParameter(&quot;username&quot;, username);</span>
+
+<span class="nc" id="L52">        AccessToken result = null;</span>
+        try {
+<span class="nc" id="L54">            result = query.getSingleResult();</span>
+<span class="nc" id="L55">        } catch (NoResultException e) {</span>
+<span class="nc" id="L56">            LOG.debug(&quot;No token for user {} could be found&quot;, username, e);</span>
+<span class="nc" id="L57">        }</span>
+
+<span class="nc" id="L59">        return result;</span>
+    }
+
+    private static StringBuilder buildFindAllQuery() {
+<span class="nc" id="L63">        return new StringBuilder(&quot;SELECT e FROM &quot;).</span>
+<span class="nc" id="L64">                append(JPAAccessToken.class.getSimpleName()).</span>
+<span class="nc" id="L65">                append(&quot; e WHERE 1=1&quot;);</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public int count() {
+<span class="nc" id="L71">        StringBuilder queryString = buildFindAllQuery();</span>
+
+<span class="nc" id="L73">        Query query = entityManager().createQuery(StringUtils.replaceOnce(</span>
+<span class="nc" id="L74">                queryString.toString(), &quot;SELECT e&quot;, &quot;SELECT COUNT(e)&quot;));</span>
+<span class="nc" id="L75">        return ((Number) query.getSingleResult()).intValue();</span>
+    }
+
+    private static String toOrderByStatement(final List&lt;OrderByClause&gt; orderByClauses) {
+<span class="nc" id="L79">        StringBuilder statement = new StringBuilder();</span>
+
+<span class="nc bnc" id="L81" title="All 2 branches missed.">        for (OrderByClause clause : orderByClauses) {</span>
+<span class="nc" id="L82">            String field = clause.getField().trim();</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">            if (ReflectionUtils.findField(JPAAccessToken.class, field) != null) {</span>
+<span class="nc" id="L84">                statement.append(&quot;e.&quot;).append(field).append(' ').append(clause.getDirection().name());</span>
+            }
+<span class="nc" id="L86">        }</span>
+
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        if (statement.length() == 0) {</span>
+<span class="nc" id="L89">            statement.append(&quot;ORDER BY e.expiryTime DESC&quot;);</span>
+        } else {
+<span class="nc" id="L91">            statement.insert(0, &quot;ORDER BY &quot;);</span>
+        }
+<span class="nc" id="L93">        return statement.toString();</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List&lt;AccessToken&gt; findAll(final int page, final int itemsPerPage, final List&lt;OrderByClause&gt; orderByClauses) {
+<span class="nc" id="L99">        StringBuilder queryString = buildFindAllQuery().append(toOrderByStatement(orderByClauses));</span>
+
+<span class="nc" id="L101">        TypedQuery&lt;AccessToken&gt; query = entityManager().createQuery(queryString.toString(), AccessToken.class);</span>
+
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        query.setFirstResult(itemsPerPage * (page &lt;= 0 ? 0 : page - 1));</span>
+
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        if (itemsPerPage &gt; 0) {</span>
+<span class="nc" id="L106">            query.setMaxResults(itemsPerPage);</span>
+        }
+
+<span class="nc" id="L109">        return query.getResultList();</span>
+    }
+
+    @Transactional(rollbackFor = Throwable.class)
+    @Override
+    public AccessToken save(final AccessToken accessToken) {
+<span class="nc" id="L115">        return entityManager().merge(accessToken);</span>
+    }
+
+    @Transactional(rollbackFor = Throwable.class)
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L121">        AccessToken accessToken = find(key);</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (accessToken == null) {</span>
+<span class="nc" id="L123">            return;</span>
+        }
+
+<span class="nc" id="L126">        delete(accessToken);</span>
+<span class="nc" id="L127">    }</span>
+
+    @Override
+    public void delete(final AccessToken accessToken) {
+<span class="nc" id="L131">        entityManager().remove(accessToken);</span>
+<span class="nc" id="L132">    }</span>
+
+    @Override
+    public int deleteExpired() {
+<span class="nc" id="L136">        Query query = entityManager().createQuery(</span>
+<span class="nc" id="L137">                &quot;DELETE FROM &quot; + JPAAccessToken.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE e.expirationTime &lt; :now&quot;);
+<span class="nc" id="L139">        query.setParameter(&quot;now&quot;, new Date());</span>
+<span class="nc" id="L140">        return query.executeUpdate();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

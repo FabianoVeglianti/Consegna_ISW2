@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPARole.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity</a> &gt; <span class="el_source">JPARole.java</span></div><h1>JPARole.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.persistence.Cacheable;
+import javax.persistence.CascadeType;
+import javax.persistence.CollectionTable;
+import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.Lob;
+import javax.persistence.ManyToMany;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import javax.validation.Valid;
+import org.apache.syncope.core.persistence.api.entity.Application;
+import org.apache.syncope.core.persistence.api.entity.user.DynRoleMembership;
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.persistence.api.entity.Role;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPADynRoleMembership;
+import org.apache.syncope.core.persistence.jpa.validation.entity.RoleCheck;
+import org.apache.syncope.core.persistence.api.entity.DynRealm;
+import org.apache.syncope.core.persistence.api.entity.Privilege;
+
+@Entity
+@Table(name = JPARole.TABLE)
+@Cacheable
+@RoleCheck
+<span class="nc" id="L54">public class JPARole extends AbstractProvidedKeyEntity implements Role {</span>
+
+    private static final long serialVersionUID = -7657701119422588832L;
+
+    public static final String TABLE = &quot;SyncopeRole&quot;;
+
+<span class="nc" id="L60">    @ElementCollection(fetch = FetchType.EAGER)</span>
+    @Column(name = &quot;entitlement&quot;)
+    @CollectionTable(name = &quot;SyncopeRole_entitlements&quot;,
+            joinColumns =
+            @JoinColumn(name = &quot;role_id&quot;, referencedColumnName = &quot;id&quot;))
+    private Set&lt;String&gt; entitlements = new HashSet&lt;&gt;();
+
+<span class="nc" id="L67">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;role_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;realm_id&quot;),
+            uniqueConstraints =
+            @UniqueConstraint(columnNames = { &quot;role_id&quot;, &quot;realm_id&quot; }))
+    @Valid
+    private List&lt;JPARealm&gt; realms = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L77">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;role_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;dynamicRealm_id&quot;),
+            uniqueConstraints =
+            @UniqueConstraint(columnNames = { &quot;role_id&quot;, &quot;dynamicRealm_id&quot; }))
+    @Valid
+    private List&lt;JPADynRealm&gt; dynRealms = new ArrayList&lt;&gt;();
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = &quot;role&quot;)
+    @Valid
+    private JPADynRoleMembership dynMembership;
+
+    @Lob
+    private String anyLayout;
+
+<span class="nc" id="L94">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;role_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;privilege_id&quot;),
+            uniqueConstraints =
+            @UniqueConstraint(columnNames = { &quot;role_id&quot;, &quot;privilege_id&quot; }))
+    @Valid
+    private Set&lt;JPAPrivilege&gt; privileges = new HashSet&lt;&gt;();
+
+    @Override
+    public Set&lt;String&gt; getEntitlements() {
+<span class="nc" id="L106">        return entitlements;</span>
+    }
+
+    @Override
+    public boolean add(final Realm realm) {
+<span class="nc" id="L111">        checkType(realm, JPARealm.class);</span>
+<span class="nc bnc" id="L112" title="All 4 branches missed.">        return realms.contains((JPARealm) realm) || realms.add((JPARealm) realm);</span>
+    }
+
+    @Override
+    public List&lt;? extends Realm&gt; getRealms() {
+<span class="nc" id="L117">        return realms;</span>
+    }
+
+    @Override
+    public boolean add(final DynRealm dynamicRealm) {
+<span class="nc" id="L122">        checkType(dynamicRealm, JPADynRealm.class);</span>
+<span class="nc bnc" id="L123" title="All 4 branches missed.">        return dynRealms.contains((JPADynRealm) dynamicRealm) || dynRealms.add((JPADynRealm) dynamicRealm);</span>
+    }
+
+    @Override
+    public List&lt;? extends DynRealm&gt; getDynRealms() {
+<span class="nc" id="L128">        return dynRealms;</span>
+    }
+
+    @Override
+    public DynRoleMembership getDynMembership() {
+<span class="nc" id="L133">        return dynMembership;</span>
+    }
+
+    @Override
+    public void setDynMembership(final DynRoleMembership dynMembership) {
+<span class="nc" id="L138">        checkType(dynMembership, JPADynRoleMembership.class);</span>
+<span class="nc" id="L139">        this.dynMembership = (JPADynRoleMembership) dynMembership;</span>
+<span class="nc" id="L140">    }</span>
+
+    @Override
+    public String getAnyLayout() {
+<span class="nc" id="L144">        return anyLayout;</span>
+    }
+
+    @Override
+    public void setAnyLayout(final String anyLayout) {
+<span class="nc" id="L149">        this.anyLayout = anyLayout;</span>
+<span class="nc" id="L150">    }</span>
+
+    @Override
+    public boolean add(final Privilege privilege) {
+<span class="nc" id="L154">        checkType(privilege, JPAPrivilege.class);</span>
+<span class="nc" id="L155">        return privileges.add((JPAPrivilege) privilege);</span>
+    }
+
+    @Override
+    public Set&lt;? extends Privilege&gt; getPrivileges(final Application application) {
+<span class="nc" id="L160">        return privileges.stream().</span>
+<span class="nc" id="L161">                filter(privilege -&gt; privilege.getApplication().equals(application)).</span>
+<span class="nc" id="L162">                collect(Collectors.toSet());</span>
+    }
+
+    @Override
+    public Set&lt;? extends Privilege&gt; getPrivileges() {
+<span class="nc" id="L167">        return privileges;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

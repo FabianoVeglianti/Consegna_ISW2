@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAAnyTypeClassDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAAnyTypeClassDAO.java</span></div><h1>JPAAnyTypeClassDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.List;
+import javax.persistence.TypedQuery;
+import org.apache.syncope.core.persistence.api.dao.AnyTypeClassDAO;
+import org.apache.syncope.core.persistence.api.dao.AnyTypeDAO;
+import org.apache.syncope.core.persistence.api.dao.DerSchemaDAO;
+import org.apache.syncope.core.persistence.api.dao.ExternalResourceDAO;
+import org.apache.syncope.core.persistence.api.dao.GroupDAO;
+import org.apache.syncope.core.persistence.api.dao.PlainSchemaDAO;
+import org.apache.syncope.core.persistence.api.dao.VirSchemaDAO;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.DerSchema;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.api.entity.VirSchema;
+import org.apache.syncope.core.persistence.api.entity.group.TypeExtension;
+import org.apache.syncope.core.persistence.api.entity.resource.Provision;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyTypeClass;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+
+@Repository
+<span class="nc" id="L42">public class JPAAnyTypeClassDAO extends AbstractDAO&lt;AnyTypeClass&gt; implements AnyTypeClassDAO {</span>
+
+    @Autowired
+    private AnyTypeDAO anyTypeDAO;
+
+    @Autowired
+    private PlainSchemaDAO plainSchemaDAO;
+
+    @Autowired
+    private DerSchemaDAO derSchemaDAO;
+
+    @Autowired
+    private VirSchemaDAO virSchemaDAO;
+
+    @Autowired
+    private GroupDAO groupDAO;
+
+    @Autowired
+    private ExternalResourceDAO resourceDAO;
+
+    @Override
+    public AnyTypeClass find(final String key) {
+<span class="nc" id="L64">        return entityManager().find(JPAAnyTypeClass.class, key);</span>
+    }
+
+    @Override
+    public List&lt;AnyTypeClass&gt; findAll() {
+<span class="nc" id="L69">        TypedQuery&lt;AnyTypeClass&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L70">                &quot;SELECT e FROM &quot; + JPAAnyTypeClass.class.getSimpleName() + &quot; e &quot;, AnyTypeClass.class);</span>
+<span class="nc" id="L71">        return query.getResultList();</span>
+    }
+
+    @Override
+    public AnyTypeClass save(final AnyTypeClass anyTypeClass) {
+<span class="nc" id="L76">        AnyTypeClass merge = entityManager().merge(anyTypeClass);</span>
+
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        for (PlainSchema schema : merge.getPlainSchemas()) {</span>
+<span class="nc" id="L79">            schema.setAnyTypeClass(merge);</span>
+<span class="nc" id="L80">        }</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">        for (DerSchema schema : merge.getDerSchemas()) {</span>
+<span class="nc" id="L82">            schema.setAnyTypeClass(merge);</span>
+<span class="nc" id="L83">        }</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        for (VirSchema schema : merge.getVirSchemas()) {</span>
+<span class="nc" id="L85">            schema.setAnyTypeClass(merge);</span>
+<span class="nc" id="L86">        }</span>
+
+<span class="nc" id="L88">        return merge;</span>
+    }
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L93">        AnyTypeClass anyTypeClass = find(key);</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        if (anyTypeClass == null) {</span>
+<span class="nc" id="L95">            return;</span>
+        }
+
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        for (PlainSchema schema : plainSchemaDAO.findByAnyTypeClasses(List.of(anyTypeClass))) {</span>
+<span class="nc" id="L99">            schema.setAnyTypeClass(null);</span>
+<span class="nc" id="L100">        }</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        for (DerSchema schema : derSchemaDAO.findByAnyTypeClasses(List.of(anyTypeClass))) {</span>
+<span class="nc" id="L102">            schema.setAnyTypeClass(null);</span>
+<span class="nc" id="L103">        }</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        for (VirSchema schema : virSchemaDAO.findByAnyTypeClasses(List.of(anyTypeClass))) {</span>
+<span class="nc" id="L105">            schema.setAnyTypeClass(null);</span>
+<span class="nc" id="L106">        }</span>
+
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        for (AnyType type : anyTypeDAO.findByTypeClass(anyTypeClass)) {</span>
+<span class="nc" id="L109">            type.getClasses().remove(anyTypeClass);</span>
+<span class="nc" id="L110">        }</span>
+
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        for (TypeExtension typeExt : groupDAO.findTypeExtensions(anyTypeClass)) {</span>
+<span class="nc" id="L113">            typeExt.getAuxClasses().remove(anyTypeClass);</span>
+
+<span class="nc bnc" id="L115" title="All 2 branches missed.">            if (typeExt.getAuxClasses().isEmpty()) {</span>
+<span class="nc" id="L116">                typeExt.getGroup().getTypeExtensions().remove(typeExt);</span>
+<span class="nc" id="L117">                typeExt.setGroup(null);</span>
+            }
+<span class="nc" id="L119">        }</span>
+
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        for (Provision provision : resourceDAO.findProvisionsByAuxClass(anyTypeClass)) {</span>
+<span class="nc" id="L122">            provision.getAuxClasses().remove(anyTypeClass);</span>
+<span class="nc" id="L123">        }</span>
+
+<span class="nc" id="L125">        entityManager().remove(anyTypeClass);</span>
+<span class="nc" id="L126">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

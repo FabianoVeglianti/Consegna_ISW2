@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>GroupValidator.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.validation.entity</a> &gt; <span class="el_source">GroupValidator.java</span></div><h1>GroupValidator.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.validation.entity;
+
+import java.util.HashSet;
+import java.util.Set;
+import javax.validation.ConstraintValidatorContext;
+import org.apache.syncope.common.lib.types.AnyTypeKind;
+import org.apache.syncope.common.lib.types.EntityViolationType;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.anyobject.ADynGroupMembership;
+import org.apache.syncope.core.persistence.api.entity.group.Group;
+
+<span class="nc" id="L30">public class GroupValidator extends AbstractValidator&lt;GroupCheck, Group&gt; {</span>
+
+    @Override
+    public boolean isValid(final Group group, final ConstraintValidatorContext context) {
+<span class="nc" id="L34">        context.disableDefaultConstraintViolation();</span>
+
+<span class="nc" id="L36">        boolean isValid = true;</span>
+
+<span class="nc bnc" id="L38" title="All 4 branches missed.">        if (group.getUserOwner() != null &amp;&amp; group.getGroupOwner() != null) {</span>
+<span class="nc" id="L39">            isValid = false;</span>
+
+<span class="nc" id="L41">            context.buildConstraintViolationWithTemplate(</span>
+<span class="nc" id="L42">                    getTemplate(EntityViolationType.InvalidGroupOwner,</span>
+                            &quot;A group must either be owned by an user or a group, not both&quot;)).
+<span class="nc" id="L44">                    addPropertyNode(&quot;owner&quot;).addConstraintViolation();</span>
+        }
+
+<span class="nc bnc" id="L47" title="All 6 branches missed.">        if (isValid &amp;&amp; (group.getName() == null || !KEY_PATTERN.matcher(group.getName()).matches())) {</span>
+<span class="nc" id="L48">            isValid = false;</span>
+
+<span class="nc" id="L50">            context.buildConstraintViolationWithTemplate(</span>
+<span class="nc" id="L51">                    getTemplate(EntityViolationType.InvalidName, group.getName())).</span>
+<span class="nc" id="L52">                    addPropertyNode(&quot;name&quot;).addConstraintViolation();</span>
+        }
+
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (isValid) {</span>
+<span class="nc" id="L56">            Set&lt;AnyType&gt; anyTypes = new HashSet&lt;&gt;();</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">            for (ADynGroupMembership memb : group.getADynMemberships()) {</span>
+<span class="nc" id="L58">                anyTypes.add(memb.getAnyType());</span>
+
+<span class="nc bnc" id="L60" title="All 2 branches missed.">                if (memb.getAnyType().getKind() != AnyTypeKind.ANY_OBJECT) {</span>
+<span class="nc" id="L61">                    isValid = false;</span>
+
+<span class="nc" id="L63">                    context.buildConstraintViolationWithTemplate(</span>
+<span class="nc" id="L64">                            getTemplate(EntityViolationType.InvalidADynMemberships,</span>
+                                    &quot;No user or group dynamic membership condition are allowed here&quot;)).
+<span class="nc" id="L66">                            addPropertyNode(&quot;aDynMemberships&quot;).addConstraintViolation();</span>
+                }
+<span class="nc" id="L68">            }</span>
+
+<span class="nc bnc" id="L70" title="All 4 branches missed.">            if (isValid &amp;&amp; anyTypes.size() &lt; group.getADynMemberships().size()) {</span>
+<span class="nc" id="L71">                context.buildConstraintViolationWithTemplate(</span>
+<span class="nc" id="L72">                        getTemplate(EntityViolationType.InvalidADynMemberships,</span>
+                                &quot;Each dynamic membership condition requires a different &quot;
+<span class="nc" id="L74">                                + AnyType.class.getSimpleName())).</span>
+<span class="nc" id="L75">                        addPropertyNode(&quot;aDynMemberships&quot;).addConstraintViolation();</span>
+<span class="nc" id="L76">                return false;</span>
+            }
+
+        }
+
+<span class="nc" id="L81">        return isValid;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

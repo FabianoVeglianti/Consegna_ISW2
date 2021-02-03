@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAPushTaskAnyFilter.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.task</a> &gt; <span class="el_source">JPAPushTaskAnyFilter.java</span></div><h1>JPAPushTaskAnyFilter.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.task;
+
+import javax.persistence.Entity;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.task.PushTask;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyType;
+import org.apache.syncope.core.persistence.api.entity.task.PushTaskAnyFilter;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractGeneratedKeyEntity;
+
+@Entity
+@Table(name = JPAPushTaskAnyFilter.TABLE, uniqueConstraints =
+        @UniqueConstraint(columnNames = { &quot;pushTask_id&quot;, &quot;anyType_id&quot; }))
+<span class="nc" id="L35">public class JPAPushTaskAnyFilter extends AbstractGeneratedKeyEntity implements PushTaskAnyFilter {</span>
+
+    private static final long serialVersionUID = 3517381731849788407L;
+
+    public static final String TABLE = &quot;PushTaskAnyFilter&quot;;
+
+    @ManyToOne(optional = false)
+    private JPAPushTask pushTask;
+
+    @ManyToOne(optional = false)
+    private JPAAnyType anyType;
+
+    @NotNull
+    private String fiql;
+
+    @Override
+    public PushTask getPushTask() {
+<span class="nc" id="L52">        return pushTask;</span>
+    }
+
+    @Override
+    public void setPushTask(final PushTask pushTask) {
+<span class="nc" id="L57">        checkType(pushTask, JPAPushTask.class);</span>
+<span class="nc" id="L58">        this.pushTask = (JPAPushTask) pushTask;</span>
+<span class="nc" id="L59">    }</span>
+
+    @Override
+    public AnyType getAnyType() {
+<span class="nc" id="L63">        return anyType;</span>
+    }
+
+    @Override
+    public void setAnyType(final AnyType anyType) {
+<span class="nc" id="L68">        checkType(anyType, JPAAnyType.class);</span>
+<span class="nc" id="L69">        this.anyType = (JPAAnyType) anyType;</span>
+<span class="nc" id="L70">    }</span>
+
+    @Override
+    public String getFIQLCond() {
+<span class="nc" id="L74">        return fiql;</span>
+    }
+
+    @Override
+    public void setFIQLCond(final String fiql) {
+<span class="nc" id="L79">        this.fiql = fiql;</span>
+<span class="nc" id="L80">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

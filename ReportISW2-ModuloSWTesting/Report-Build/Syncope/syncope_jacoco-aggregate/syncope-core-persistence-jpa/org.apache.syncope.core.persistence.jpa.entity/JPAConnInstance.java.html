@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAConnInstance.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity</a> &gt; <span class="el_source">JPAConnInstance.java</span></div><h1>JPAConnInstance.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import javax.persistence.CascadeType;
+import javax.persistence.CollectionTable;
+import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.Lob;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+import javax.validation.constraints.NotNull;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.syncope.common.lib.types.ConnConfProperty;
+import org.apache.syncope.common.lib.types.ConnectorCapability;
+import org.apache.syncope.core.persistence.api.entity.ConnInstance;
+import org.apache.syncope.core.persistence.api.entity.ConnPoolConf;
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.jpa.validation.entity.ConnInstanceCheck;
+import org.apache.syncope.core.provisioning.api.serialization.POJOHelper;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAExternalResource;
+
+@Entity
+@Table(name = JPAConnInstance.TABLE)
+@ConnInstanceCheck
+<span class="nc" id="L55">public class JPAConnInstance extends AbstractGeneratedKeyEntity implements ConnInstance {</span>
+
+    private static final long serialVersionUID = -2294708794497208872L;
+
+    public static final String TABLE = &quot;ConnInstance&quot;;
+
+    private static final int DEFAULT_TIMEOUT = 10;
+
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    private JPARealm adminRealm;
+
+    /**
+     * URI identifying the local / remote ConnId location where the related connector bundle is found.
+     */
+    @NotNull
+    private String location;
+
+    /**
+     * Connector bundle class name.
+     * Within a given location, the triple
+     * (ConnectorBundle-Name, ConnectorBundle-Version, ConnectorBundle-Version) must be unique.
+     */
+    @NotNull
+    private String connectorName;
+
+    /**
+     * Qualified name for the connector bundle.
+     * Within a given location, the triple
+     * (ConnectorBundle-Name, ConnectorBundle-Version, ConnectorBundle-Version) must be unique.
+     */
+    @NotNull
+    private String bundleName;
+
+    /**
+     * Version of the bundle.
+     * Within a given location, the triple
+     * (ConnectorBundle-Name, ConnectorBundle-Version, ConnectorBundle-Version) must be unique.
+     */
+    @NotNull
+    private String version;
+
+    /**
+     * The set of capabilities supported by this connector instance.
+     */
+<span class="nc" id="L99">    @ElementCollection(fetch = FetchType.EAGER)</span>
+    @Enumerated(EnumType.STRING)
+    @Column(name = &quot;capability&quot;)
+    @CollectionTable(name = &quot;ConnInstance_capabilities&quot;,
+            joinColumns =
+            @JoinColumn(name = &quot;connInstance_id&quot;, referencedColumnName = &quot;id&quot;))
+    private Set&lt;ConnectorCapability&gt; capabilities = new HashSet&lt;&gt;();
+
+    /**
+     * The main configuration for the connector instance. This is directly implemented by the Configuration bean class
+     * which contains annotated ConfigurationProperties.
+     *
+     * @see org.identityconnectors.framework.api.ConfigurationProperty
+     */
+    @Lob
+    private String jsonConf;
+
+    @Column(unique = true)
+    private String displayName;
+
+    /**
+     * External resources associated to the connector.
+     */
+<span class="nc" id="L122">    @OneToMany(cascade = { CascadeType.ALL }, mappedBy = &quot;connector&quot;)</span>
+    private List&lt;JPAExternalResource&gt; resources = new ArrayList&lt;&gt;();
+
+    /**
+     * Connector request timeout. It is not applied in case of sync, full reconciliation and search.
+     * DEFAULT_TIMEOUT is the default value to be used in case of unspecified timeout.
+     */
+<span class="nc" id="L129">    private Integer connRequestTimeout = DEFAULT_TIMEOUT;</span>
+
+    private JPAConnPoolConf poolConf;
+
+    @Override
+    public Realm getAdminRealm() {
+<span class="nc" id="L135">        return adminRealm;</span>
+    }
+
+    @Override
+    public void setAdminRealm(final Realm adminRealm) {
+<span class="nc" id="L140">        checkType(adminRealm, JPARealm.class);</span>
+<span class="nc" id="L141">        this.adminRealm = (JPARealm) adminRealm;</span>
+<span class="nc" id="L142">    }</span>
+
+    @Override
+    public String getLocation() {
+<span class="nc" id="L146">        return location;</span>
+    }
+
+    @Override
+    public void setLocation(final String location) {
+<span class="nc" id="L151">        this.location = location;</span>
+<span class="nc" id="L152">    }</span>
+
+    @Override
+    public String getConnectorName() {
+<span class="nc" id="L156">        return connectorName;</span>
+    }
+
+    @Override
+    public void setConnectorName(final String connectorName) {
+<span class="nc" id="L161">        this.connectorName = connectorName;</span>
+<span class="nc" id="L162">    }</span>
+
+    @Override
+    public String getBundleName() {
+<span class="nc" id="L166">        return bundleName;</span>
+    }
+
+    @Override
+    public void setBundleName(final String bundleName) {
+<span class="nc" id="L171">        this.bundleName = bundleName;</span>
+<span class="nc" id="L172">    }</span>
+
+    @Override
+    public String getVersion() {
+<span class="nc" id="L176">        return version;</span>
+    }
+
+    @Override
+    public void setVersion(final String version) {
+<span class="nc" id="L181">        this.version = version;</span>
+<span class="nc" id="L182">    }</span>
+
+    @Override
+    public Set&lt;ConnConfProperty&gt; getConf() {
+<span class="nc" id="L186">        Set&lt;ConnConfProperty&gt; configuration = new HashSet&lt;&gt;();</span>
+<span class="nc bnc" id="L187" title="All 2 branches missed.">        if (!StringUtils.isBlank(jsonConf)) {</span>
+<span class="nc" id="L188">            configuration.addAll(List.of(POJOHelper.deserialize(jsonConf, ConnConfProperty[].class)));</span>
+        }
+
+<span class="nc" id="L191">        return configuration;</span>
+    }
+
+    @Override
+    public void setConf(final Collection&lt;ConnConfProperty&gt; conf) {
+<span class="nc" id="L196">        jsonConf = POJOHelper.serialize(new HashSet&lt;&gt;(conf));</span>
+<span class="nc" id="L197">    }</span>
+
+    @Override
+    public String getDisplayName() {
+<span class="nc" id="L201">        return displayName;</span>
+    }
+
+    @Override
+    public void setDisplayName(final String displayName) {
+<span class="nc" id="L206">        this.displayName = displayName;</span>
+<span class="nc" id="L207">    }</span>
+
+    @Override
+    public List&lt;? extends ExternalResource&gt; getResources() {
+<span class="nc" id="L211">        return this.resources;</span>
+    }
+
+    @Override
+    public boolean add(final ExternalResource resource) {
+<span class="nc" id="L216">        checkType(resource, JPAExternalResource.class);</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">        return this.resources.contains((JPAExternalResource) resource)</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">                || this.resources.add((JPAExternalResource) resource);</span>
+    }
+
+    @Override
+    public Set&lt;ConnectorCapability&gt; getCapabilities() {
+<span class="nc" id="L223">        return capabilities;</span>
+    }
+
+    @Override
+    public Integer getConnRequestTimeout() {
+        // DEFAULT_TIMEOUT will be returned in case of null timeout:
+        // * instances created by the content loader
+        // * or with a timeout nullified explicitely
+<span class="nc" id="L231">        return Optional.ofNullable(connRequestTimeout).orElse(DEFAULT_TIMEOUT);</span>
+    }
+
+    @Override
+    public void setConnRequestTimeout(final Integer timeout) {
+<span class="nc" id="L236">        this.connRequestTimeout = timeout;</span>
+<span class="nc" id="L237">    }</span>
+
+    @Override
+    public ConnPoolConf getPoolConf() {
+<span class="nc" id="L241">        return poolConf;</span>
+    }
+
+    @Override
+    public void setPoolConf(final ConnPoolConf poolConf) {
+<span class="nc" id="L246">        checkType(poolConf, JPAConnPoolConf.class);</span>
+<span class="nc" id="L247">        this.poolConf = (JPAConnPoolConf) poolConf;</span>
+<span class="nc" id="L248">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

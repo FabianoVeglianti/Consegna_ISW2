@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAPlainAttrValueDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAPlainAttrValueDAO.java</span></div><h1>JPAPlainAttrValueDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.stream.Collectors;
+import org.apache.syncope.core.persistence.api.dao.PlainAttrValueDAO;
+import org.apache.syncope.core.persistence.api.entity.AnyUtils;
+import org.apache.syncope.core.persistence.api.entity.Entity;
+import org.apache.syncope.core.persistence.api.entity.PlainAttr;
+import org.apache.syncope.core.persistence.api.entity.PlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.anyobject.APlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.api.entity.anyobject.APlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.group.GPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.api.entity.group.GPlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.user.UPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.api.entity.user.UPlainAttrValue;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractPlainAttrValue;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAPlainAttrValue;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPAGPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPAGPlainAttrValue;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUPlainAttrValue;
+
+<span class="nc" id="L41">public class JPAPlainAttrValueDAO extends AbstractDAO&lt;PlainAttrValue&gt; implements PlainAttrValueDAO {</span>
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public static &lt;T extends PlainAttrValue&gt; Class&lt;? extends AbstractPlainAttrValue&gt; getEntityReference(
+            final Class&lt;T&gt; reference) {
+
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        return AbstractPlainAttrValue.class.isAssignableFrom(reference)</span>
+<span class="nc" id="L48">                ? (Class&lt;? extends AbstractPlainAttrValue&gt;) reference</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">                : reference.equals(GPlainAttrValue.class)</span>
+<span class="nc" id="L50">                ? JPAGPlainAttrValue.class</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">                : reference.equals(GPlainAttrUniqueValue.class)</span>
+<span class="nc" id="L52">                ? JPAGPlainAttrUniqueValue.class</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                : reference.equals(APlainAttrValue.class)</span>
+<span class="nc" id="L54">                ? JPAAPlainAttrValue.class</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">                : reference.equals(APlainAttrUniqueValue.class)</span>
+<span class="nc" id="L56">                ? JPAAPlainAttrUniqueValue.class</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">                : reference.equals(UPlainAttrValue.class)</span>
+<span class="nc" id="L58">                ? JPAUPlainAttrValue.class</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">                : reference.equals(UPlainAttrUniqueValue.class)</span>
+<span class="nc" id="L60">                ? JPAUPlainAttrUniqueValue.class</span>
+<span class="nc" id="L61">                : null;</span>
+    }
+
+    @Override
+    public void deleteAll(final PlainAttr&lt;?&gt; attr, final AnyUtils anyUtils) {
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        if (attr.getUniqueValue() == null) {</span>
+<span class="nc" id="L67">            attr.getValues().stream().map(Entity::getKey).collect(Collectors.toSet()).forEach(attrValueKey -&gt; {</span>
+<span class="nc" id="L68">                PlainAttrValue attrValue = anyUtils.plainAttrValueClass().cast(</span>
+<span class="nc" id="L69">                        entityManager().find(getEntityReference(anyUtils.plainAttrValueClass()), attrValueKey));</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">                if (attrValue != null) {</span>
+<span class="nc" id="L71">                    entityManager().remove(attrValue);</span>
+<span class="nc" id="L72">                    attr.getValues().remove(attrValue);</span>
+                }
+<span class="nc" id="L74">            });</span>
+        } else {
+<span class="nc" id="L76">            entityManager().remove(attr.getUniqueValue());</span>
+<span class="nc" id="L77">            attr.setUniqueValue(null);</span>
+        }
+<span class="nc" id="L79">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

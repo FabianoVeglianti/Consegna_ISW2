@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAPlainSchemaDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAPlainSchemaDAO.java</span></div><h1>JPAPlainSchemaDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.Collection;
+import java.util.List;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
+import org.apache.syncope.common.lib.types.AnyTypeKind;
+import org.apache.syncope.core.persistence.api.dao.ExternalResourceDAO;
+import org.apache.syncope.core.persistence.api.dao.PlainAttrDAO;
+import org.apache.syncope.core.persistence.api.dao.PlainSchemaDAO;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.AnyUtilsFactory;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.PlainAttr;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.api.entity.anyobject.APlainAttr;
+import org.apache.syncope.core.persistence.api.entity.group.GPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.JPAPlainSchema;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPAGPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUPlainAttr;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+
+<span class="nc" id="L43">public class JPAPlainSchemaDAO extends AbstractDAO&lt;PlainSchema&gt; implements PlainSchemaDAO {</span>
+
+    @Autowired
+    private AnyUtilsFactory anyUtilsFactory;
+
+    @Autowired
+    private PlainAttrDAO plainAttrDAO;
+
+    @Autowired
+    @Lazy
+    private ExternalResourceDAO resourceDAO;
+
+    @Override
+    public PlainSchema find(final String key) {
+<span class="nc" id="L57">        return entityManager().find(JPAPlainSchema.class, key);</span>
+    }
+
+    @Override
+    public List&lt;PlainSchema&gt; findByAnyTypeClasses(final Collection&lt;AnyTypeClass&gt; anyTypeClasses) {
+<span class="nc" id="L62">        StringBuilder queryString = new StringBuilder(&quot;SELECT e FROM &quot;).</span>
+<span class="nc" id="L63">                append(JPAPlainSchema.class.getSimpleName()).</span>
+<span class="nc" id="L64">                append(&quot; e WHERE &quot;);</span>
+<span class="nc" id="L65">        anyTypeClasses.forEach(anyTypeClass -&gt; queryString.</span>
+<span class="nc" id="L66">                append(&quot;e.anyTypeClass.id='&quot;).</span>
+<span class="nc" id="L67">                append(anyTypeClass.getKey()).append(&quot;' OR &quot;));</span>
+
+<span class="nc" id="L69">        TypedQuery&lt;PlainSchema&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L70">                queryString.substring(0, queryString.length() - 4), PlainSchema.class);</span>
+
+<span class="nc" id="L72">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;PlainSchema&gt; findByValidator(final Implementation validator) {
+<span class="nc" id="L77">        TypedQuery&lt;PlainSchema&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L78">                &quot;SELECT e FROM &quot; + JPAPlainSchema.class.getSimpleName()</span>
+                + &quot; e WHERE e.validator=:validator&quot;, PlainSchema.class);
+<span class="nc" id="L80">        query.setParameter(&quot;validator&quot;, validator);</span>
+
+<span class="nc" id="L82">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;PlainSchema&gt; findByKeyword(final String keyword) {
+<span class="nc" id="L87">        TypedQuery&lt;PlainSchema&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L88">                &quot;SELECT e FROM &quot; + JPAPlainSchema.class.getSimpleName() + &quot; e&quot;</span>
+                + &quot; WHERE e.id LIKE :keyword&quot;, PlainSchema.class);
+<span class="nc" id="L90">        query.setParameter(&quot;keyword&quot;, keyword);</span>
+<span class="nc" id="L91">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;PlainSchema&gt; findAll() {
+<span class="nc" id="L96">        TypedQuery&lt;PlainSchema&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L97">                &quot;SELECT e FROM &quot; + JPAPlainSchema.class.getSimpleName() + &quot; e&quot;, PlainSchema.class);</span>
+<span class="nc" id="L98">        return query.getResultList();</span>
+    }
+
+    @Override
+    public &lt;T extends PlainAttr&lt;?&gt;&gt; List&lt;T&gt; findAttrs(final PlainSchema schema, final Class&lt;T&gt; reference) {
+<span class="nc" id="L103">        TypedQuery&lt;T&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L104">                &quot;SELECT e FROM &quot; + JPAPlainAttrDAO.getEntityReference(reference).getSimpleName()</span>
+                + &quot; e WHERE e.schema=:schema&quot;, reference);
+<span class="nc" id="L106">        query.setParameter(&quot;schema&quot;, schema);</span>
+
+<span class="nc" id="L108">        return query.getResultList();</span>
+    }
+
+    @Override
+    public &lt;T extends PlainAttr&lt;?&gt;&gt; boolean hasAttrs(final PlainSchema schema, final Class&lt;T&gt; reference) {
+<span class="nc" id="L113">        String plainAttrTable = getPlainAttrTable(reference);</span>
+<span class="nc" id="L114">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT COUNT(&quot; + plainAttrTable + &quot;.id) FROM &quot; + JPAPlainSchema.TABLE
+                + &quot; JOIN &quot; + plainAttrTable + &quot; ON &quot; + JPAPlainSchema.TABLE + &quot;.id = &quot; + plainAttrTable
+                + &quot;.schema_id WHERE &quot; + JPAPlainSchema.TABLE + &quot;.id = ?1&quot;);
+<span class="nc" id="L118">        query.setParameter(1, schema.getKey());</span>
+
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        return ((Number) query.getSingleResult()).intValue() &gt; 0;</span>
+    }
+
+    @Override
+    public PlainSchema save(final PlainSchema schema) {
+<span class="nc" id="L125">        return entityManager().merge(schema);</span>
+    }
+
+    protected void deleteAttrs(final PlainSchema schema) {
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        for (AnyTypeKind anyTypeKind : AnyTypeKind.values()) {</span>
+<span class="nc" id="L130">            findAttrs(schema, anyUtilsFactory.getInstance(anyTypeKind).plainAttrClass()).</span>
+<span class="nc" id="L131">                    forEach(attr -&gt; plainAttrDAO.delete(attr));</span>
+        }
+<span class="nc" id="L133">    }</span>
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L137">        PlainSchema schema = find(key);</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">        if (schema == null) {</span>
+<span class="nc" id="L139">            return;</span>
+        }
+
+<span class="nc" id="L142">        schema.getLabels().forEach(label -&gt; label.setSchema(null));</span>
+
+<span class="nc" id="L144">        deleteAttrs(schema);</span>
+
+<span class="nc" id="L146">        resourceDAO.deleteMapping(key);</span>
+
+<span class="nc bnc" id="L148" title="All 2 branches missed.">        if (schema.getAnyTypeClass() != null) {</span>
+<span class="nc" id="L149">            schema.getAnyTypeClass().getPlainSchemas().remove(schema);</span>
+        }
+
+<span class="nc" id="L152">        entityManager().remove(schema);</span>
+<span class="nc" id="L153">    }</span>
+
+    private &lt;T extends PlainAttr&lt;?&gt;&gt; String getPlainAttrTable(final Class&lt;T&gt; plainAttrClass) {
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (GPlainAttr.class.isAssignableFrom(plainAttrClass)) {</span>
+<span class="nc" id="L157">            return JPAGPlainAttr.TABLE;</span>
+        }
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        if (APlainAttr.class.isAssignableFrom(plainAttrClass)) {</span>
+<span class="nc" id="L160">            return JPAAPlainAttr.TABLE;</span>
+        }
+<span class="nc" id="L162">        return JPAUPlainAttr.TABLE;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

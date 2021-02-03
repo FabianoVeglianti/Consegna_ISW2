@@ -1,0 +1,617 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAGroupDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAGroupDAO.java</span></div><h1>JPAGroupDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.persistence.NoResultException;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.syncope.common.lib.types.AnyTypeKind;
+import org.apache.syncope.common.lib.types.IdRepoEntitlement;
+import org.apache.syncope.core.persistence.api.dao.AnyDAO;
+import org.apache.syncope.core.persistence.api.dao.AnyMatchDAO;
+import org.apache.syncope.core.persistence.api.dao.AnyObjectDAO;
+import org.apache.syncope.core.persistence.api.dao.AnySearchDAO;
+import org.apache.syncope.core.persistence.api.dao.GroupDAO;
+import org.apache.syncope.core.persistence.api.dao.PlainAttrDAO;
+import org.apache.syncope.core.persistence.api.dao.UserDAO;
+import org.apache.syncope.core.persistence.api.dao.search.AssignableCond;
+import org.apache.syncope.core.persistence.api.dao.search.SearchCond;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.AnyUtils;
+import org.apache.syncope.core.persistence.api.entity.Entity;
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.persistence.api.entity.anyobject.ADynGroupMembership;
+import org.apache.syncope.core.persistence.api.entity.anyobject.AMembership;
+import org.apache.syncope.core.persistence.api.entity.anyobject.AnyObject;
+import org.apache.syncope.core.persistence.api.entity.group.Group;
+import org.apache.syncope.core.persistence.api.entity.group.TypeExtension;
+import org.apache.syncope.core.persistence.api.entity.user.UDynGroupMembership;
+import org.apache.syncope.core.persistence.api.entity.user.UMembership;
+import org.apache.syncope.core.persistence.api.entity.user.User;
+import org.apache.syncope.core.persistence.api.search.SearchCondConverter;
+import org.apache.syncope.core.persistence.api.search.SearchCondVisitor;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAADynGroupMembership;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAMembership;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPAGroup;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPATypeExtension;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUDynGroupMembership;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUMembership;
+import org.apache.syncope.core.provisioning.api.event.AnyCreatedUpdatedEvent;
+import org.apache.syncope.core.provisioning.api.event.AnyDeletedEvent;
+import org.apache.syncope.core.provisioning.api.utils.RealmUtils;
+import org.apache.syncope.core.spring.security.AuthContextUtils;
+import org.apache.syncope.core.spring.security.DelegatedAdministrationException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
+
+<span class="nc" id="L73">public class JPAGroupDAO extends AbstractAnyDAO&lt;Group&gt; implements GroupDAO {</span>
+
+    public static final String UDYNMEMB_TABLE = &quot;UDynGroupMembers&quot;;
+
+    public static final String ADYNMEMB_TABLE = &quot;ADynGroupMembers&quot;;
+
+    @Autowired
+    private AnyMatchDAO anyMatchDAO;
+
+    @Autowired
+    private PlainAttrDAO plainAttrDAO;
+
+    @Autowired
+    private UserDAO userDAO;
+
+    @Autowired
+    private AnyObjectDAO anyObjectDAO;
+
+    @Autowired
+    private AnySearchDAO searchDAO;
+
+    @Autowired
+    private SearchCondVisitor searchCondVisitor;
+
+    @Override
+    protected AnyUtils init() {
+<span class="nc" id="L99">        return anyUtilsFactory.getInstance(AnyTypeKind.GROUP);</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public String findKey(final String name) {
+<span class="nc" id="L105">        return findKey(name, JPAGroup.TABLE);</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public Date findLastChange(final String key) {
+<span class="nc" id="L111">        return findLastChange(key, JPAGroup.TABLE);</span>
+    }
+
+    @Override
+    public int count() {
+<span class="nc" id="L116">        Query query = entityManager().createQuery(</span>
+<span class="nc" id="L117">                &quot;SELECT COUNT(e) FROM  &quot; + anyUtils().anyClass().getSimpleName() + &quot; e&quot;);</span>
+<span class="nc" id="L118">        return ((Number) query.getSingleResult()).intValue();</span>
+    }
+
+    @Override
+    public Map&lt;String, Integer&gt; countByRealm() {
+<span class="nc" id="L123">        Query query = entityManager().createQuery(</span>
+<span class="nc" id="L124">                &quot;SELECT e.realm, COUNT(e) FROM  &quot; + anyUtils().anyClass().getSimpleName() + &quot; e GROUP BY e.realm&quot;);</span>
+
+        @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L127">        List&lt;Object[]&gt; results = query.getResultList();</span>
+<span class="nc" id="L128">        return results.stream().collect(Collectors.toMap(</span>
+<span class="nc" id="L129">                result -&gt; ((Realm) result[0]).getFullPath(),</span>
+<span class="nc" id="L130">                result -&gt; ((Number) result[1]).intValue()));</span>
+    }
+
+    @Override
+    protected void securityChecks(final Group group) {
+<span class="nc" id="L135">        Map&lt;String, Set&lt;String&gt;&gt; authorizations = AuthContextUtils.getAuthorizations();</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        Set&lt;String&gt; authRealms = authorizations.containsKey(IdRepoEntitlement.GROUP_READ)</span>
+<span class="nc" id="L137">                ? authorizations.get(IdRepoEntitlement.GROUP_READ)</span>
+<span class="nc" id="L138">                : Set.of();</span>
+
+<span class="nc bnc" id="L140" title="All 2 branches missed.">        boolean authorized = authRealms.stream().anyMatch(realm -&gt; group.getRealm().getFullPath().startsWith(realm)</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">                || realm.equals(RealmUtils.getGroupOwnerRealm(group.getRealm().getFullPath(), group.getKey())));</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">        if (!authorized) {</span>
+<span class="nc" id="L143">            authorized = findDynRealms(group.getKey()).stream().</span>
+<span class="nc" id="L144">                    filter(authRealms::contains).</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">                    count() &gt; 0;</span>
+        }
+<span class="nc bnc" id="L147" title="All 4 branches missed.">        if (authRealms.isEmpty() || !authorized) {</span>
+<span class="nc" id="L148">            throw new DelegatedAdministrationException(</span>
+<span class="nc" id="L149">                    group.getRealm().getFullPath(), AnyTypeKind.GROUP.name(), group.getKey());</span>
+        }
+<span class="nc" id="L151">    }</span>
+
+    @Override
+    public Group findByName(final String name) {
+<span class="nc" id="L155">        TypedQuery&lt;Group&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L156">                &quot;SELECT e FROM &quot; + anyUtils().anyClass().getSimpleName() + &quot; e WHERE e.name = :name&quot;, Group.class);</span>
+<span class="nc" id="L157">        query.setParameter(&quot;name&quot;, name);</span>
+
+<span class="nc" id="L159">        Group result = null;</span>
+        try {
+<span class="nc" id="L161">            result = query.getSingleResult();</span>
+<span class="nc" id="L162">        } catch (NoResultException e) {</span>
+<span class="nc" id="L163">            LOG.debug(&quot;No group found with name {}&quot;, name, e);</span>
+<span class="nc" id="L164">        }</span>
+
+<span class="nc" id="L166">        return result;</span>
+    }
+
+    @Override
+    public List&lt;String&gt; findKeysByNamePattern(final String pattern) {
+<span class="nc" id="L171">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT id FROM &quot; + JPAGroup.TABLE + &quot; WHERE LOWER(name) LIKE LOWER(?1)&quot;);
+<span class="nc" id="L173">        query.setParameter(1, pattern);</span>
+
+        @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L176">        List&lt;Object&gt; raw = query.getResultList();</span>
+<span class="nc" id="L177">        return raw.stream().map(Object::toString).collect(Collectors.toList());</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List&lt;Group&gt; findOwnedByUser(final String userKey) {
+<span class="nc" id="L183">        User owner = userDAO.find(userKey);</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">        if (owner == null) {</span>
+<span class="nc" id="L185">            return List.of();</span>
+        }
+
+<span class="nc" id="L188">        StringBuilder queryString = new StringBuilder(&quot;SELECT e FROM &quot;).append(anyUtils().anyClass().getSimpleName())</span>
+<span class="nc" id="L189">                .append(&quot; e WHERE e.userOwner=:owner &quot;);</span>
+<span class="nc" id="L190">        userDAO.findAllGroupKeys(owner).forEach(groupKey -&gt; queryString</span>
+<span class="nc" id="L191">                .append(&quot;OR e.groupOwner.id='&quot;).append(groupKey).append(&quot;' &quot;));</span>
+
+<span class="nc" id="L193">        TypedQuery&lt;Group&gt; query = entityManager().createQuery(queryString.toString(), Group.class);</span>
+<span class="nc" id="L194">        query.setParameter(&quot;owner&quot;, owner);</span>
+
+<span class="nc" id="L196">        return query.getResultList();</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List&lt;Group&gt; findOwnedByGroup(final String groupKey) {
+<span class="nc" id="L202">        Group owner = find(groupKey);</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">        if (owner == null) {</span>
+<span class="nc" id="L204">            return List.of();</span>
+        }
+
+<span class="nc" id="L207">        TypedQuery&lt;Group&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L208">                &quot;SELECT e FROM &quot; + anyUtils().anyClass().getSimpleName() + &quot; e WHERE e.groupOwner=:owner&quot;, Group.class);</span>
+<span class="nc" id="L209">        query.setParameter(&quot;owner&quot;, owner);</span>
+
+<span class="nc" id="L211">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;AMembership&gt; findAMemberships(final Group group) {
+<span class="nc" id="L216">        TypedQuery&lt;AMembership&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L217">                &quot;SELECT e FROM &quot; + JPAAMembership.class.getSimpleName() + &quot; e WHERE e.rightEnd=:group&quot;,</span>
+                AMembership.class);
+<span class="nc" id="L219">        query.setParameter(&quot;group&quot;, group);</span>
+
+<span class="nc" id="L221">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;UMembership&gt; findUMemberships(final Group group) {
+<span class="nc" id="L226">        TypedQuery&lt;UMembership&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L227">                &quot;SELECT e FROM &quot; + JPAUMembership.class.getSimpleName() + &quot; e WHERE e.rightEnd=:group&quot;,</span>
+                UMembership.class);
+<span class="nc" id="L229">        query.setParameter(&quot;group&quot;, group);</span>
+
+<span class="nc" id="L231">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;Group&gt; findAll(final int page, final int itemsPerPage) {
+<span class="nc" id="L236">        TypedQuery&lt;Group&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L237">                &quot;SELECT e FROM  &quot; + anyUtils().anyClass().getSimpleName() + &quot; e ORDER BY e.id&quot;, Group.class);</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        query.setFirstResult(itemsPerPage * (page &lt;= 0 ? 0 : page - 1));</span>
+<span class="nc" id="L239">        query.setMaxResults(itemsPerPage);</span>
+
+<span class="nc" id="L241">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;String&gt; findAllKeys(final int page, final int itemsPerPage) {
+<span class="nc" id="L246">        return findAllKeys(JPAGroup.TABLE, page, itemsPerPage);</span>
+    }
+
+    private SearchCond buildDynMembershipCond(final String baseCondFIQL, final Realm groupRealm) {
+<span class="nc" id="L250">        AssignableCond cond = new AssignableCond();</span>
+<span class="nc" id="L251">        cond.setRealmFullPath(groupRealm.getFullPath());</span>
+<span class="nc" id="L252">        cond.setFromGroup(true);</span>
+
+<span class="nc" id="L254">        return SearchCond.getAnd(</span>
+<span class="nc" id="L255">                SearchCond.getLeaf(cond),</span>
+<span class="nc" id="L256">                SearchCondConverter.convert(searchCondVisitor, baseCondFIQL));</span>
+    }
+
+    @Override
+    public Group saveAndRefreshDynMemberships(final Group group) {
+<span class="nc" id="L261">        Group merged = save(group);</span>
+<span class="nc" id="L262">        publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, merged, AuthContextUtils.getDomain()));</span>
+
+        // refresh dynamic memberships
+<span class="nc" id="L265">        clearUDynMembers(merged);</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">        if (merged.getUDynMembership() != null) {</span>
+<span class="nc" id="L267">            SearchCond cond = buildDynMembershipCond(merged.getUDynMembership().getFIQLCond(), merged.getRealm());</span>
+<span class="nc" id="L268">            int count = searchDAO.count(Set.of(merged.getRealm().getFullPath()), cond, AnyTypeKind.USER);</span>
+<span class="nc bnc" id="L269" title="All 2 branches missed.">            for (int page = 1; page &lt;= (count / AnyDAO.DEFAULT_PAGE_SIZE) + 1; page++) {</span>
+<span class="nc" id="L270">                List&lt;User&gt; matching = searchDAO.search(</span>
+<span class="nc" id="L271">                        Set.of(merged.getRealm().getFullPath()),</span>
+                        cond,
+                        page,
+                        AnyDAO.DEFAULT_PAGE_SIZE,
+<span class="nc" id="L275">                        List.of(),</span>
+                        AnyTypeKind.USER);
+
+<span class="nc" id="L278">                matching.forEach(user -&gt; {</span>
+<span class="nc" id="L279">                    Query insert = entityManager().createNativeQuery(&quot;INSERT INTO &quot; + UDYNMEMB_TABLE + &quot; VALUES(?, ?)&quot;);</span>
+<span class="nc" id="L280">                    insert.setParameter(1, user.getKey());</span>
+<span class="nc" id="L281">                    insert.setParameter(2, merged.getKey());</span>
+<span class="nc" id="L282">                    insert.executeUpdate();</span>
+
+<span class="nc" id="L284">                    publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, user, AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L285">                });</span>
+            }
+        }
+<span class="nc" id="L288">        clearADynMembers(merged);</span>
+<span class="nc" id="L289">        merged.getADynMemberships().forEach(memb -&gt; {</span>
+<span class="nc" id="L290">            SearchCond cond = buildDynMembershipCond(memb.getFIQLCond(), merged.getRealm());</span>
+<span class="nc" id="L291">            int count = searchDAO.count(Set.of(merged.getRealm().getFullPath()), cond, AnyTypeKind.ANY_OBJECT);</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">            for (int page = 1; page &lt;= (count / AnyDAO.DEFAULT_PAGE_SIZE) + 1; page++) {</span>
+<span class="nc" id="L293">                List&lt;AnyObject&gt; matching = searchDAO.search(</span>
+<span class="nc" id="L294">                        Set.of(merged.getRealm().getFullPath()),</span>
+                        cond,
+                        page,
+                        AnyDAO.DEFAULT_PAGE_SIZE,
+<span class="nc" id="L298">                        List.of(),</span>
+                        AnyTypeKind.ANY_OBJECT);
+
+<span class="nc" id="L301">                matching.forEach(anyObject -&gt; {</span>
+<span class="nc" id="L302">                    Query insert = entityManager().createNativeQuery(</span>
+                            &quot;INSERT INTO &quot; + ADYNMEMB_TABLE + &quot; VALUES(?, ?, ?)&quot;);
+<span class="nc" id="L304">                    insert.setParameter(1, anyObject.getType().getKey());</span>
+<span class="nc" id="L305">                    insert.setParameter(2, anyObject.getKey());</span>
+<span class="nc" id="L306">                    insert.setParameter(3, merged.getKey());</span>
+<span class="nc" id="L307">                    insert.executeUpdate();</span>
+
+<span class="nc" id="L309">                    publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, anyObject, AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L310">                });</span>
+            }
+<span class="nc" id="L312">        });</span>
+
+<span class="nc" id="L314">        dynRealmDAO.refreshDynMemberships(merged);</span>
+
+<span class="nc" id="L316">        return merged;</span>
+    }
+
+    @Override
+    public void delete(final Group group) {
+<span class="nc" id="L321">        dynRealmDAO.removeDynMemberships(group.getKey());</span>
+
+<span class="nc" id="L323">        findAMemberships(group).forEach(membership -&gt; {</span>
+<span class="nc" id="L324">            AnyObject leftEnd = membership.getLeftEnd();</span>
+<span class="nc" id="L325">            leftEnd.remove(membership);</span>
+<span class="nc" id="L326">            membership.setRightEnd(null);</span>
+<span class="nc" id="L327">            leftEnd.getPlainAttrs(membership).forEach(attr -&gt; {</span>
+<span class="nc" id="L328">                leftEnd.remove(attr);</span>
+<span class="nc" id="L329">                attr.setOwner(null);</span>
+<span class="nc" id="L330">                attr.setMembership(null);</span>
+<span class="nc" id="L331">                plainAttrDAO.delete(attr);</span>
+<span class="nc" id="L332">            });</span>
+
+<span class="nc" id="L334">            anyObjectDAO.save(leftEnd);</span>
+<span class="nc" id="L335">            publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, leftEnd, AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L336">        });</span>
+
+<span class="nc" id="L338">        findUMemberships(group).forEach(membership -&gt; {</span>
+<span class="nc" id="L339">            User leftEnd = membership.getLeftEnd();</span>
+<span class="nc" id="L340">            leftEnd.remove(membership);</span>
+<span class="nc" id="L341">            membership.setRightEnd(null);</span>
+<span class="nc" id="L342">            leftEnd.getPlainAttrs(membership).forEach(attr -&gt; {</span>
+<span class="nc" id="L343">                leftEnd.remove(attr);</span>
+<span class="nc" id="L344">                attr.setOwner(null);</span>
+<span class="nc" id="L345">                attr.setMembership(null);</span>
+
+<span class="nc" id="L347">                plainAttrDAO.delete(attr);</span>
+<span class="nc" id="L348">            });</span>
+
+<span class="nc" id="L350">            userDAO.save(leftEnd);</span>
+<span class="nc" id="L351">            publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, leftEnd, AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L352">        });</span>
+
+<span class="nc" id="L354">        clearUDynMembers(group);</span>
+<span class="nc" id="L355">        clearADynMembers(group);</span>
+
+<span class="nc" id="L357">        entityManager().remove(group);</span>
+<span class="nc" id="L358">        publisher.publishEvent(new AnyDeletedEvent(</span>
+<span class="nc" id="L359">                this, AnyTypeKind.GROUP, group.getKey(), group.getName(), AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L360">    }</span>
+
+    @Override
+    public List&lt;TypeExtension&gt; findTypeExtensions(final AnyTypeClass anyTypeClass) {
+<span class="nc" id="L364">        TypedQuery&lt;TypeExtension&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L365">                &quot;SELECT e FROM &quot; + JPATypeExtension.class.getSimpleName()</span>
+                + &quot; e WHERE :anyTypeClass MEMBER OF e.auxClasses&quot;, TypeExtension.class);
+<span class="nc" id="L367">        query.setParameter(&quot;anyTypeClass&quot;, anyTypeClass);</span>
+
+<span class="nc" id="L369">        return query.getResultList();</span>
+    }
+
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public List&lt;String&gt; findADynMembers(final Group group) {
+<span class="nc" id="L375">        List&lt;String&gt; result = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L377">        group.getADynMemberships().forEach(memb -&gt; {</span>
+<span class="nc" id="L378">            Query query = entityManager().createNativeQuery(</span>
+                    &quot;SELECT any_id FROM &quot; + ADYNMEMB_TABLE + &quot; WHERE group_id=? AND anyType_id=?&quot;);
+<span class="nc" id="L380">            query.setParameter(1, group.getKey());</span>
+<span class="nc" id="L381">            query.setParameter(2, memb.getAnyType().getKey());</span>
+
+<span class="nc bnc" id="L383" title="All 2 branches missed.">            query.getResultList().stream().map(key -&gt; key instanceof Object[]</span>
+<span class="nc" id="L384">                    ? (String) ((Object[]) key)[0]</span>
+<span class="nc" id="L385">                    : ((String) key)).</span>
+<span class="nc bnc" id="L386" title="All 2 branches missed.">                    filter(anyObject -&gt; !result.contains((String) anyObject)).</span>
+<span class="nc" id="L387">                    forEach(anyObject -&gt; result.add((String) anyObject));</span>
+<span class="nc" id="L388">        });</span>
+
+<span class="nc" id="L390">        return result;</span>
+    }
+
+    @Override
+    public int countAMembers(final Group group) {
+<span class="nc" id="L395">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT COUNT(anyObject_id) FROM &quot; + JPAAMembership.TABLE + &quot; WHERE group_id=?&quot;);
+<span class="nc" id="L397">        query.setParameter(1, group.getKey());</span>
+
+<span class="nc" id="L399">        return ((Number) query.getSingleResult()).intValue();</span>
+    }
+
+    @Override
+    public int countUMembers(final Group group) {
+<span class="nc" id="L404">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT COUNT(user_id) FROM &quot; + JPAUMembership.TABLE + &quot; WHERE group_id=?&quot;);
+<span class="nc" id="L406">        query.setParameter(1, group.getKey());</span>
+
+<span class="nc" id="L408">        return ((Number) query.getSingleResult()).intValue();</span>
+    }
+
+    @Override
+    public int countADynMembers(final Group group) {
+<span class="nc" id="L413">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT COUNT(any_id) FROM &quot; + ADYNMEMB_TABLE + &quot; WHERE group_id=?&quot;);
+<span class="nc" id="L415">        query.setParameter(1, group.getKey());</span>
+
+<span class="nc" id="L417">        return ((Number) query.getSingleResult()).intValue();</span>
+    }
+
+    @Override
+    public int countUDynMembers(final Group group) {
+<span class="nc bnc" id="L422" title="All 2 branches missed.">        if (group.getUDynMembership() == null) {</span>
+<span class="nc" id="L423">            return 0;</span>
+        }
+
+<span class="nc" id="L426">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT COUNT(any_id) FROM &quot; + UDYNMEMB_TABLE + &quot; WHERE group_id=?&quot;);
+<span class="nc" id="L428">        query.setParameter(1, group.getKey());</span>
+
+<span class="nc" id="L430">        return ((Number) query.getSingleResult()).intValue();</span>
+    }
+
+    @Override
+    public void clearADynMembers(final Group group) {
+<span class="nc" id="L435">        Query delete = entityManager().createNativeQuery(&quot;DELETE FROM &quot; + ADYNMEMB_TABLE + &quot; WHERE group_id=?&quot;);</span>
+<span class="nc" id="L436">        delete.setParameter(1, group.getKey());</span>
+<span class="nc" id="L437">        delete.executeUpdate();</span>
+<span class="nc" id="L438">    }</span>
+
+    private List&lt;ADynGroupMembership&gt; findWithADynMemberships(final AnyType anyType) {
+<span class="nc" id="L441">        TypedQuery&lt;ADynGroupMembership&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L442">                &quot;SELECT e FROM &quot; + JPAADynGroupMembership.class.getSimpleName() + &quot; e  WHERE e.anyType=:anyType&quot;,</span>
+                ADynGroupMembership.class);
+<span class="nc" id="L444">        query.setParameter(&quot;anyType&quot;, anyType);</span>
+<span class="nc" id="L445">        return query.getResultList();</span>
+    }
+
+    @Transactional
+    @Override
+    public Pair&lt;Set&lt;String&gt;, Set&lt;String&gt;&gt; refreshDynMemberships(final AnyObject anyObject) {
+<span class="nc" id="L451">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT group_id FROM &quot; + JPAGroupDAO.ADYNMEMB_TABLE + &quot; WHERE any_id=?&quot;);
+<span class="nc" id="L453">        query.setParameter(1, anyObject.getKey());</span>
+
+<span class="nc" id="L455">        Set&lt;String&gt; before = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L456">        Set&lt;String&gt; after = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L457">        findWithADynMemberships(anyObject.getType()).forEach(memb -&gt; {</span>
+<span class="nc" id="L458">            boolean matches = anyMatchDAO.matches(</span>
+                    anyObject,
+<span class="nc" id="L460">                    buildDynMembershipCond(memb.getFIQLCond(), memb.getGroup().getRealm()));</span>
+<span class="nc bnc" id="L461" title="All 2 branches missed.">            if (matches) {</span>
+<span class="nc" id="L462">                after.add(memb.getGroup().getKey());</span>
+            }
+
+<span class="nc" id="L465">            Query find = entityManager().createNativeQuery(</span>
+                    &quot;SELECT any_id FROM &quot; + ADYNMEMB_TABLE + &quot; WHERE group_id=? AND any_id=?&quot;);
+<span class="nc" id="L467">            find.setParameter(1, memb.getGroup().getKey());</span>
+<span class="nc" id="L468">            find.setParameter(2, anyObject.getKey());</span>
+<span class="nc bnc" id="L469" title="All 2 branches missed.">            boolean existing = !find.getResultList().isEmpty();</span>
+<span class="nc bnc" id="L470" title="All 2 branches missed.">            if (existing) {</span>
+<span class="nc" id="L471">                before.add(memb.getGroup().getKey());</span>
+            }
+
+<span class="nc bnc" id="L474" title="All 4 branches missed.">            if (matches &amp;&amp; !existing) {</span>
+<span class="nc" id="L475">                Query insert = entityManager().createNativeQuery(</span>
+                        &quot;INSERT INTO &quot; + ADYNMEMB_TABLE + &quot; VALUES(?, ?, ?)&quot;);
+<span class="nc" id="L477">                insert.setParameter(1, anyObject.getType().getKey());</span>
+<span class="nc" id="L478">                insert.setParameter(2, anyObject.getKey());</span>
+<span class="nc" id="L479">                insert.setParameter(3, memb.getGroup().getKey());</span>
+<span class="nc" id="L480">                insert.executeUpdate();</span>
+<span class="nc bnc" id="L481" title="All 4 branches missed.">            } else if (!matches &amp;&amp; existing) {</span>
+<span class="nc" id="L482">                Query delete = entityManager().createNativeQuery(</span>
+                        &quot;DELETE FROM &quot; + ADYNMEMB_TABLE + &quot; WHERE group_id=? AND any_id=?&quot;);
+<span class="nc" id="L484">                delete.setParameter(1, memb.getGroup().getKey());</span>
+<span class="nc" id="L485">                delete.setParameter(2, anyObject.getKey());</span>
+<span class="nc" id="L486">                delete.executeUpdate();</span>
+            }
+
+<span class="nc" id="L489">            publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, memb.getGroup(), AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L490">        });</span>
+
+<span class="nc" id="L492">        return Pair.of(before, after);</span>
+    }
+
+    @Override
+    public Set&lt;String&gt; removeDynMemberships(final AnyObject anyObject) {
+<span class="nc" id="L497">        List&lt;Group&gt; dynGroups = anyObjectDAO.findDynGroups(anyObject.getKey());</span>
+
+<span class="nc" id="L499">        Query delete = entityManager().createNativeQuery(&quot;DELETE FROM &quot; + ADYNMEMB_TABLE + &quot; WHERE any_id=?&quot;);</span>
+<span class="nc" id="L500">        delete.setParameter(1, anyObject.getKey());</span>
+<span class="nc" id="L501">        delete.executeUpdate();</span>
+
+<span class="nc" id="L503">        Set&lt;String&gt; before = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L504">        dynGroups.forEach(group -&gt; {</span>
+<span class="nc" id="L505">            before.add(group.getKey());</span>
+
+<span class="nc" id="L507">            publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, group, AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L508">        });</span>
+
+<span class="nc" id="L510">        return before;</span>
+    }
+
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public List&lt;String&gt; findUDynMembers(final Group group) {
+<span class="nc bnc" id="L516" title="All 2 branches missed.">        if (group.getUDynMembership() == null) {</span>
+<span class="nc" id="L517">            return List.of();</span>
+        }
+
+<span class="nc" id="L520">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT any_id FROM &quot; + UDYNMEMB_TABLE + &quot; WHERE group_id=?&quot;);
+<span class="nc" id="L522">        query.setParameter(1, group.getKey());</span>
+
+<span class="nc" id="L524">        List&lt;String&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L525" title="All 2 branches missed.">        query.getResultList().stream().map(key -&gt; key instanceof Object[]</span>
+<span class="nc" id="L526">                ? (String) ((Object[]) key)[0]</span>
+<span class="nc" id="L527">                : ((String) key)).</span>
+<span class="nc" id="L528">                forEach(user -&gt; result.add((String) user));</span>
+<span class="nc" id="L529">        return result;</span>
+    }
+
+    @Override
+    public void clearUDynMembers(final Group group) {
+<span class="nc" id="L534">        Query delete = entityManager().createNativeQuery(&quot;DELETE FROM &quot; + UDYNMEMB_TABLE + &quot; WHERE group_id=?&quot;);</span>
+<span class="nc" id="L535">        delete.setParameter(1, group.getKey());</span>
+<span class="nc" id="L536">        delete.executeUpdate();</span>
+<span class="nc" id="L537">    }</span>
+
+    private List&lt;UDynGroupMembership&gt; findWithUDynMemberships() {
+<span class="nc" id="L540">        TypedQuery&lt;UDynGroupMembership&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L541">                &quot;SELECT e FROM &quot; + JPAUDynGroupMembership.class.getSimpleName() + &quot; e&quot;,</span>
+                UDynGroupMembership.class);
+
+<span class="nc" id="L544">        return query.getResultList();</span>
+    }
+
+    @Transactional
+    @Override
+    public Pair&lt;Set&lt;String&gt;, Set&lt;String&gt;&gt; refreshDynMemberships(final User user) {
+<span class="nc" id="L550">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT group_id FROM &quot; + JPAGroupDAO.UDYNMEMB_TABLE + &quot; WHERE any_id=?&quot;);
+<span class="nc" id="L552">        query.setParameter(1, user.getKey());</span>
+
+<span class="nc" id="L554">        Set&lt;String&gt; before = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L555">        Set&lt;String&gt; after = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L556">        findWithUDynMemberships().forEach(memb -&gt; {</span>
+<span class="nc" id="L557">            boolean matches = anyMatchDAO.matches(</span>
+                    user,
+<span class="nc" id="L559">                    buildDynMembershipCond(memb.getFIQLCond(), memb.getGroup().getRealm()));</span>
+<span class="nc bnc" id="L560" title="All 2 branches missed.">            if (matches) {</span>
+<span class="nc" id="L561">                after.add(memb.getGroup().getKey());</span>
+            }
+
+<span class="nc" id="L564">            Query find = entityManager().createNativeQuery(</span>
+                    &quot;SELECT any_id FROM &quot; + UDYNMEMB_TABLE + &quot; WHERE group_id=? AND any_id=?&quot;);
+<span class="nc" id="L566">            find.setParameter(1, memb.getGroup().getKey());</span>
+<span class="nc" id="L567">            find.setParameter(2, user.getKey());</span>
+<span class="nc bnc" id="L568" title="All 2 branches missed.">            boolean existing = !find.getResultList().isEmpty();</span>
+<span class="nc bnc" id="L569" title="All 2 branches missed.">            if (existing) {</span>
+<span class="nc" id="L570">                before.add(memb.getGroup().getKey());</span>
+            }
+
+<span class="nc bnc" id="L573" title="All 4 branches missed.">            if (matches &amp;&amp; !existing) {</span>
+<span class="nc" id="L574">                Query insert = entityManager().createNativeQuery(</span>
+                        &quot;INSERT INTO &quot; + UDYNMEMB_TABLE + &quot; VALUES(?, ?)&quot;);
+<span class="nc" id="L576">                insert.setParameter(1, user.getKey());</span>
+<span class="nc" id="L577">                insert.setParameter(2, memb.getGroup().getKey());</span>
+<span class="nc" id="L578">                insert.executeUpdate();</span>
+<span class="nc bnc" id="L579" title="All 4 branches missed.">            } else if (!matches &amp;&amp; existing) {</span>
+<span class="nc" id="L580">                Query delete = entityManager().createNativeQuery(</span>
+                        &quot;DELETE FROM &quot; + UDYNMEMB_TABLE + &quot; WHERE group_id=? AND any_id=?&quot;);
+<span class="nc" id="L582">                delete.setParameter(1, memb.getGroup().getKey());</span>
+<span class="nc" id="L583">                delete.setParameter(2, user.getKey());</span>
+<span class="nc" id="L584">                delete.executeUpdate();</span>
+            }
+
+<span class="nc" id="L587">            publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, memb.getGroup(), AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L588">        });</span>
+
+<span class="nc" id="L590">        return Pair.of(before, after);</span>
+    }
+
+    @Override
+    public Set&lt;String&gt; removeDynMemberships(final User user) {
+<span class="nc" id="L595">        List&lt;Group&gt; dynGroups = userDAO.findDynGroups(user.getKey());</span>
+
+<span class="nc" id="L597">        Query delete = entityManager().createNativeQuery(&quot;DELETE FROM &quot; + UDYNMEMB_TABLE + &quot; WHERE any_id=?&quot;);</span>
+<span class="nc" id="L598">        delete.setParameter(1, user.getKey());</span>
+<span class="nc" id="L599">        delete.executeUpdate();</span>
+
+<span class="nc" id="L601">        Set&lt;String&gt; before = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L602">        dynGroups.forEach(group -&gt; {</span>
+<span class="nc" id="L603">            before.add(group.getKey());</span>
+
+<span class="nc" id="L605">            publisher.publishEvent(new AnyCreatedUpdatedEvent&lt;&gt;(this, group, AuthContextUtils.getDomain()));</span>
+<span class="nc" id="L606">        });</span>
+
+<span class="nc" id="L608">        return before;</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public Collection&lt;String&gt; findAllResourceKeys(final String key) {
+<span class="nc" id="L614">        return find(key).getResources().stream().map(Entity::getKey).collect(Collectors.toList());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

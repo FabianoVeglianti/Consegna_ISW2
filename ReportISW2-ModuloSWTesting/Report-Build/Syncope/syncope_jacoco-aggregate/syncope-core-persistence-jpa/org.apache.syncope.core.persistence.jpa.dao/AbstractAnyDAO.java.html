@@ -1,0 +1,554 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>AbstractAnyDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">AbstractAnyDAO.java</span></div><h1>AbstractAnyDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
+import javax.persistence.Query;
+import javax.persistence.TemporalType;
+import javax.persistence.TypedQuery;
+
+import org.apache.commons.jexl3.parser.Parser;
+import org.apache.commons.jexl3.parser.ParserConstants;
+import org.apache.commons.jexl3.parser.Token;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.syncope.core.persistence.api.dao.AllowedSchemas;
+import org.apache.syncope.core.persistence.api.dao.AnyDAO;
+import org.apache.syncope.core.persistence.api.dao.DerSchemaDAO;
+import org.apache.syncope.core.persistence.api.dao.DynRealmDAO;
+import org.apache.syncope.core.persistence.api.dao.NotFoundException;
+import org.apache.syncope.core.persistence.api.dao.PlainSchemaDAO;
+import org.apache.syncope.core.persistence.api.dao.search.AnyCond;
+import org.apache.syncope.core.persistence.api.dao.search.AttrCond;
+import org.apache.syncope.core.persistence.api.dao.search.SearchCond;
+import org.apache.syncope.core.persistence.api.entity.Any;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.AnyUtils;
+import org.apache.syncope.core.persistence.api.entity.AnyUtilsFactory;
+import org.apache.syncope.core.persistence.api.entity.DerSchema;
+import org.apache.syncope.core.persistence.api.entity.DynRealm;
+import org.apache.syncope.core.persistence.api.entity.PlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.api.entity.PlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.api.entity.Schema;
+import org.apache.syncope.core.persistence.api.entity.VirSchema;
+import org.apache.syncope.core.persistence.api.entity.anyobject.AnyObject;
+import org.apache.syncope.core.persistence.api.entity.group.Group;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.api.entity.user.User;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUser;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+<span class="nc" id="L71">public abstract class AbstractAnyDAO&lt;A extends Any&lt;?&gt;&gt; extends AbstractDAO&lt;A&gt; implements AnyDAO&lt;A&gt; {</span>
+
+    @Autowired
+    protected AnyUtilsFactory anyUtilsFactory;
+
+    @Autowired
+    protected ApplicationEventPublisher publisher;
+
+    @Autowired
+    @Lazy
+    protected PlainSchemaDAO plainSchemaDAO;
+
+    @Autowired
+    @Lazy
+    protected DerSchemaDAO derSchemaDAO;
+
+    @Autowired
+    @Lazy
+    protected DynRealmDAO dynRealmDAO;
+
+    private AnyUtils anyUtils;
+
+    protected abstract AnyUtils init();
+
+    protected AnyUtils anyUtils() {
+<span class="nc" id="L96">        synchronized (this) {</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">            if (anyUtils == null) {</span>
+<span class="nc" id="L98">                anyUtils = init();</span>
+            }
+<span class="nc" id="L100">        }</span>
+<span class="nc" id="L101">        return anyUtils;</span>
+    }
+
+    protected String findKey(final String name, final String table) {
+<span class="nc" id="L105">        Query query = entityManager().createNativeQuery(</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">                &quot;SELECT id FROM &quot; + table + &quot; WHERE &quot; + (JPAUser.TABLE.equals(table) ? &quot;username&quot; : &quot;name&quot;) + &quot;=?&quot;);</span>
+<span class="nc" id="L107">        query.setParameter(1, name);</span>
+
+<span class="nc" id="L109">        String key = null;</span>
+
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        for (Object resultKey : query.getResultList()) {</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">            key = resultKey instanceof Object[]</span>
+<span class="nc" id="L113">                    ? (String) ((Object[]) resultKey)[0]</span>
+<span class="nc" id="L114">                    : ((String) resultKey);</span>
+<span class="nc" id="L115">        }</span>
+
+<span class="nc" id="L117">        return key;</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    protected List&lt;String&gt; findAllKeys(final String table, final int page, final int itemsPerPage) {
+<span class="nc" id="L122">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT id FROM &quot; + table + &quot; ORDER BY id&quot;, String.class);
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        query.setFirstResult(itemsPerPage * (page &lt;= 0 ? 0 : page - 1));</span>
+<span class="nc" id="L125">        query.setMaxResults(itemsPerPage);</span>
+
+<span class="nc" id="L127">        List&lt;String&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        query.getResultList().stream().map(resultKey -&gt; resultKey instanceof Object[]</span>
+<span class="nc" id="L129">                ? (String) ((Object[]) resultKey)[0]</span>
+<span class="nc" id="L130">                : ((String) resultKey)).</span>
+<span class="nc" id="L131">                forEach(actualKey -&gt; result.add(actualKey.toString()));</span>
+<span class="nc" id="L132">        return result;</span>
+    }
+
+    protected Date findLastChange(final String key, final String table) {
+<span class="nc" id="L136">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT creationDate, lastChangeDate FROM &quot; + table + &quot; WHERE id=?&quot;);
+<span class="nc" id="L138">        query.setParameter(1, key);</span>
+
+        @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L141">        List&lt;Object[]&gt; result = query.getResultList();</span>
+
+<span class="nc" id="L143">        Date creationDate = null;</span>
+<span class="nc" id="L144">        Date lastChangeDate = null;</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">        if (!result.isEmpty()) {</span>
+<span class="nc" id="L146">            creationDate = (Date) result.get(0)[0];</span>
+<span class="nc" id="L147">            lastChangeDate = (Date) result.get(0)[1];</span>
+        }
+
+<span class="nc" id="L150">        return Optional.ofNullable(lastChangeDate).orElse(creationDate);</span>
+    }
+
+    protected abstract void securityChecks(A any);
+
+    @Transactional(readOnly = true)
+    @Override
+    public List&lt;A&gt; findByKeys(final List&lt;String&gt; keys) {
+<span class="nc" id="L158">        Class&lt;A&gt; entityClass = anyUtils().anyClass();</span>
+<span class="nc" id="L159">        TypedQuery&lt;A&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L160">                &quot;SELECT e FROM &quot; + entityClass.getSimpleName() + &quot; e WHERE e.id IN (:keys)&quot;, entityClass);</span>
+<span class="nc" id="L161">        query.setParameter(&quot;keys&quot;, keys);</span>
+<span class="nc" id="L162">        return query.getResultList();</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public A authFind(final String key) {
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        if (key == null) {</span>
+<span class="nc" id="L169">            throw new NotFoundException(&quot;Null key&quot;);</span>
+        }
+
+<span class="nc" id="L172">        A any = find(key);</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        if (any == null) {</span>
+<span class="nc" id="L174">            throw new NotFoundException(StringUtils.substringBefore(</span>
+<span class="nc" id="L175">                    StringUtils.substringAfter(getClass().getSimpleName(), &quot;JPA&quot;), &quot;DAO&quot;) + ' ' + key);</span>
+        }
+
+<span class="nc" id="L178">        securityChecks(any);</span>
+
+<span class="nc" id="L180">        return any;</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public A find(final String key) {
+<span class="nc" id="L187">        return (A) entityManager().find(anyUtils().anyClass(), key);</span>
+    }
+
+    private Query findByPlainAttrValueQuery(final String entityName, final boolean ignoreCaseMatch) {
+<span class="nc" id="L191">        String query = &quot;SELECT e FROM &quot; + entityName + &quot; e&quot;</span>
+                + &quot; WHERE e.attribute.schema.id = :schemaKey AND (e.stringValue IS NOT NULL&quot;
+                + &quot; AND &quot;
+<span class="nc bnc" id="L194" title="All 4 branches missed.">                + (ignoreCaseMatch ? &quot;LOWER(&quot; : &quot;&quot;) + &quot;e.stringValue&quot; + (ignoreCaseMatch ? &quot;)&quot; : &quot;&quot;)</span>
+                + &quot; = &quot;
+<span class="nc bnc" id="L196" title="All 4 branches missed.">                + (ignoreCaseMatch ? &quot;LOWER(&quot; : &quot;&quot;) + &quot;:stringValue&quot; + (ignoreCaseMatch ? &quot;)&quot; : &quot;&quot;) + ')'</span>
+                + &quot; OR (e.booleanValue IS NOT NULL AND e.booleanValue = :booleanValue)&quot;
+                + &quot; OR (e.dateValue IS NOT NULL AND e.dateValue = :dateValue)&quot;
+                + &quot; OR (e.longValue IS NOT NULL AND e.longValue = :longValue)&quot;
+                + &quot; OR (e.doubleValue IS NOT NULL AND e.doubleValue = :doubleValue)&quot;;
+<span class="nc" id="L201">        return entityManager().createQuery(query);</span>
+    }
+
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public List&lt;A&gt; findByPlainAttrValue(
+            final PlainSchema schema,
+            final PlainAttrValue attrValue,
+            final boolean ignoreCaseMatch) {
+
+<span class="nc bnc" id="L211" title="All 2 branches missed.">        if (schema == null) {</span>
+<span class="nc" id="L212">            LOG.error(&quot;No PlainSchema&quot;);</span>
+<span class="nc" id="L213">            return List.of();</span>
+        }
+
+<span class="nc bnc" id="L216" title="All 2 branches missed.">        String entityName = schema.isUniqueConstraint()</span>
+<span class="nc" id="L217">                ? anyUtils().plainAttrUniqueValueClass().getName()</span>
+<span class="nc" id="L218">                : anyUtils().plainAttrValueClass().getName();</span>
+<span class="nc" id="L219">        Query query = findByPlainAttrValueQuery(entityName, ignoreCaseMatch);</span>
+<span class="nc" id="L220">        query.setParameter(&quot;schemaKey&quot;, schema.getKey());</span>
+<span class="nc" id="L221">        query.setParameter(&quot;stringValue&quot;, attrValue.getStringValue());</span>
+<span class="nc" id="L222">        query.setParameter(&quot;booleanValue&quot;, attrValue.getBooleanValue());</span>
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        if (attrValue.getDateValue() == null) {</span>
+<span class="nc" id="L224">            query.setParameter(&quot;dateValue&quot;, null);</span>
+        } else {
+<span class="nc" id="L226">            query.setParameter(&quot;dateValue&quot;, attrValue.getDateValue(), TemporalType.TIMESTAMP);</span>
+        }
+<span class="nc" id="L228">        query.setParameter(&quot;longValue&quot;, attrValue.getLongValue());</span>
+<span class="nc" id="L229">        query.setParameter(&quot;doubleValue&quot;, attrValue.getDoubleValue());</span>
+
+<span class="nc" id="L231">        List&lt;A&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L232">        ((List&lt;PlainAttrValue&gt;) query.getResultList()).stream().forEach(value -&gt; {</span>
+<span class="nc" id="L233">            A any = (A) value.getAttr().getOwner();</span>
+<span class="nc bnc" id="L234" title="All 2 branches missed.">            if (!result.contains(any)) {</span>
+<span class="nc" id="L235">                result.add(any);</span>
+            }
+<span class="nc" id="L237">        });</span>
+
+<span class="nc" id="L239">        return result;</span>
+    }
+
+    @Override
+    public Optional&lt;A&gt; findByPlainAttrUniqueValue(
+            final PlainSchema schema,
+            final PlainAttrUniqueValue attrUniqueValue,
+            final boolean ignoreCaseMatch) {
+
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (schema == null) {</span>
+<span class="nc" id="L249">            LOG.error(&quot;No PlainSchema&quot;);</span>
+<span class="nc" id="L250">            return Optional.empty();</span>
+        }
+<span class="nc bnc" id="L252" title="All 2 branches missed.">        if (!schema.isUniqueConstraint()) {</span>
+<span class="nc" id="L253">            LOG.error(&quot;This schema has not unique constraint: '{}'&quot;, schema.getKey());</span>
+<span class="nc" id="L254">            return Optional.empty();</span>
+        }
+
+<span class="nc" id="L257">        List&lt;A&gt; result = findByPlainAttrValue(schema, attrUniqueValue, ignoreCaseMatch);</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        return result.isEmpty()</span>
+<span class="nc" id="L259">                ? Optional.empty()</span>
+<span class="nc" id="L260">                : Optional.of(result.get(0));</span>
+    }
+
+    /**
+     * Split an attribute value recurring on provided literals/tokens.
+     *
+     * @param attrValue value to be split
+     * @param literals literals/tokens
+     * @return split value
+     */
+    private static List&lt;String&gt; split(final String attrValue, final List&lt;String&gt; literals) {
+<span class="nc" id="L271">        final List&lt;String&gt; attrValues = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L273" title="All 2 branches missed.">        if (literals.isEmpty()) {</span>
+<span class="nc" id="L274">            attrValues.add(attrValue);</span>
+        } else {
+<span class="nc bnc" id="L276" title="All 2 branches missed.">            for (String token : attrValue.split(Pattern.quote(literals.get(0)))) {</span>
+<span class="nc bnc" id="L277" title="All 2 branches missed.">                if (!token.isEmpty()) {</span>
+<span class="nc" id="L278">                    attrValues.addAll(split(token, literals.subList(1, literals.size())));</span>
+                }
+            }
+        }
+
+<span class="nc" id="L283">        return attrValues;</span>
+    }
+
+    private Set&lt;String&gt; getWhereClause(final String expression, final String value, final boolean ignoreCaseMatch) {
+<span class="nc" id="L287">        Parser parser = new Parser(new StringReader(expression));</span>
+
+        // Schema keys
+<span class="nc" id="L290">        List&lt;String&gt; identifiers = new ArrayList&lt;&gt;();</span>
+
+        // Literals
+<span class="nc" id="L293">        List&lt;String&gt; literals = new ArrayList&lt;&gt;();</span>
+
+        // Get schema keys and literals
+<span class="nc bnc" id="L296" title="All 4 branches missed.">        for (Token token = parser.getNextToken(); token != null &amp;&amp; StringUtils.isNotBlank(token.toString());</span>
+<span class="nc" id="L297">                token = parser.getNextToken()) {</span>
+
+<span class="nc bnc" id="L299" title="All 2 branches missed.">            if (token.kind == ParserConstants.STRING_LITERAL) {</span>
+<span class="nc" id="L300">                literals.add(token.toString().substring(1, token.toString().length() - 1));</span>
+            }
+
+<span class="nc bnc" id="L303" title="All 2 branches missed.">            if (token.kind == ParserConstants.IDENTIFIER) {</span>
+<span class="nc" id="L304">                identifiers.add(token.toString());</span>
+            }
+        }
+
+        // Sort literals in order to process later literals included into others
+<span class="nc" id="L309">        literals.sort((l1, l2) -&gt; {</span>
+<span class="nc bnc" id="L310" title="All 4 branches missed.">            if (l1 == null &amp;&amp; l2 == null) {</span>
+<span class="nc" id="L311">                return 0;</span>
+<span class="nc bnc" id="L312" title="All 4 branches missed.">            } else if (l1 != null &amp;&amp; l2 == null) {</span>
+<span class="nc" id="L313">                return -1;</span>
+<span class="nc bnc" id="L314" title="All 2 branches missed.">            } else if (l1 == null) {</span>
+<span class="nc" id="L315">                return 1;</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">            } else if (l1.length() == l2.length()) {</span>
+<span class="nc" id="L317">                return 0;</span>
+<span class="nc bnc" id="L318" title="All 2 branches missed.">            } else if (l1.length() &gt; l2.length()) {</span>
+<span class="nc" id="L319">                return -1;</span>
+            } else {
+<span class="nc" id="L321">                return 1;</span>
+            }
+        });
+
+        // Split value on provided literals
+<span class="nc" id="L326">        List&lt;String&gt; attrValues = split(value, literals);</span>
+
+<span class="nc bnc" id="L328" title="All 2 branches missed.">        if (attrValues.size() != identifiers.size()) {</span>
+<span class="nc" id="L329">            LOG.error(&quot;Ambiguous JEXL expression resolution: literals and values have different size&quot;);</span>
+<span class="nc" id="L330">            return Set.of();</span>
+        }
+
+        // clauses to be used with INTERSECTed queries
+<span class="nc" id="L334">        Set&lt;String&gt; clauses = new HashSet&lt;&gt;();</span>
+
+        // builder to build the clauses
+<span class="nc" id="L337">        StringBuilder bld = new StringBuilder();</span>
+
+        // Contains used identifiers in order to avoid replications
+<span class="nc" id="L340">        Set&lt;String&gt; used = new HashSet&lt;&gt;();</span>
+
+        // Create several clauses: one for each identifiers
+<span class="nc bnc" id="L343" title="All 2 branches missed.">        for (int i = 0; i &lt; identifiers.size(); i++) {</span>
+<span class="nc bnc" id="L344" title="All 2 branches missed.">            if (!used.contains(identifiers.get(i))) {</span>
+                // verify schema existence and get schema type
+<span class="nc" id="L346">                PlainSchema schema = plainSchemaDAO.find(identifiers.get(i));</span>
+<span class="nc bnc" id="L347" title="All 2 branches missed.">                if (schema == null) {</span>
+<span class="nc" id="L348">                    LOG.error(&quot;Invalid schema '{}', ignoring&quot;, identifiers.get(i));</span>
+                } else {
+                    // clear builder
+<span class="nc" id="L351">                    bld.delete(0, bld.length());</span>
+
+<span class="nc" id="L353">                    bld.append('(');</span>
+
+                    // set schema key
+<span class="nc" id="L356">                    bld.append(&quot;s.id = '&quot;).append(identifiers.get(i)).append('\'');</span>
+
+<span class="nc" id="L358">                    bld.append(&quot; AND &quot;);</span>
+
+<span class="nc" id="L360">                    bld.append(&quot;s.id = a.schema_id&quot;).append(&quot; AND &quot;);</span>
+
+<span class="nc" id="L362">                    bld.append(&quot;a.id = v.attribute_id&quot;);</span>
+
+<span class="nc" id="L364">                    bld.append(&quot; AND &quot;);</span>
+
+                    // use a value clause different for each different schema type
+<span class="nc bnc" id="L367" title="All 5 branches missed.">                    switch (schema.getType()) {</span>
+                        case Boolean:
+<span class="nc" id="L369">                            bld.append(&quot;v.booleanValue = '&quot;).append(attrValues.get(i)).append('\'');</span>
+<span class="nc" id="L370">                            break;</span>
+                        case Long:
+<span class="nc" id="L372">                            bld.append(&quot;v.longValue = &quot;).append(attrValues.get(i));</span>
+<span class="nc" id="L373">                            break;</span>
+                        case Double:
+<span class="nc" id="L375">                            bld.append(&quot;v.doubleValue = &quot;).append(attrValues.get(i));</span>
+<span class="nc" id="L376">                            break;</span>
+                        case Date:
+<span class="nc" id="L378">                            bld.append(&quot;v.dateValue = '&quot;).append(attrValues.get(i)).append('\'');</span>
+<span class="nc" id="L379">                            break;</span>
+                        default:
+<span class="nc bnc" id="L381" title="All 2 branches missed.">                            if (ignoreCaseMatch) {</span>
+<span class="nc" id="L382">                                bld.append(&quot;LOWER(v.stringValue) = '&quot;).</span>
+<span class="nc" id="L383">                                        append(attrValues.get(i).toLowerCase()).append('\'');</span>
+                            } else {
+<span class="nc" id="L385">                                bld.append(&quot;v.stringValue = '&quot;).</span>
+<span class="nc" id="L386">                                        append(attrValues.get(i)).append('\'');</span>
+                            }
+                    }
+
+<span class="nc" id="L390">                    bld.append(')');</span>
+
+<span class="nc" id="L392">                    used.add(identifiers.get(i));</span>
+
+<span class="nc" id="L394">                    clauses.add(bld.toString());</span>
+                }
+            }
+        }
+
+<span class="nc" id="L399">        LOG.debug(&quot;Generated where clauses {}&quot;, clauses);</span>
+
+<span class="nc" id="L401">        return clauses;</span>
+    }
+
+    @Override
+    public List&lt;A&gt; findByDerAttrValue(final DerSchema schema, final String value, final boolean ignoreCaseMatch) {
+<span class="nc bnc" id="L406" title="All 2 branches missed.">        if (schema == null) {</span>
+<span class="nc" id="L407">            LOG.error(&quot;No DerSchema&quot;);</span>
+<span class="nc" id="L408">            return List.of();</span>
+        }
+
+        // query string
+<span class="nc" id="L412">        StringBuilder querystring = new StringBuilder();</span>
+
+<span class="nc" id="L414">        boolean subquery = false;</span>
+<span class="nc bnc" id="L415" title="All 2 branches missed.">        for (String clause : getWhereClause(schema.getExpression(), value, ignoreCaseMatch)) {</span>
+<span class="nc bnc" id="L416" title="All 2 branches missed.">            if (querystring.length() &gt; 0) {</span>
+<span class="nc" id="L417">                subquery = true;</span>
+<span class="nc" id="L418">                querystring.append(&quot; AND a.owner_id IN ( &quot;);</span>
+            }
+
+<span class="nc" id="L421">            querystring.append(&quot;SELECT a.owner_id &quot;).</span>
+<span class="nc" id="L422">                    append(&quot;FROM &quot;).append(anyUtils().plainAttrClass().getSimpleName().substring(3)).append(&quot; a, &quot;).</span>
+<span class="nc" id="L423">                    append(anyUtils().plainAttrValueClass().getSimpleName().substring(3)).append(&quot; v, &quot;).</span>
+<span class="nc" id="L424">                    append(PlainSchema.class.getSimpleName()).append(&quot; s &quot;).</span>
+<span class="nc" id="L425">                    append(&quot;WHERE &quot;).append(clause);</span>
+
+<span class="nc bnc" id="L427" title="All 2 branches missed.">            if (subquery) {</span>
+<span class="nc" id="L428">                querystring.append(')');</span>
+            }
+<span class="nc" id="L430">        }</span>
+
+<span class="nc" id="L432">        List&lt;A&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L433" title="All 2 branches missed.">        if (querystring.length() &gt; 0) {</span>
+<span class="nc" id="L434">            Query query = entityManager().createNativeQuery(querystring.toString());</span>
+
+<span class="nc bnc" id="L436" title="All 2 branches missed.">            for (Object anyKey : query.getResultList()) {</span>
+<span class="nc" id="L437">                A any = find(anyKey.toString());</span>
+<span class="nc bnc" id="L438" title="All 2 branches missed.">                if (!result.contains(any)) {</span>
+<span class="nc" id="L439">                    result.add(any);</span>
+                }
+<span class="nc" id="L441">            }</span>
+        }
+
+<span class="nc" id="L444">        return result;</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    @Override
+    public List&lt;A&gt; findByResource(final ExternalResource resource) {
+<span class="nc" id="L450">        Query query = entityManager().createQuery(&quot;SELECT e FROM &quot; + anyUtils().anyClass().getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE :resource MEMBER OF e.resources&quot;);
+<span class="nc" id="L452">        query.setParameter(&quot;resource&quot;, resource);</span>
+
+<span class="nc" id="L454">        return query.getResultList();</span>
+    }
+
+    @Override
+    public SearchCond getAllMatchingCond() {
+<span class="nc" id="L459">        AnyCond idCond = new AnyCond(AttrCond.Type.ISNOTNULL);</span>
+<span class="nc" id="L460">        idCond.setSchema(&quot;id&quot;);</span>
+<span class="nc" id="L461">        return SearchCond.getLeaf(idCond);</span>
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public &lt;S extends Schema&gt; AllowedSchemas&lt;S&gt; findAllowedSchemas(final A any, final Class&lt;S&gt; reference) {
+<span class="nc" id="L468">        AllowedSchemas&lt;S&gt; result = new AllowedSchemas&lt;&gt;();</span>
+
+        // schemas given by type and aux classes
+<span class="nc" id="L471">        Set&lt;AnyTypeClass&gt; typeOwnClasses = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L472">        typeOwnClasses.addAll(any.getType().getClasses());</span>
+<span class="nc" id="L473">        typeOwnClasses.addAll(any.getAuxClasses());</span>
+
+<span class="nc" id="L475">        typeOwnClasses.forEach(typeClass -&gt; {</span>
+<span class="nc bnc" id="L476" title="All 2 branches missed.">            if (reference.equals(PlainSchema.class)) {</span>
+<span class="nc" id="L477">                result.getForSelf().addAll((Collection&lt;? extends S&gt;) typeClass.getPlainSchemas());</span>
+<span class="nc bnc" id="L478" title="All 2 branches missed.">            } else if (reference.equals(DerSchema.class)) {</span>
+<span class="nc" id="L479">                result.getForSelf().addAll((Collection&lt;? extends S&gt;) typeClass.getDerSchemas());</span>
+<span class="nc bnc" id="L480" title="All 2 branches missed.">            } else if (reference.equals(VirSchema.class)) {</span>
+<span class="nc" id="L481">                result.getForSelf().addAll((Collection&lt;? extends S&gt;) typeClass.getVirSchemas());</span>
+            }
+<span class="nc" id="L483">        });</span>
+
+        // schemas given by type extensions
+<span class="nc" id="L486">        Map&lt;Group, List&lt;? extends AnyTypeClass&gt;&gt; typeExtensionClasses = new HashMap&lt;&gt;();</span>
+<span class="nc bnc" id="L487" title="All 2 branches missed.">        if (any instanceof User) {</span>
+<span class="nc" id="L488">            ((User) any).getMemberships().forEach(memb -&gt; memb.getRightEnd().getTypeExtensions().</span>
+<span class="nc" id="L489">                    forEach(typeExt -&gt; typeExtensionClasses.put(memb.getRightEnd(), typeExt.getAuxClasses())));</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">        } else if (any instanceof AnyObject) {</span>
+<span class="nc" id="L491">            ((AnyObject) any).getMemberships().forEach(memb -&gt; memb.getRightEnd().getTypeExtensions().stream().</span>
+<span class="nc" id="L492">                    filter(typeExt -&gt; any.getType().equals(typeExt.getAnyType())).</span>
+<span class="nc" id="L493">                    forEach(typeExt -&gt; typeExtensionClasses.put(memb.getRightEnd(), typeExt.getAuxClasses())));</span>
+        }
+
+<span class="nc" id="L496">        typeExtensionClasses.entrySet().stream().map(entry -&gt; {</span>
+<span class="nc" id="L497">            result.getForMemberships().put(entry.getKey(), new HashSet&lt;&gt;());</span>
+<span class="nc" id="L498">            return entry;</span>
+<span class="nc" id="L499">        }).forEach(entry -&gt; entry.getValue().forEach(typeClass -&gt; {</span>
+<span class="nc bnc" id="L500" title="All 2 branches missed.">            if (reference.equals(PlainSchema.class)) {</span>
+<span class="nc" id="L501">                result.getForMemberships().get(entry.getKey()).</span>
+<span class="nc" id="L502">                        addAll((Collection&lt;? extends S&gt;) typeClass.getPlainSchemas());</span>
+<span class="nc bnc" id="L503" title="All 2 branches missed.">            } else if (reference.equals(DerSchema.class)) {</span>
+<span class="nc" id="L504">                result.getForMemberships().get(entry.getKey()).</span>
+<span class="nc" id="L505">                        addAll((Collection&lt;? extends S&gt;) typeClass.getDerSchemas());</span>
+<span class="nc bnc" id="L506" title="All 2 branches missed.">            } else if (reference.equals(VirSchema.class)) {</span>
+<span class="nc" id="L507">                result.getForMemberships().get(entry.getKey()).</span>
+<span class="nc" id="L508">                        addAll((Collection&lt;? extends S&gt;) typeClass.getVirSchemas());</span>
+            }
+<span class="nc" id="L510">        }));</span>
+
+<span class="nc" id="L512">        return result;</span>
+    }
+
+    @Override
+    public A save(final A any) {
+<span class="nc" id="L517">        return entityManager().merge(any);</span>
+    }
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L522">        A any = find(key);</span>
+<span class="nc bnc" id="L523" title="All 2 branches missed.">        if (any == null) {</span>
+<span class="nc" id="L524">            return;</span>
+        }
+
+<span class="nc" id="L527">        delete(any);</span>
+<span class="nc" id="L528">    }</span>
+
+    @Transactional(readOnly = true)
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public List&lt;String&gt; findDynRealms(final String key) {
+<span class="nc" id="L534">        Query query = entityManager().createNativeQuery(</span>
+                &quot;SELECT dynRealm_id FROM &quot; + JPADynRealmDAO.DYNMEMB_TABLE + &quot; WHERE any_id=?&quot;);
+<span class="nc" id="L536">        query.setParameter(1, key);</span>
+
+<span class="nc" id="L538">        List&lt;String&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L539" title="All 2 branches missed.">        query.getResultList().stream().map(resultKey -&gt; resultKey instanceof Object[]</span>
+<span class="nc" id="L540">                ? (String) ((Object[]) resultKey)[0]</span>
+<span class="nc" id="L541">                : ((String) resultKey)).</span>
+<span class="nc" id="L542">                forEach((actualKey) -&gt; {</span>
+<span class="nc" id="L543">                    DynRealm dynRealm = dynRealmDAO.find(actualKey.toString());</span>
+<span class="nc bnc" id="L544" title="All 2 branches missed.">                    if (dynRealm == null) {</span>
+<span class="nc" id="L545">                        LOG.error(&quot;Could not find dynRealm with id {}, even though returned by the native query&quot;,</span>
+                                actualKey);
+<span class="nc bnc" id="L547" title="All 2 branches missed.">                    } else if (!result.contains(actualKey.toString())) {</span>
+<span class="nc" id="L548">                        result.add(actualKey.toString());</span>
+                    }
+<span class="nc" id="L550">                });</span>
+<span class="nc" id="L551">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,495 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAUser.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.user</a> &gt; <span class="el_source">JPAUser.java</span></div><h1>JPAUser.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.user;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import javax.persistence.Cacheable;
+import javax.persistence.CascadeType;
+import javax.persistence.CollectionTable;
+import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.Lob;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
+import javax.persistence.Transient;
+import javax.persistence.UniqueConstraint;
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.common.lib.types.CipherAlgorithm;
+import org.apache.syncope.core.persistence.api.entity.user.SecurityQuestion;
+import org.apache.syncope.core.persistence.api.entity.user.UPlainAttr;
+import org.apache.syncope.core.persistence.api.entity.user.User;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAExternalResource;
+import org.apache.syncope.core.spring.security.Encryptor;
+import org.apache.syncope.core.spring.security.SecureRandomUtils;
+import org.apache.syncope.core.spring.ApplicationContextProvider;
+import org.apache.syncope.core.persistence.api.dao.AnyTypeDAO;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.RelationshipType;
+import org.apache.syncope.core.persistence.api.entity.Role;
+import org.apache.syncope.core.persistence.api.entity.anyobject.AnyObject;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.api.entity.user.LinkedAccount;
+import org.apache.syncope.core.persistence.api.entity.user.UMembership;
+import org.apache.syncope.core.persistence.api.entity.user.URelationship;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractGroupableRelatable;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyTypeClass;
+import org.apache.syncope.core.persistence.jpa.entity.JPARole;
+
+@Entity
+@Table(name = JPAUser.TABLE)
+@Cacheable
+<span class="nc" id="L74">public class JPAUser</span>
+        extends AbstractGroupableRelatable&lt;User, UMembership, UPlainAttr, AnyObject, URelationship&gt;
+        implements User {
+
+    private static final long serialVersionUID = -3905046855521446823L;
+
+    public static final String TABLE = &quot;SyncopeUser&quot;;
+
+<span class="nc bnc" id="L82" title="All 46 branches missed.">    private static final Encryptor ENCRYPTOR = Encryptor.getInstance();</span>
+
+    @Column(nullable = true)
+    private String password;
+
+    @Transient
+    private String clearPassword;
+
+<span class="nc" id="L90">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;user_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;role_id&quot;),
+            uniqueConstraints =
+            @UniqueConstraint(columnNames = { &quot;user_id&quot;, &quot;role_id&quot; }))
+    private List&lt;JPARole&gt; roles = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L99">    @OneToMany(cascade = CascadeType.ALL, mappedBy = &quot;owner&quot;)</span>
+    @Valid
+    private List&lt;JPAUPlainAttr&gt; plainAttrs = new ArrayList&lt;&gt;();
+
+    @Column(nullable = true)
+    private String status;
+
+    @Lob
+    private String token;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date tokenExpireTime;
+
+    @Column(nullable = true)
+    @Enumerated(EnumType.STRING)
+    private CipherAlgorithm cipherAlgorithm;
+
+<span class="nc" id="L116">    @ElementCollection</span>
+    @Column(name = &quot;passwordHistoryValue&quot;)
+    @CollectionTable(name = &quot;SyncopeUser_passwordHistory&quot;, joinColumns =
+            @JoinColumn(name = &quot;user_id&quot;, referencedColumnName = &quot;id&quot;))
+    private List&lt;String&gt; passwordHistory = new ArrayList&lt;&gt;();
+
+    /**
+     * Subsequent failed logins.
+     */
+    @Column(nullable = true)
+    private Integer failedLogins;
+
+    /**
+     * Username/Login.
+     */
+    @Column(unique = true)
+    @NotNull(message = &quot;Blank username&quot;)
+    private String username;
+
+    /**
+     * Last successful login date.
+     */
+    @Column(nullable = true)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date lastLoginDate;
+
+    /**
+     * Change password date.
+     */
+    @Column(nullable = true)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date changePwdDate;
+
+<span class="nc" id="L149">    private Boolean suspended = false;</span>
+
+<span class="nc" id="L151">    private Boolean mustChangePassword = false;</span>
+
+    /**
+     * Provisioning external resources.
+     */
+<span class="nc" id="L156">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;user_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;resource_id&quot;),
+            uniqueConstraints =
+            @UniqueConstraint(columnNames = { &quot;user_id&quot;, &quot;resource_id&quot; }))
+    private List&lt;JPAExternalResource&gt; resources = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L165">    @ManyToMany(fetch = FetchType.LAZY)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;user_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;anyTypeClass_id&quot;),
+            uniqueConstraints =
+            @UniqueConstraint(columnNames = { &quot;user_id&quot;, &quot;anyTypeClass_id&quot; }))
+    private List&lt;JPAAnyTypeClass&gt; auxClasses = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L174">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = &quot;leftEnd&quot;)</span>
+    @Valid
+    private List&lt;JPAURelationship&gt; relationships = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L178">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = &quot;leftEnd&quot;)</span>
+    @Valid
+    private List&lt;JPAUMembership&gt; memberships = new ArrayList&lt;&gt;();
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    private JPASecurityQuestion securityQuestion;
+
+    @Column(nullable = true)
+    private String securityAnswer;
+
+<span class="nc" id="L188">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = &quot;owner&quot;)</span>
+    @Valid
+    private List&lt;JPALinkedAccount&gt; linkedAccounts = new ArrayList&lt;&gt;();
+
+    @Override
+    public AnyType getType() {
+<span class="nc" id="L194">        return ApplicationContextProvider.getBeanFactory().getBean(AnyTypeDAO.class).findUser();</span>
+    }
+
+    @Override
+    public void setType(final AnyType type) {
+        // nothing to do
+<span class="nc" id="L200">    }</span>
+
+    @Override
+    public boolean add(final ExternalResource resource) {
+<span class="nc" id="L204">        checkType(resource, JPAExternalResource.class);</span>
+<span class="nc bnc" id="L205" title="All 4 branches missed.">        return resources.contains((JPAExternalResource) resource) || resources.add((JPAExternalResource) resource);</span>
+    }
+
+    @Override
+    public List&lt;? extends ExternalResource&gt; getResources() {
+<span class="nc" id="L210">        return resources;</span>
+    }
+
+    @Override
+    public boolean add(final Role role) {
+<span class="nc" id="L215">        checkType(role, JPARole.class);</span>
+<span class="nc bnc" id="L216" title="All 4 branches missed.">        return roles.contains((JPARole) role) || roles.add((JPARole) role);</span>
+    }
+
+    @Override
+    public List&lt;? extends Role&gt; getRoles() {
+<span class="nc" id="L221">        return roles;</span>
+    }
+
+    @Override
+    public String getPassword() {
+<span class="nc" id="L226">        return password;</span>
+    }
+
+    @Override
+    public String getClearPassword() {
+<span class="nc" id="L231">        return clearPassword;</span>
+    }
+
+    public void setClearPassword(final String clearPassword) {
+<span class="nc" id="L235">        this.clearPassword = clearPassword;</span>
+<span class="nc" id="L236">    }</span>
+
+    @Override
+    public void removeClearPassword() {
+<span class="nc" id="L240">        setClearPassword(null);</span>
+<span class="nc" id="L241">    }</span>
+
+    @Override
+    public void setEncodedPassword(final String password, final CipherAlgorithm cipherAlgoritm) {
+<span class="nc" id="L245">        this.clearPassword = null;</span>
+
+<span class="nc" id="L247">        this.password = password;</span>
+<span class="nc" id="L248">        this.cipherAlgorithm = cipherAlgoritm;</span>
+<span class="nc" id="L249">        setMustChangePassword(false);</span>
+<span class="nc" id="L250">    }</span>
+
+    @Override
+    public void setPassword(final String password, final CipherAlgorithm cipherAlgoritm) {
+<span class="nc" id="L254">        this.clearPassword = password;</span>
+
+        try {
+<span class="nc" id="L257">            this.password = ENCRYPTOR.encode(password, cipherAlgoritm);</span>
+<span class="nc" id="L258">            this.cipherAlgorithm = cipherAlgoritm;</span>
+<span class="nc" id="L259">            setMustChangePassword(false);</span>
+<span class="nc" id="L260">        } catch (Exception e) {</span>
+<span class="nc" id="L261">            LOG.error(&quot;Could not encode password&quot;, e);</span>
+<span class="nc" id="L262">            this.password = null;</span>
+<span class="nc" id="L263">        }</span>
+<span class="nc" id="L264">    }</span>
+
+    @Override
+    public CipherAlgorithm getCipherAlgorithm() {
+<span class="nc" id="L268">        return cipherAlgorithm;</span>
+    }
+
+    @Override
+    public boolean canDecodePassword() {
+<span class="nc bnc" id="L273" title="All 4 branches missed.">        return this.cipherAlgorithm != null &amp;&amp; this.cipherAlgorithm.isInvertible();</span>
+    }
+
+    @Override
+    public boolean add(final UPlainAttr attr) {
+<span class="nc" id="L278">        checkType(attr, JPAUPlainAttr.class);</span>
+<span class="nc" id="L279">        return plainAttrs.add((JPAUPlainAttr) attr);</span>
+    }
+
+    @Override
+    protected List&lt;? extends UPlainAttr&gt; internalGetPlainAttrs() {
+<span class="nc" id="L284">        return plainAttrs;</span>
+    }
+
+    @Override
+    public String getStatus() {
+<span class="nc" id="L289">        return status;</span>
+    }
+
+    @Override
+    public void setStatus(final String status) {
+<span class="nc" id="L294">        this.status = status;</span>
+<span class="nc" id="L295">    }</span>
+
+    @Override
+    public void generateToken(final int tokenLength, final int tokenExpireTime) {
+<span class="nc" id="L299">        this.token = SecureRandomUtils.generateRandomPassword(tokenLength);</span>
+
+<span class="nc" id="L301">        Calendar calendar = Calendar.getInstance();</span>
+<span class="nc" id="L302">        calendar.add(Calendar.MINUTE, tokenExpireTime);</span>
+<span class="nc" id="L303">        this.tokenExpireTime = calendar.getTime();</span>
+<span class="nc" id="L304">    }</span>
+
+    @Override
+    public void removeToken() {
+<span class="nc" id="L308">        this.token = null;</span>
+<span class="nc" id="L309">        this.tokenExpireTime = null;</span>
+<span class="nc" id="L310">    }</span>
+
+    @Override
+    public String getToken() {
+<span class="nc" id="L314">        return token;</span>
+    }
+
+    @Override
+    public Date getTokenExpireTime() {
+<span class="nc" id="L319">        return Optional.ofNullable(tokenExpireTime).map(expireTime -&gt; new Date(expireTime.getTime())).orElse(null);</span>
+    }
+
+    @Override
+    public boolean checkToken(final String token) {
+<span class="nc" id="L324">        return Optional.ofNullable(this.token)</span>
+<span class="nc bnc" id="L325" title="All 6 branches missed.">            .map(s -&gt; s.equals(token) &amp;&amp; !hasTokenExpired()).orElseGet(() -&gt; token == null);</span>
+    }
+
+    @Override
+    public boolean hasTokenExpired() {
+<span class="nc" id="L330">        return Optional.ofNullable(tokenExpireTime).filter(expireTime -&gt; expireTime.before(new Date())).isPresent();</span>
+    }
+
+    @Override
+    public List&lt;String&gt; getPasswordHistory() {
+<span class="nc" id="L335">        return passwordHistory;</span>
+    }
+
+    @Override
+    public Date getChangePwdDate() {
+<span class="nc" id="L340">        return Optional.ofNullable(changePwdDate).map(pwdDate -&gt; new Date(pwdDate.getTime())).orElse(null);</span>
+    }
+
+    @Override
+    public void setChangePwdDate(final Date changePwdDate) {
+<span class="nc" id="L345">        this.changePwdDate = Optional.ofNullable(changePwdDate)</span>
+<span class="nc" id="L346">            .map(pwdDate -&gt; new Date(pwdDate.getTime())).orElse(null);</span>
+<span class="nc" id="L347">    }</span>
+
+    @Override
+    public Integer getFailedLogins() {
+<span class="nc bnc" id="L351" title="All 2 branches missed.">        return failedLogins == null ? 0 : failedLogins;</span>
+    }
+
+    @Override
+    public void setFailedLogins(final Integer failedLogins) {
+<span class="nc" id="L356">        this.failedLogins = failedLogins;</span>
+<span class="nc" id="L357">    }</span>
+
+    @Override
+    public Date getLastLoginDate() {
+<span class="nc" id="L361">        return Optional.ofNullable(lastLoginDate).map(loginDate -&gt; new Date(loginDate.getTime())).orElse(null);</span>
+    }
+
+    @Override
+    public void setLastLoginDate(final Date lastLoginDate) {
+<span class="nc" id="L366">        this.lastLoginDate = Optional.ofNullable(lastLoginDate)</span>
+<span class="nc" id="L367">            .map(loginDate -&gt; new Date(loginDate.getTime())).orElse(null);</span>
+<span class="nc" id="L368">    }</span>
+
+    @Override
+    public String getUsername() {
+<span class="nc" id="L372">        return username;</span>
+    }
+
+    @Override
+    public void setUsername(final String username) {
+<span class="nc" id="L377">        this.username = username;</span>
+<span class="nc" id="L378">    }</span>
+
+    @Override
+    public void setSuspended(final Boolean suspended) {
+<span class="nc" id="L382">        this.suspended = suspended;</span>
+<span class="nc" id="L383">    }</span>
+
+    @Override
+    public Boolean isSuspended() {
+<span class="nc" id="L387">        return suspended;</span>
+    }
+
+    @Override
+    public void setMustChangePassword(final boolean mustChangePassword) {
+<span class="nc" id="L392">        this.mustChangePassword = mustChangePassword;</span>
+<span class="nc" id="L393">    }</span>
+
+    @Override
+    public boolean isMustChangePassword() {
+<span class="nc" id="L397">        return mustChangePassword;</span>
+    }
+
+    @Override
+    public SecurityQuestion getSecurityQuestion() {
+<span class="nc" id="L402">        return securityQuestion;</span>
+    }
+
+    @Override
+    public void setSecurityQuestion(final SecurityQuestion securityQuestion) {
+<span class="nc" id="L407">        checkType(securityQuestion, JPASecurityQuestion.class);</span>
+<span class="nc" id="L408">        this.securityQuestion = (JPASecurityQuestion) securityQuestion;</span>
+<span class="nc" id="L409">    }</span>
+
+    @Override
+    public String getSecurityAnswer() {
+<span class="nc" id="L413">        return securityAnswer;</span>
+    }
+
+    @Override
+    public void setSecurityAnswer(final String securityAnswer) {
+<span class="nc" id="L418">        this.securityAnswer = securityAnswer;</span>
+<span class="nc" id="L419">    }</span>
+
+    @Override
+    public boolean add(final AnyTypeClass auxClass) {
+<span class="nc" id="L423">        checkType(auxClass, JPAAnyTypeClass.class);</span>
+<span class="nc bnc" id="L424" title="All 4 branches missed.">        return auxClasses.contains((JPAAnyTypeClass) auxClass) || auxClasses.add((JPAAnyTypeClass) auxClass);</span>
+    }
+
+    @Override
+    public List&lt;? extends AnyTypeClass&gt; getAuxClasses() {
+<span class="nc" id="L429">        return auxClasses;</span>
+    }
+
+    @Override
+    public boolean add(final URelationship relationship) {
+<span class="nc" id="L434">        checkType(relationship, JPAURelationship.class);</span>
+<span class="nc" id="L435">        return this.relationships.add((JPAURelationship) relationship);</span>
+    }
+
+    @Override
+    public Optional&lt;? extends URelationship&gt; getRelationship(
+            final RelationshipType relationshipType, final String otherEndKey) {
+
+<span class="nc bnc" id="L442" title="All 4 branches missed.">        return getRelationships().stream().filter(relationship -&gt; relationshipType.equals(relationship.getType())</span>
+<span class="nc bnc" id="L443" title="All 2 branches missed.">                &amp;&amp; otherEndKey != null &amp;&amp; otherEndKey.equals(relationship.getRightEnd().getKey())).</span>
+<span class="nc" id="L444">                findFirst();</span>
+    }
+
+    @Override
+    public List&lt;? extends URelationship&gt; getRelationships() {
+<span class="nc" id="L449">        return relationships;</span>
+    }
+
+    @Override
+    public boolean add(final UMembership membership) {
+<span class="nc" id="L454">        checkType(membership, JPAUMembership.class);</span>
+<span class="nc" id="L455">        return this.memberships.add((JPAUMembership) membership);</span>
+    }
+
+    @Override
+    public boolean remove(final UMembership membership) {
+<span class="nc" id="L460">        checkType(membership, JPAUMembership.class);</span>
+<span class="nc" id="L461">        return this.memberships.remove((JPAUMembership) membership);</span>
+    }
+
+    @Override
+    public List&lt;? extends UMembership&gt; getMemberships() {
+<span class="nc" id="L466">        return memberships;</span>
+    }
+
+    @Override
+    public boolean add(final LinkedAccount account) {
+<span class="nc" id="L471">        checkType(account, JPALinkedAccount.class);</span>
+<span class="nc bnc" id="L472" title="All 4 branches missed.">        return linkedAccounts.contains((JPALinkedAccount) account) || linkedAccounts.add((JPALinkedAccount) account);</span>
+    }
+
+    @Override
+    public Optional&lt;? extends LinkedAccount&gt; getLinkedAccount(final String resource, final String connObjectKeyValue) {
+<span class="nc" id="L477">        return linkedAccounts.stream().</span>
+<span class="nc bnc" id="L478" title="All 2 branches missed.">                filter(account -&gt; account.getResource().getKey().equals(resource)</span>
+<span class="nc bnc" id="L479" title="All 2 branches missed.">                &amp;&amp; account.getConnObjectKeyValue().equals(connObjectKeyValue)).</span>
+<span class="nc" id="L480">                findFirst();</span>
+    }
+
+    @Override
+    public List&lt;? extends LinkedAccount&gt; getLinkedAccounts(final String resource) {
+<span class="nc" id="L485">        return linkedAccounts.stream().</span>
+<span class="nc" id="L486">                filter(account -&gt; account.getResource().getKey().equals(resource)).</span>
+<span class="nc" id="L487">                collect(Collectors.toList());</span>
+    }
+
+    @Override
+    public List&lt;? extends LinkedAccount&gt; getLinkedAccounts() {
+<span class="nc" id="L492">        return linkedAccounts;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

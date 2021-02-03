@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAUPlainAttr.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.user</a> &gt; <span class="el_source">JPAUPlainAttr.java</span></div><h1>JPAUPlainAttr.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.user;
+
+import java.util.ArrayList;
+import java.util.List;
+import javax.persistence.CascadeType;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
+import javax.validation.Valid;
+import org.apache.syncope.core.persistence.api.entity.PlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.api.entity.PlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.user.UMembership;
+import org.apache.syncope.core.persistence.api.entity.user.UPlainAttr;
+import org.apache.syncope.core.persistence.api.entity.user.UPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.api.entity.user.UPlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.user.User;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractPlainAttr;
+
+@Entity
+@Table(name = JPAUPlainAttr.TABLE)
+<span class="nc" id="L42">public class JPAUPlainAttr extends AbstractPlainAttr&lt;User&gt; implements UPlainAttr {</span>
+
+    private static final long serialVersionUID = 6333601983691157406L;
+
+    public static final String TABLE = &quot;UPlainAttr&quot;;
+
+    /**
+     * The owner of this attribute.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    private JPAUser owner;
+
+    /**
+     * The membership of this attribute; might be {@code NULL} if this attribute is not related to a membership.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    private JPAUMembership membership;
+
+    /**
+     * Values of this attribute (if schema is not UNIQUE).
+     */
+<span class="nc" id="L63">    @OneToMany(cascade = { CascadeType.PERSIST, CascadeType.MERGE }, orphanRemoval = true, mappedBy = &quot;attribute&quot;)</span>
+    @Valid
+    private List&lt;JPAUPlainAttrValue&gt; values = new ArrayList&lt;&gt;();
+
+    /**
+     * Value of this attribute (if schema is UNIQUE).
+     */
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = &quot;attribute&quot;)
+    @Valid
+    private JPAUPlainAttrUniqueValue uniqueValue;
+
+    @Override
+    public User getOwner() {
+<span class="nc" id="L76">        return owner;</span>
+    }
+
+    @Override
+    public void setOwner(final User owner) {
+<span class="nc" id="L81">        checkType(owner, JPAUser.class);</span>
+<span class="nc" id="L82">        this.owner = (JPAUser) owner;</span>
+<span class="nc" id="L83">    }</span>
+
+    @Override
+    public UMembership getMembership() {
+<span class="nc" id="L87">        return membership;</span>
+    }
+
+    @Override
+    public void setMembership(final UMembership membership) {
+<span class="nc" id="L92">        checkType(membership, JPAUMembership.class);</span>
+<span class="nc" id="L93">        this.membership = (JPAUMembership) membership;</span>
+<span class="nc" id="L94">    }</span>
+
+    @Override
+    protected boolean addForMultiValue(final PlainAttrValue attrValue) {
+<span class="nc" id="L98">        checkType(attrValue, JPAUPlainAttrValue.class);</span>
+<span class="nc" id="L99">        return values.add((JPAUPlainAttrValue) attrValue);</span>
+    }
+
+    @Override
+    public List&lt;? extends UPlainAttrValue&gt; getValues() {
+<span class="nc" id="L104">        return values;</span>
+    }
+
+    @Override
+    public UPlainAttrUniqueValue getUniqueValue() {
+<span class="nc" id="L109">        return uniqueValue;</span>
+    }
+
+    @Override
+    public void setUniqueValue(final PlainAttrUniqueValue uniqueValue) {
+<span class="nc" id="L114">        checkType(uniqueValue, JPAUPlainAttrUniqueValue.class);</span>
+<span class="nc" id="L115">        this.uniqueValue = (JPAUPlainAttrUniqueValue) uniqueValue;</span>
+<span class="nc" id="L116">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

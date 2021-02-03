@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAConnPoolConf.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity</a> &gt; <span class="el_source">JPAConnPoolConf.java</span></div><h1>JPAConnPoolConf.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity;
+
+import java.io.Serializable;
+import javax.persistence.Embeddable;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.syncope.core.persistence.api.entity.ConnPoolConf;
+
+@Embeddable
+<span class="nc" id="L29">public class JPAConnPoolConf implements ConnPoolConf, Serializable {</span>
+
+    private static final long serialVersionUID = -34259572059178970L;
+
+    private Integer maxObjects;
+
+    private Integer minIdle;
+
+    private Integer maxIdle;
+
+    private Long maxWait;
+
+    private Long minEvictableIdleTimeMillis;
+
+    @Override
+    public Integer getMaxObjects() {
+<span class="nc" id="L45">        return maxObjects;</span>
+    }
+
+    @Override
+    public void setMaxObjects(final Integer maxObjects) {
+<span class="nc" id="L50">        this.maxObjects = maxObjects;</span>
+<span class="nc" id="L51">    }</span>
+
+    @Override
+    public Integer getMinIdle() {
+<span class="nc" id="L55">        return minIdle;</span>
+    }
+
+    @Override
+    public void setMinIdle(final Integer minIdle) {
+<span class="nc" id="L60">        this.minIdle = minIdle;</span>
+<span class="nc" id="L61">    }</span>
+
+    @Override
+    public Integer getMaxIdle() {
+<span class="nc" id="L65">        return maxIdle;</span>
+    }
+
+    @Override
+    public void setMaxIdle(final Integer maxIdle) {
+<span class="nc" id="L70">        this.maxIdle = maxIdle;</span>
+<span class="nc" id="L71">    }</span>
+
+    @Override
+    public Long getMaxWait() {
+<span class="nc" id="L75">        return maxWait;</span>
+    }
+
+    @Override
+    public void setMaxWait(final Long maxWait) {
+<span class="nc" id="L80">        this.maxWait = maxWait;</span>
+<span class="nc" id="L81">    }</span>
+
+    @Override
+    public Long getMinEvictableIdleTimeMillis() {
+<span class="nc" id="L85">        return minEvictableIdleTimeMillis;</span>
+    }
+
+    @Override
+    public void setMinEvictableIdleTimeMillis(final Long minEvictableIdleTimeMillis) {
+<span class="nc" id="L90">        this.minEvictableIdleTimeMillis = minEvictableIdleTimeMillis;</span>
+<span class="nc" id="L91">    }</span>
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L95">        return new HashCodeBuilder().</span>
+<span class="nc" id="L96">                append(maxObjects).</span>
+<span class="nc" id="L97">                append(minIdle).</span>
+<span class="nc" id="L98">                append(maxIdle).</span>
+<span class="nc" id="L99">                append(maxWait).</span>
+<span class="nc" id="L100">                append(minEvictableIdleTimeMillis).</span>
+<span class="nc" id="L101">                build();</span>
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (this == obj) {</span>
+<span class="nc" id="L107">            return true;</span>
+        }
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (obj == null) {</span>
+<span class="nc" id="L110">            return false;</span>
+        }
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (getClass() != obj.getClass()) {</span>
+<span class="nc" id="L113">            return false;</span>
+        }
+<span class="nc" id="L115">        final JPAConnPoolConf other = (JPAConnPoolConf) obj;</span>
+<span class="nc" id="L116">        return new EqualsBuilder().</span>
+<span class="nc" id="L117">                append(maxObjects, other.maxObjects).</span>
+<span class="nc" id="L118">                append(minIdle, other.minIdle).</span>
+<span class="nc" id="L119">                append(maxIdle, other.maxIdle).</span>
+<span class="nc" id="L120">                append(maxWait, other.maxWait).</span>
+<span class="nc" id="L121">                append(minEvictableIdleTimeMillis, other.minEvictableIdleTimeMillis).</span>
+<span class="nc" id="L122">                build();</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L127">        return new ToStringBuilder(this).</span>
+<span class="nc" id="L128">                append(maxObjects).</span>
+<span class="nc" id="L129">                append(minIdle).</span>
+<span class="nc" id="L130">                append(maxIdle).</span>
+<span class="nc" id="L131">                append(maxWait).</span>
+<span class="nc" id="L132">                append(minEvictableIdleTimeMillis).</span>
+<span class="nc" id="L133">                build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

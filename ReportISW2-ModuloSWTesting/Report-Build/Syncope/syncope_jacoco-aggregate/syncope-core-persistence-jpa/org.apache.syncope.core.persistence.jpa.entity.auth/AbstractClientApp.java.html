@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>AbstractClientApp.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.auth</a> &gt; <span class="el_source">AbstractClientApp.java</span></div><h1>AbstractClientApp.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.auth;
+
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.persistence.api.entity.auth.ClientApp;
+import org.apache.syncope.core.persistence.api.entity.policy.AttrReleasePolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.AccessPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractGeneratedKeyEntity;
+import org.apache.syncope.core.persistence.jpa.entity.JPARealm;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAttrReleasePolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAuthPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAccessPolicy;
+import javax.persistence.Column;
+import javax.persistence.FetchType;
+import javax.persistence.ManyToOne;
+import javax.persistence.MappedSuperclass;
+import org.apache.syncope.core.persistence.api.entity.policy.AuthPolicy;
+
+@MappedSuperclass
+<span class="nc" id="L37">public class AbstractClientApp extends AbstractGeneratedKeyEntity implements ClientApp {</span>
+
+    private static final long serialVersionUID = 7422422526695279794L;
+
+    @Column(unique = true, nullable = false)
+    private String name;
+
+    @Column(unique = true, nullable = false)
+    private Long clientAppId;
+
+    @Column
+    private String description;
+
+    @Column
+    private String theme;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    private JPARealm realm;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    private JPAAuthPolicy authPolicy;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    private JPAAccessPolicy accessPolicy;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    private JPAAttrReleasePolicy attrReleasePolicy;
+
+    @Override
+    public Long getClientAppId() {
+<span class="nc" id="L67">        return clientAppId;</span>
+    }
+
+    @Override
+    public void setClientAppId(final Long clientAppId) {
+<span class="nc" id="L72">        this.clientAppId = clientAppId;</span>
+<span class="nc" id="L73">    }</span>
+
+    @Override
+    public String getName() {
+<span class="nc" id="L77">        return name;</span>
+    }
+
+    @Override
+    public void setName(final String name) {
+<span class="nc" id="L82">        this.name = name;</span>
+<span class="nc" id="L83">    }</span>
+
+    @Override
+    public String getDescription() {
+<span class="nc" id="L87">        return description;</span>
+    }
+
+    @Override
+    public void setDescription(final String description) {
+<span class="nc" id="L92">        this.description = description;</span>
+<span class="nc" id="L93">    }</span>
+
+    @Override
+    public JPAAuthPolicy getAuthPolicy() {
+<span class="nc" id="L97">        return authPolicy;</span>
+    }
+
+    @Override
+    public void setAuthPolicy(final AuthPolicy authPolicy) {
+<span class="nc" id="L102">        checkType(authPolicy, JPAAuthPolicy.class);</span>
+<span class="nc" id="L103">        this.authPolicy = (JPAAuthPolicy) authPolicy;</span>
+<span class="nc" id="L104">    }</span>
+
+    @Override
+    public JPAAccessPolicy getAccessPolicy() {
+<span class="nc" id="L108">        return accessPolicy;</span>
+    }
+
+    @Override
+    public void setAccessPolicy(final AccessPolicy accessPolicy) {
+<span class="nc" id="L113">        checkType(accessPolicy, JPAAccessPolicy.class);</span>
+<span class="nc" id="L114">        this.accessPolicy = (JPAAccessPolicy) accessPolicy;</span>
+<span class="nc" id="L115">    }</span>
+
+    @Override
+    public AttrReleasePolicy getAttrReleasePolicy() {
+<span class="nc" id="L119">        return this.attrReleasePolicy;</span>
+    }
+
+    @Override
+    public void setAttrReleasePolicy(final AttrReleasePolicy policy) {
+<span class="nc" id="L124">        checkType(policy, JPAAttrReleasePolicy.class);</span>
+<span class="nc" id="L125">        this.attrReleasePolicy = (JPAAttrReleasePolicy) policy;</span>
+<span class="nc" id="L126">    }</span>
+
+    @Override
+    public Realm getRealm() {
+<span class="nc" id="L130">        return realm;</span>
+    }
+
+    @Override
+    public void setRealm(final Realm realm) {
+<span class="nc" id="L135">        checkType(realm, JPARealm.class);</span>
+<span class="nc" id="L136">        this.realm = (JPARealm) realm;</span>
+<span class="nc" id="L137">    }</span>
+
+    @Override
+    public String getTheme() {
+<span class="nc" id="L141">        return theme;</span>
+    }
+
+    @Override
+    public void setTheme(final String theme) {
+<span class="nc" id="L146">        this.theme = theme;</span>
+<span class="nc" id="L147">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

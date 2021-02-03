@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPATaskUtils.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.task</a> &gt; <span class="el_source">JPATaskUtils.java</span></div><h1>JPATaskUtils.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.task;
+
+import org.apache.syncope.common.lib.to.TaskTO;
+import org.apache.syncope.common.lib.to.NotificationTaskTO;
+import org.apache.syncope.common.lib.to.PropagationTaskTO;
+import org.apache.syncope.common.lib.to.PushTaskTO;
+import org.apache.syncope.common.lib.to.SchedTaskTO;
+import org.apache.syncope.common.lib.to.PullTaskTO;
+import org.apache.syncope.common.lib.types.TaskType;
+import org.apache.syncope.core.persistence.api.entity.EntityFactory;
+import org.apache.syncope.core.persistence.api.entity.task.NotificationTask;
+import org.apache.syncope.core.persistence.api.entity.task.PropagationTask;
+import org.apache.syncope.core.persistence.api.entity.task.PushTask;
+import org.apache.syncope.core.persistence.api.entity.task.SchedTask;
+import org.apache.syncope.core.persistence.api.entity.task.Task;
+import org.apache.syncope.core.persistence.api.entity.task.TaskUtils;
+import org.apache.syncope.core.persistence.api.entity.task.PullTask;
+import org.springframework.beans.factory.annotation.Autowired;
+
+@SuppressWarnings(&quot;unchecked&quot;)
+public final class JPATaskUtils implements TaskUtils {
+
+    private final TaskType type;
+
+    @Autowired
+    private EntityFactory entityFactory;
+
+<span class="nc" id="L46">    protected JPATaskUtils(final TaskType type) {</span>
+<span class="nc" id="L47">        this.type = type;</span>
+<span class="nc" id="L48">    }</span>
+
+    @Override
+    public TaskType getType() {
+<span class="nc" id="L52">        return type;</span>
+    }
+
+    @Override
+    public &lt;T extends Task&gt; Class&lt;T&gt; taskClass() {
+<span class="nc" id="L57">        Class&lt;T&gt; result = null;</span>
+
+<span class="nc bnc" id="L59" title="All 6 branches missed.">        switch (type) {</span>
+            case PROPAGATION:
+<span class="nc" id="L61">                result = (Class&lt;T&gt;) PropagationTask.class;</span>
+<span class="nc" id="L62">                break;</span>
+
+            case SCHEDULED:
+<span class="nc" id="L65">                result = (Class&lt;T&gt;) SchedTask.class;</span>
+<span class="nc" id="L66">                break;</span>
+
+            case PULL:
+<span class="nc" id="L69">                result = (Class&lt;T&gt;) PullTask.class;</span>
+<span class="nc" id="L70">                break;</span>
+
+            case PUSH:
+<span class="nc" id="L73">                result = (Class&lt;T&gt;) PushTask.class;</span>
+<span class="nc" id="L74">                break;</span>
+
+            case NOTIFICATION:
+<span class="nc" id="L77">                result = (Class&lt;T&gt;) NotificationTask.class;</span>
+<span class="nc" id="L78">                break;</span>
+
+            default:
+        }
+
+<span class="nc" id="L83">        return result;</span>
+    }
+
+    @Override
+    public &lt;T extends Task&gt; T newTask() {
+<span class="nc" id="L88">        T result = null;</span>
+
+<span class="nc bnc" id="L90" title="All 6 branches missed.">        switch (type) {</span>
+            case PROPAGATION:
+<span class="nc" id="L92">                result = (T) entityFactory.newEntity(PropagationTask.class);</span>
+<span class="nc" id="L93">                break;</span>
+
+            case SCHEDULED:
+<span class="nc" id="L96">                result = (T) entityFactory.newEntity(SchedTask.class);</span>
+<span class="nc" id="L97">                break;</span>
+
+            case PULL:
+<span class="nc" id="L100">                result = (T) entityFactory.newEntity(PullTask.class);</span>
+<span class="nc" id="L101">                break;</span>
+
+            case PUSH:
+<span class="nc" id="L104">                result = (T) entityFactory.newEntity(PushTask.class);</span>
+<span class="nc" id="L105">                break;</span>
+
+            case NOTIFICATION:
+<span class="nc" id="L108">                result = (T) entityFactory.newEntity(NotificationTask.class);</span>
+<span class="nc" id="L109">                break;</span>
+
+            default:
+        }
+
+<span class="nc" id="L114">        return result;</span>
+    }
+
+    @Override
+    public &lt;T extends TaskTO&gt; Class&lt;T&gt; taskTOClass() {
+<span class="nc" id="L119">        Class&lt;T&gt; result = null;</span>
+
+<span class="nc bnc" id="L121" title="All 6 branches missed.">        switch (type) {</span>
+            case PROPAGATION:
+<span class="nc" id="L123">                result = (Class&lt;T&gt;) PropagationTaskTO.class;</span>
+<span class="nc" id="L124">                break;</span>
+
+            case SCHEDULED:
+<span class="nc" id="L127">                result = (Class&lt;T&gt;) SchedTaskTO.class;</span>
+<span class="nc" id="L128">                break;</span>
+
+            case PULL:
+<span class="nc" id="L131">                result = (Class&lt;T&gt;) PullTaskTO.class;</span>
+<span class="nc" id="L132">                break;</span>
+
+            case PUSH:
+<span class="nc" id="L135">                result = (Class&lt;T&gt;) PushTaskTO.class;</span>
+<span class="nc" id="L136">                break;</span>
+
+            case NOTIFICATION:
+<span class="nc" id="L139">                result = (Class&lt;T&gt;) NotificationTaskTO.class;</span>
+<span class="nc" id="L140">                break;</span>
+
+            default:
+        }
+
+<span class="nc" id="L145">        return result;</span>
+    }
+
+    @Override
+    public &lt;T extends TaskTO&gt; T newTaskTO() {
+<span class="nc" id="L150">        final Class&lt;T&gt; taskClass = taskTOClass();</span>
+        try {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">            return taskClass == null ? null : taskClass.getDeclaredConstructor().newInstance();</span>
+<span class="nc" id="L153">        } catch (Exception e) {</span>
+<span class="nc" id="L154">            return null;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

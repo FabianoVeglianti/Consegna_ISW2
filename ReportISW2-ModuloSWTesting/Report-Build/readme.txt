@@ -1,0 +1,1 @@
+Questa cartella contiene i report prodotti dall'esecuzione di jacoco e pit nel build dei due progetti.

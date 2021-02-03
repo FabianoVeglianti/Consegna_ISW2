@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAPropagationTask.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.task</a> &gt; <span class="el_source">JPAPropagationTask.java</span></div><h1>JPAPropagationTask.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.task;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import javax.persistence.DiscriminatorValue;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Lob;
+import javax.persistence.ManyToOne;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.syncope.common.lib.types.AnyTypeKind;
+import org.apache.syncope.common.lib.types.ResourceOperation;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.api.entity.task.PropagationTask;
+import org.apache.syncope.core.persistence.jpa.validation.entity.PropagationTaskCheck;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAExternalResource;
+import org.apache.syncope.core.provisioning.api.serialization.POJOHelper;
+import org.identityconnectors.framework.common.objects.Attribute;
+
+/**
+ * Encapsulate all information about a propagation task.
+ */
+@Entity
+@DiscriminatorValue(&quot;PropagationTask&quot;)
+@PropagationTaskCheck
+<span class="nc" id="L46">public class JPAPropagationTask extends AbstractTask implements PropagationTask {</span>
+
+    private static final long serialVersionUID = 7086054884614511210L;
+
+    /**
+     * @see ResourceOperation
+     */
+    @Enumerated(EnumType.STRING)
+    private ResourceOperation operation;
+
+    /**
+     * The connObjectKey on the external resource.
+     */
+    private String connObjectKey;
+
+    /**
+     * The (optional) former connObjectKey on the external resource.
+     */
+    private String oldConnObjectKey;
+
+    /**
+     * Attributes to be propagated.
+     */
+    @Lob
+    private String attributes;
+
+    private String objectClassName;
+
+    @Enumerated(EnumType.STRING)
+    private AnyTypeKind anyTypeKind;
+
+    private String anyType;
+
+    private String entityKey;
+
+    /**
+     * ExternalResource to which the propagation happens.
+     */
+    @ManyToOne
+    private JPAExternalResource resource;
+
+    @Override
+    public String getConnObjectKey() {
+<span class="nc" id="L89">        return connObjectKey;</span>
+    }
+
+    @Override
+    public void setConnObjectKey(final String connObjectKey) {
+<span class="nc" id="L94">        this.connObjectKey = connObjectKey;</span>
+<span class="nc" id="L95">    }</span>
+
+    @Override
+    public String getOldConnObjectKey() {
+<span class="nc" id="L99">        return oldConnObjectKey;</span>
+    }
+
+    @Override
+    public void setOldConnObjectKey(final String oldConnObjectKey) {
+<span class="nc" id="L104">        this.oldConnObjectKey = oldConnObjectKey;</span>
+<span class="nc" id="L105">    }</span>
+
+    @Override
+    public String getSerializedAttributes() {
+<span class="nc" id="L109">        return this.attributes;</span>
+    }
+
+    @Override
+    public Set&lt;Attribute&gt; getAttributes() {
+<span class="nc" id="L114">        Set&lt;Attribute&gt; result = new HashSet&lt;&gt;();</span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (StringUtils.isNotBlank(this.attributes)) {</span>
+<span class="nc" id="L116">            result.addAll(List.of(POJOHelper.deserialize(this.attributes, Attribute[].class)));</span>
+        }
+
+<span class="nc" id="L119">        return result;</span>
+    }
+
+    @Override
+    public void setAttributes(final Set&lt;Attribute&gt; attributes) {
+<span class="nc" id="L124">        this.attributes = POJOHelper.serialize(attributes);</span>
+<span class="nc" id="L125">    }</span>
+
+    @Override
+
+    public ResourceOperation getOperation() {
+<span class="nc" id="L130">        return operation;</span>
+    }
+
+    @Override
+
+    public void setOperation(final ResourceOperation operation) {
+<span class="nc" id="L136">        this.operation = operation;</span>
+<span class="nc" id="L137">    }</span>
+
+    @Override
+    public ExternalResource getResource() {
+<span class="nc" id="L141">        return resource;</span>
+    }
+
+    @Override
+    public void setResource(final ExternalResource resource) {
+<span class="nc" id="L146">        checkType(resource, JPAExternalResource.class);</span>
+<span class="nc" id="L147">        this.resource = (JPAExternalResource) resource;</span>
+<span class="nc" id="L148">    }</span>
+
+    @Override
+    public String getObjectClassName() {
+<span class="nc" id="L152">        return objectClassName;</span>
+    }
+
+    @Override
+    public void setObjectClassName(final String objectClassName) {
+<span class="nc" id="L157">        this.objectClassName = objectClassName;</span>
+<span class="nc" id="L158">    }</span>
+
+    @Override
+    public AnyTypeKind getAnyTypeKind() {
+<span class="nc" id="L162">        return anyTypeKind;</span>
+    }
+
+    @Override
+    public void setAnyTypeKind(final AnyTypeKind anyTypeKind) {
+<span class="nc" id="L167">        this.anyTypeKind = anyTypeKind;</span>
+<span class="nc" id="L168">    }</span>
+
+    @Override
+    public String getAnyType() {
+<span class="nc" id="L172">        return anyType;</span>
+    }
+
+    @Override
+    public void setAnyType(final String anyType) {
+<span class="nc" id="L177">        this.anyType = anyType;</span>
+<span class="nc" id="L178">    }</span>
+
+    @Override
+    public String getEntityKey() {
+<span class="nc" id="L182">        return entityKey;</span>
+    }
+
+    @Override
+    public void setEntityKey(final String entityKey) {
+<span class="nc" id="L187">        this.entityKey = entityKey;</span>
+<span class="nc" id="L188">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

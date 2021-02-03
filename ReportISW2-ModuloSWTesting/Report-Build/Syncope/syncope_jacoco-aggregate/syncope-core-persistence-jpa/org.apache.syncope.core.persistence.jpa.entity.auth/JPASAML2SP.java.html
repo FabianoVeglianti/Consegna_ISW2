@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPASAML2SP.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.auth</a> &gt; <span class="el_source">JPASAML2SP.java</span></div><h1>JPASAML2SP.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.auth;
+
+import javax.persistence.CollectionTable;
+import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.Table;
+import org.apache.syncope.common.lib.types.SAML2SPNameId;
+import org.apache.syncope.core.persistence.api.entity.auth.SAML2SP;
+import org.apache.syncope.common.lib.XmlSecAlgorithms;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = JPASAML2SP.TABLE)
+<span class="nc" id="L37">public class JPASAML2SP extends AbstractClientApp implements SAML2SP {</span>
+
+    public static final String TABLE = &quot;SAML2SP&quot;;
+
+    private static final long serialVersionUID = 6422422526695279794L;
+
+    @Column(unique = true, nullable = false)
+    private String entityId;
+
+    @Column(nullable = false)
+    private String metadataLocation;
+
+    private String metadataSignatureLocation;
+
+    private boolean signAssertions;
+
+    private boolean signResponses;
+
+    private boolean encryptionOptional;
+
+    private boolean encryptAssertions;
+
+    @Column(name = &quot;reqAuthnContextClass&quot;)
+    private String requiredAuthenticationContextClass;
+
+    private SAML2SPNameId requiredNameIdFormat;
+
+    private Integer skewAllowance;
+
+    private String nameIdQualifier;
+
+    private String assertionAudiences;
+
+    @Column(name = &quot;spNameIdQualifier&quot;)
+    private String serviceProviderNameIdQualifier;
+
+<span class="nc" id="L73">    @ElementCollection(fetch = FetchType.EAGER)</span>
+    @Column
+    @CollectionTable(name = &quot;SAML2SP_SigningSignatureAlgs&quot;,
+        joinColumns =
+        @JoinColumn(name = &quot;client_app_id&quot;, referencedColumnName = &quot;id&quot;))
+    private List&lt;XmlSecAlgorithms&gt; signingSignatureAlgorithms = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L80">    @ElementCollection(fetch = FetchType.EAGER)</span>
+    @Column
+    @CollectionTable(name = &quot;SAML2SP_SigningSignatureRefDigestAlgs&quot;,
+        joinColumns =
+        @JoinColumn(name = &quot;client_app_id&quot;, referencedColumnName = &quot;id&quot;))
+    private List&lt;XmlSecAlgorithms&gt; signingSignatureReferenceDigestMethods = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L87">    @ElementCollection(fetch = FetchType.EAGER)</span>
+    @Column
+    @CollectionTable(name = &quot;SAML2SP_EncryptionDataAlgs&quot;,
+        joinColumns =
+        @JoinColumn(name = &quot;client_app_id&quot;, referencedColumnName = &quot;id&quot;))
+    private List&lt;XmlSecAlgorithms&gt; encryptionDataAlgorithms = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L94">    @ElementCollection(fetch = FetchType.EAGER)</span>
+    @Column
+    @CollectionTable(name = &quot;SAML2SP_EncryptionKeyAlgs&quot;,
+        joinColumns =
+        @JoinColumn(name = &quot;client_app_id&quot;, referencedColumnName = &quot;id&quot;))
+    private List&lt;XmlSecAlgorithms&gt; encryptionKeyAlgorithms = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L101">    @ElementCollection(fetch = FetchType.EAGER)</span>
+    @Column
+    @CollectionTable(name = &quot;SAML2SP_BlacklistedSigningAlgs&quot;,
+        joinColumns =
+        @JoinColumn(name = &quot;client_app_id&quot;, referencedColumnName = &quot;id&quot;))
+    private List&lt;XmlSecAlgorithms&gt; signingSignatureBlackListedAlgorithms = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L108">    @ElementCollection(fetch = FetchType.EAGER)</span>
+    @Column
+    @CollectionTable(name = &quot;SAML2SP_BlacklistedEncryptionAlgs&quot;,
+        joinColumns =
+        @JoinColumn(name = &quot;client_app_id&quot;, referencedColumnName = &quot;id&quot;))
+    private List&lt;XmlSecAlgorithms&gt; encryptionBlackListedAlgorithms = new ArrayList&lt;&gt;();
+
+    @Override
+    public String getEntityId() {
+<span class="nc" id="L117">        return entityId;</span>
+    }
+
+    @Override
+    public void setEntityId(final String entityId) {
+<span class="nc" id="L122">        this.entityId = entityId;</span>
+<span class="nc" id="L123">    }</span>
+
+    @Override
+    public String getMetadataLocation() {
+<span class="nc" id="L127">        return metadataLocation;</span>
+    }
+
+    @Override
+    public void setMetadataLocation(final String metadataLocation) {
+<span class="nc" id="L132">        this.metadataLocation = metadataLocation;</span>
+<span class="nc" id="L133">    }</span>
+
+    @Override
+    public String getMetadataSignatureLocation() {
+<span class="nc" id="L137">        return metadataSignatureLocation;</span>
+    }
+
+    @Override
+    public void setMetadataSignatureLocation(final String metadataSignatureLocation) {
+<span class="nc" id="L142">        this.metadataSignatureLocation = metadataSignatureLocation;</span>
+<span class="nc" id="L143">    }</span>
+
+    @Override
+    public boolean isSignAssertions() {
+<span class="nc" id="L147">        return signAssertions;</span>
+    }
+
+    @Override
+    public void setSignAssertions(final boolean signAssertions) {
+<span class="nc" id="L152">        this.signAssertions = signAssertions;</span>
+<span class="nc" id="L153">    }</span>
+
+    @Override
+    public boolean isSignResponses() {
+<span class="nc" id="L157">        return signResponses;</span>
+    }
+
+    @Override
+    public void setSignResponses(final boolean signResponses) {
+<span class="nc" id="L162">        this.signResponses = signResponses;</span>
+<span class="nc" id="L163">    }</span>
+
+    @Override
+    public boolean isEncryptionOptional() {
+<span class="nc" id="L167">        return encryptionOptional;</span>
+    }
+
+    @Override
+    public void setEncryptionOptional(final boolean encryptionOptional) {
+<span class="nc" id="L172">        this.encryptionOptional = encryptionOptional;</span>
+<span class="nc" id="L173">    }</span>
+
+    @Override
+    public boolean isEncryptAssertions() {
+<span class="nc" id="L177">        return encryptAssertions;</span>
+    }
+
+    @Override
+    public void setEncryptAssertions(final boolean encryptAssertions) {
+<span class="nc" id="L182">        this.encryptAssertions = encryptAssertions;</span>
+<span class="nc" id="L183">    }</span>
+
+    @Override
+    public String getRequiredAuthenticationContextClass() {
+<span class="nc" id="L187">        return requiredAuthenticationContextClass;</span>
+    }
+
+    @Override
+    public void setRequiredAuthenticationContextClass(final String requiredAuthenticationContextClass) {
+<span class="nc" id="L192">        this.requiredAuthenticationContextClass = requiredAuthenticationContextClass;</span>
+<span class="nc" id="L193">    }</span>
+
+    @Override
+    public SAML2SPNameId getRequiredNameIdFormat() {
+<span class="nc" id="L197">        return requiredNameIdFormat;</span>
+    }
+
+    @Override
+    public void setRequiredNameIdFormat(final SAML2SPNameId requiredNameIdFormat) {
+<span class="nc" id="L202">        this.requiredNameIdFormat = requiredNameIdFormat;</span>
+<span class="nc" id="L203">    }</span>
+
+    @Override
+    public Integer getSkewAllowance() {
+<span class="nc" id="L207">        return skewAllowance;</span>
+    }
+
+    @Override
+    public void setSkewAllowance(final Integer skewAllowance) {
+<span class="nc" id="L212">        this.skewAllowance = skewAllowance;</span>
+<span class="nc" id="L213">    }</span>
+
+    @Override
+    public String getNameIdQualifier() {
+<span class="nc" id="L217">        return nameIdQualifier;</span>
+    }
+
+    @Override
+    public void setNameIdQualifier(final String nameIdQualifier) {
+<span class="nc" id="L222">        this.nameIdQualifier = nameIdQualifier;</span>
+<span class="nc" id="L223">    }</span>
+
+    @Override
+    public String getAssertionAudiences() {
+<span class="nc" id="L227">        return assertionAudiences;</span>
+    }
+
+    @Override
+    public void setAssertionAudiences(final String assertionAudiences) {
+<span class="nc" id="L232">        this.assertionAudiences = assertionAudiences;</span>
+<span class="nc" id="L233">    }</span>
+
+    @Override
+    public String getServiceProviderNameIdQualifier() {
+<span class="nc" id="L237">        return serviceProviderNameIdQualifier;</span>
+    }
+
+    @Override
+    public void setServiceProviderNameIdQualifier(final String serviceProviderNameIdQualifier) {
+<span class="nc" id="L242">        this.serviceProviderNameIdQualifier = serviceProviderNameIdQualifier;</span>
+<span class="nc" id="L243">    }</span>
+
+    @Override
+    public List&lt;XmlSecAlgorithms&gt; getSigningSignatureAlgorithms() {
+<span class="nc" id="L247">        return signingSignatureAlgorithms;</span>
+    }
+
+    @Override
+    public void setSigningSignatureAlgorithms(final List&lt;XmlSecAlgorithms&gt; signingSignatureAlgorithms) {
+<span class="nc" id="L252">        this.signingSignatureAlgorithms = signingSignatureAlgorithms;</span>
+<span class="nc" id="L253">    }</span>
+
+    @Override
+    public List&lt;XmlSecAlgorithms&gt; getSigningSignatureReferenceDigestMethods() {
+<span class="nc" id="L257">        return signingSignatureReferenceDigestMethods;</span>
+    }
+
+    @Override
+    public void setSigningSignatureReferenceDigestMethods(final List&lt;XmlSecAlgorithms&gt; algorithms) {
+<span class="nc" id="L262">        this.signingSignatureReferenceDigestMethods = algorithms;</span>
+<span class="nc" id="L263">    }</span>
+
+    @Override
+    public List&lt;XmlSecAlgorithms&gt; getEncryptionDataAlgorithms() {
+<span class="nc" id="L267">        return encryptionDataAlgorithms;</span>
+    }
+
+    @Override
+    public void setEncryptionDataAlgorithms(final List&lt;XmlSecAlgorithms&gt; algorithms) {
+<span class="nc" id="L272">        this.encryptionDataAlgorithms = algorithms;</span>
+<span class="nc" id="L273">    }</span>
+
+    @Override
+    public List&lt;XmlSecAlgorithms&gt; getEncryptionKeyAlgorithms() {
+<span class="nc" id="L277">        return encryptionKeyAlgorithms;</span>
+    }
+
+    @Override
+    public void setEncryptionKeyAlgorithms(final List&lt;XmlSecAlgorithms&gt; algorithms) {
+<span class="nc" id="L282">        this.encryptionKeyAlgorithms = algorithms;</span>
+<span class="nc" id="L283">    }</span>
+
+    @Override
+    public List&lt;XmlSecAlgorithms&gt; getSigningSignatureBlackListedAlgorithms() {
+<span class="nc" id="L287">        return signingSignatureBlackListedAlgorithms;</span>
+    }
+
+    @Override
+    public void setSigningSignatureBlackListedAlgorithms(final List&lt;XmlSecAlgorithms&gt; algorithms) {
+<span class="nc" id="L292">        this.signingSignatureBlackListedAlgorithms = algorithms;</span>
+<span class="nc" id="L293">    }</span>
+
+    @Override
+    public List&lt;XmlSecAlgorithms&gt; getEncryptionBlackListedAlgorithms() {
+<span class="nc" id="L297">        return encryptionBlackListedAlgorithms;</span>
+    }
+
+    @Override
+    public void setEncryptionBlackListedAlgorithms(final List&lt;XmlSecAlgorithms&gt; algorithms) {
+<span class="nc" id="L302">        this.encryptionBlackListedAlgorithms = algorithms;</span>
+<span class="nc" id="L303">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

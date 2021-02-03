@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAPlainSchema.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity</a> &gt; <span class="el_source">JPAPlainSchema.java</span></div><h1>JPAPlainSchema.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.FetchType;
+import javax.persistence.Lob;
+import javax.persistence.OneToOne;
+import javax.persistence.PrimaryKeyJoinColumn;
+import javax.persistence.Table;
+import javax.persistence.Transient;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.common.lib.types.AttrSchemaType;
+import org.apache.syncope.common.lib.types.CipherAlgorithm;
+import org.apache.syncope.common.lib.types.IdRepoImplementationType;
+import org.apache.syncope.core.persistence.api.attrvalue.validation.Validator;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.jpa.attrvalue.validation.BasicValidator;
+import org.apache.syncope.core.persistence.jpa.validation.entity.PlainSchemaCheck;
+import org.apache.syncope.core.spring.ImplementationManager;
+
+@Entity
+@Table(name = JPAPlainSchema.TABLE)
+@PrimaryKeyJoinColumn(name = &quot;id&quot;, referencedColumnName = &quot;id&quot;)
+@PlainSchemaCheck
+<span class="nc" id="L47">public class JPAPlainSchema extends AbstractSchema implements PlainSchema {</span>
+
+    private static final long serialVersionUID = -8621028596062054739L;
+
+    public static final String TABLE = &quot;PlainSchema&quot;;
+
+    @OneToOne(fetch = FetchType.EAGER)
+    private JPAAnyTypeClass anyTypeClass;
+
+<span class="nc" id="L56">    @NotNull</span>
+    @Enumerated(EnumType.STRING)
+    private AttrSchemaType type = AttrSchemaType.String;
+
+<span class="nc" id="L60">    @NotNull</span>
+<span class="nc" id="L61">    private String mandatoryCondition = Boolean.FALSE.toString();</span>
+
+<span class="nc" id="L63">    private Boolean multivalue = false;</span>
+
+<span class="nc" id="L65">    private Boolean uniqueConstraint = false;</span>
+
+<span class="nc" id="L67">    private Boolean readonly = false;</span>
+
+    @Column(nullable = true)
+    private String conversionPattern;
+
+    @Column(nullable = true)
+    @Lob
+    private String enumerationValues;
+
+    @Column(nullable = true)
+    @Lob
+    private String enumerationKeys;
+
+    @Column(nullable = true)
+    private String secretKey;
+
+    @Column(nullable = true)
+    @Enumerated(EnumType.STRING)
+    private CipherAlgorithm cipherAlgorithm;
+
+    @Column(nullable = true)
+    private String mimeType;
+
+    @OneToOne
+    private JPAImplementation validator;
+
+    @Transient
+    private Validator validatorImpl;
+
+    @Override
+    public AnyTypeClass getAnyTypeClass() {
+<span class="nc" id="L98">        return anyTypeClass;</span>
+    }
+
+    @Override
+    public void setAnyTypeClass(final AnyTypeClass anyTypeClass) {
+<span class="nc" id="L103">        checkType(anyTypeClass, JPAAnyTypeClass.class);</span>
+<span class="nc" id="L104">        this.anyTypeClass = (JPAAnyTypeClass) anyTypeClass;</span>
+<span class="nc" id="L105">    }</span>
+
+    @Override
+    public AttrSchemaType getType() {
+<span class="nc" id="L109">        return type;</span>
+    }
+
+    @Override
+    public void setType(final AttrSchemaType type) {
+<span class="nc" id="L114">        this.type = type;</span>
+<span class="nc" id="L115">    }</span>
+
+    @Override
+    public String getMandatoryCondition() {
+<span class="nc" id="L119">        return mandatoryCondition;</span>
+    }
+
+    @Override
+    public void setMandatoryCondition(final String condition) {
+<span class="nc" id="L124">        this.mandatoryCondition = condition;</span>
+<span class="nc" id="L125">    }</span>
+
+    @Override
+    public boolean isMultivalue() {
+<span class="nc" id="L129">        return multivalue;</span>
+    }
+
+    @Override
+    public void setMultivalue(final boolean multivalue) {
+<span class="nc" id="L134">        this.multivalue = multivalue;</span>
+<span class="nc" id="L135">    }</span>
+
+    @Override
+    public boolean isUniqueConstraint() {
+<span class="nc" id="L139">        return uniqueConstraint;</span>
+    }
+
+    @Override
+    public void setUniqueConstraint(final boolean uniquevalue) {
+<span class="nc" id="L144">        this.uniqueConstraint = uniquevalue;</span>
+<span class="nc" id="L145">    }</span>
+
+    @Override
+    public boolean isReadonly() {
+<span class="nc" id="L149">        return readonly;</span>
+    }
+
+    @Override
+    public void setReadonly(final boolean readonly) {
+<span class="nc" id="L154">        this.readonly = readonly;</span>
+<span class="nc" id="L155">    }</span>
+
+    public Validator validator() {
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        if (validatorImpl != null) {</span>
+<span class="nc" id="L159">            return validatorImpl;</span>
+        }
+
+<span class="nc bnc" id="L162" title="All 2 branches missed.">        if (getValidator() != null) {</span>
+            try {
+<span class="nc" id="L164">                validatorImpl = ImplementationManager.build(getValidator());</span>
+<span class="nc" id="L165">            } catch (Exception e) {</span>
+<span class="nc" id="L166">                LOG.error(&quot;While building {}&quot;, getValidator(), e);</span>
+<span class="nc" id="L167">            }</span>
+        }
+
+<span class="nc bnc" id="L170" title="All 2 branches missed.">        if (validatorImpl == null) {</span>
+<span class="nc" id="L171">            validatorImpl = new BasicValidator();</span>
+        }
+<span class="nc" id="L173">        validatorImpl.setSchema(this);</span>
+
+<span class="nc" id="L175">        return validatorImpl;</span>
+    }
+
+    @Override
+    public Implementation getValidator() {
+<span class="nc" id="L180">        return validator;</span>
+    }
+
+    @Override
+    public void setValidator(final Implementation validator) {
+<span class="nc" id="L185">        checkType(validator, JPAImplementation.class);</span>
+<span class="nc" id="L186">        checkImplementationType(validator, IdRepoImplementationType.VALIDATOR);</span>
+<span class="nc" id="L187">        this.validator = (JPAImplementation) validator;</span>
+<span class="nc" id="L188">    }</span>
+
+    @Override
+    public String getEnumerationValues() {
+<span class="nc" id="L192">        return enumerationValues;</span>
+    }
+
+    @Override
+    public void setEnumerationValues(final String enumerationValues) {
+<span class="nc" id="L197">        this.enumerationValues = enumerationValues;</span>
+<span class="nc" id="L198">    }</span>
+
+    @Override
+    public String getEnumerationKeys() {
+<span class="nc" id="L202">        return enumerationKeys;</span>
+    }
+
+    @Override
+    public void setEnumerationKeys(final String enumerationKeys) {
+<span class="nc" id="L207">        this.enumerationKeys = enumerationKeys;</span>
+<span class="nc" id="L208">    }</span>
+
+    @Override
+    public String getConversionPattern() {
+<span class="nc" id="L212">        return conversionPattern;</span>
+    }
+
+    @Override
+    public void setConversionPattern(final String conversionPattern) {
+<span class="nc" id="L217">        this.conversionPattern = conversionPattern;</span>
+<span class="nc" id="L218">    }</span>
+
+    @Override
+    public String getSecretKey() {
+<span class="nc" id="L222">        return secretKey;</span>
+    }
+
+    @Override
+    public void setSecretKey(final String secretKey) {
+<span class="nc" id="L227">        this.secretKey = secretKey;</span>
+<span class="nc" id="L228">    }</span>
+
+    @Override
+    public CipherAlgorithm getCipherAlgorithm() {
+<span class="nc" id="L232">        return cipherAlgorithm;</span>
+    }
+
+    @Override
+    public void setCipherAlgorithm(final CipherAlgorithm cipherAlgorithm) {
+<span class="nc" id="L237">        this.cipherAlgorithm = cipherAlgorithm;</span>
+<span class="nc" id="L238">    }</span>
+
+    @Override
+    public String getMimeType() {
+<span class="nc" id="L242">        return mimeType;</span>
+    }
+
+    @Override
+    public void setMimeType(final String mimeType) {
+<span class="nc" id="L247">        this.mimeType = mimeType;</span>
+<span class="nc" id="L248">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

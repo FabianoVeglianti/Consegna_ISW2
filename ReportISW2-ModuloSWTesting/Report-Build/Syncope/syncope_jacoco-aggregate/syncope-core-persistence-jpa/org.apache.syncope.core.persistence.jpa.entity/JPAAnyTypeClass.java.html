@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAAnyTypeClass.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity</a> &gt; <span class="el_source">JPAAnyTypeClass.java</span></div><h1>JPAAnyTypeClass.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity;
+
+import java.util.ArrayList;
+import java.util.List;
+import javax.persistence.Cacheable;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.ManyToMany;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.DerSchema;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.api.entity.VirSchema;
+
+@Entity
+@Table(name = JPAAnyTypeClass.TABLE)
+@Cacheable
+<span class="nc" id="L37">public class JPAAnyTypeClass extends AbstractProvidedKeyEntity implements AnyTypeClass {</span>
+
+    private static final long serialVersionUID = -1750247153774475453L;
+
+    public static final String TABLE = &quot;AnyTypeClass&quot;;
+
+<span class="nc" id="L43">    @ManyToMany(fetch = FetchType.EAGER, mappedBy = &quot;classes&quot;)</span>
+    private List&lt;JPAAnyType&gt; types = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L46">    @OneToMany(fetch = FetchType.EAGER, mappedBy = &quot;anyTypeClass&quot;)</span>
+    private List&lt;JPAPlainSchema&gt; plainSchemas = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L49">    @OneToMany(fetch = FetchType.EAGER, mappedBy = &quot;anyTypeClass&quot;)</span>
+    private List&lt;JPADerSchema&gt; derSchemas = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L52">    @OneToMany(fetch = FetchType.EAGER, mappedBy = &quot;anyTypeClass&quot;)</span>
+    private List&lt;JPAVirSchema&gt; virSchemas = new ArrayList&lt;&gt;();
+
+    @Override
+    public boolean add(final PlainSchema schema) {
+<span class="nc" id="L57">        checkType(schema, JPAPlainSchema.class);</span>
+<span class="nc" id="L58">        return this.plainSchemas.add((JPAPlainSchema) schema);</span>
+    }
+
+    @Override
+    public List&lt;? extends PlainSchema&gt; getPlainSchemas() {
+<span class="nc" id="L63">        return plainSchemas;</span>
+    }
+
+    @Override
+    public boolean add(final DerSchema schema) {
+<span class="nc" id="L68">        checkType(schema, JPADerSchema.class);</span>
+<span class="nc" id="L69">        return this.derSchemas.add((JPADerSchema) schema);</span>
+    }
+
+    @Override
+    public List&lt;? extends DerSchema&gt; getDerSchemas() {
+<span class="nc" id="L74">        return derSchemas;</span>
+    }
+
+    @Override
+    public boolean add(final VirSchema schema) {
+<span class="nc" id="L79">        checkType(schema, JPAVirSchema.class);</span>
+<span class="nc" id="L80">        return this.virSchemas.add((JPAVirSchema) schema);</span>
+    }
+
+    @Override
+    public List&lt;? extends VirSchema&gt; getVirSchemas() {
+<span class="nc" id="L85">        return virSchemas;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

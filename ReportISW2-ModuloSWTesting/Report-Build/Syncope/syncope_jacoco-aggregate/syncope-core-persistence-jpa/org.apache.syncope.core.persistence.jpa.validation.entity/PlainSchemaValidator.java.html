@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>PlainSchemaValidator.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.validation.entity</a> &gt; <span class="el_source">PlainSchemaValidator.java</span></div><h1>PlainSchemaValidator.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.validation.entity;
+
+import javax.validation.ConstraintValidatorContext;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.syncope.common.lib.types.AttrSchemaType;
+import org.apache.syncope.common.lib.types.EntityViolationType;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+
+<span class="nc" id="L27">public class PlainSchemaValidator extends AbstractValidator&lt;PlainSchemaCheck, PlainSchema&gt; {</span>
+
+    @Override
+    public boolean isValid(final PlainSchema schema, final ConstraintValidatorContext context) {
+<span class="nc bnc" id="L31" title="All 2 branches missed.">        boolean isValid = schema.getType() != AttrSchemaType.Enum</span>
+<span class="nc bnc" id="L32" title="All 2 branches missed.">                || StringUtils.isNotBlank(schema.getEnumerationValues());</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        if (!isValid) {</span>
+<span class="nc" id="L34">            context.disableDefaultConstraintViolation();</span>
+<span class="nc" id="L35">            context.buildConstraintViolationWithTemplate(</span>
+<span class="nc" id="L36">                    getTemplate(EntityViolationType.InvalidSchemaEnum, &quot;Enumeration values missing&quot;)).</span>
+<span class="nc" id="L37">                    addPropertyNode(&quot;enumerationValues&quot;).addConstraintViolation();</span>
+        } else {
+<span class="nc bnc" id="L39" title="All 2 branches missed.">            isValid = schema.getType() != AttrSchemaType.Encrypted</span>
+<span class="nc bnc" id="L40" title="All 4 branches missed.">                    || (schema.getSecretKey() != null &amp;&amp; schema.getCipherAlgorithm() != null);</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">            if (!isValid) {</span>
+<span class="nc" id="L42">                context.disableDefaultConstraintViolation();</span>
+<span class="nc" id="L43">                context.buildConstraintViolationWithTemplate(</span>
+<span class="nc" id="L44">                        getTemplate(EntityViolationType.InvalidSchemaEncrypted,</span>
+                                &quot;SecretKey or CipherAlgorithm missing&quot;)).
+<span class="nc" id="L46">                        addPropertyNode(&quot;secretKey&quot;).addPropertyNode(&quot;cipherAlgorithm&quot;).addConstraintViolation();</span>
+            } else {
+<span class="nc bnc" id="L48" title="All 4 branches missed.">                isValid = !schema.isMultivalue() || !schema.isUniqueConstraint();</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">                if (!isValid) {</span>
+<span class="nc" id="L50">                    context.disableDefaultConstraintViolation();</span>
+<span class="nc" id="L51">                    context.buildConstraintViolationWithTemplate(</span>
+<span class="nc" id="L52">                            getTemplate(EntityViolationType.InvalidSchemaMultivalueUnique,</span>
+                                    &quot;Cannot contemporary be multivalue and have unique constraint&quot;)).
+<span class="nc" id="L54">                            addPropertyNode(&quot;multiValue&quot;).addConstraintViolation();</span>
+                }
+            }
+        }
+
+<span class="nc" id="L59">        return isValid;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

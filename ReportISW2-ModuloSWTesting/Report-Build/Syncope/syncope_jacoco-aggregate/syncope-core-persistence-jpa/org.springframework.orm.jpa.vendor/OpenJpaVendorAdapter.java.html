@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>OpenJpaVendorAdapter.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.springframework.orm.jpa.vendor</a> &gt; <span class="el_source">OpenJpaVendorAdapter.java</span></div><h1>OpenJpaVendorAdapter.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2002-2014 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.springframework.orm.jpa.vendor;
+
+import java.util.HashMap;
+import java.util.Map;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.spi.PersistenceProvider;
+
+import org.apache.openjpa.persistence.OpenJPAEntityManagerFactorySPI;
+import org.apache.openjpa.persistence.OpenJPAEntityManagerSPI;
+import org.apache.openjpa.persistence.PersistenceProviderImpl;
+
+/**
+ * {@link org.springframework.orm.jpa.JpaVendorAdapter} implementation for Apache OpenJPA.
+ * Developed and tested against OpenJPA 3.0.
+ *
+ * Exposes OpenJPA's persistence provider and EntityManager extension interface,
+ * and adapts {@link AbstractJpaVendorAdapter}'s common configuration settings.
+ * No support for the detection of annotated packages (through
+ * {@link org.springframework.orm.jpa.persistenceunit.SmartPersistenceUnitInfo#getManagedPackages()})
+ * since OpenJPA doesn't use package-level metadata.
+ *
+ * @author Juergen Hoeller
+ * @author Costin Leau
+ * @since 2.0
+ * @see OpenJpaDialect
+ * @see org.apache.openjpa.persistence.PersistenceProviderImpl
+ * @see org.apache.openjpa.persistence.OpenJPAEntityManager
+ */
+<span class="nc" id="L45">public class OpenJpaVendorAdapter extends AbstractJpaVendorAdapter {</span>
+
+<span class="nc" id="L47">    private final PersistenceProvider persistenceProvider = new PersistenceProviderImpl();</span>
+
+<span class="nc" id="L49">    private final OpenJpaDialect jpaDialect = new OpenJpaDialect();</span>
+
+    @Override
+    public PersistenceProvider getPersistenceProvider() {
+<span class="nc" id="L53">        return this.persistenceProvider;</span>
+    }
+
+    @Override
+    public String getPersistenceProviderRootPackage() {
+<span class="nc" id="L58">        return &quot;org.apache.openjpa&quot;;</span>
+    }
+
+    @Override
+    public Map&lt;String, Object&gt; getJpaPropertyMap() {
+<span class="nc" id="L63">        Map&lt;String, Object&gt; jpaProperties = new HashMap&lt;&gt;();</span>
+
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        if (getDatabasePlatform() != null) {</span>
+<span class="nc" id="L66">            jpaProperties.put(&quot;openjpa.jdbc.DBDictionary&quot;, getDatabasePlatform());</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        } else if (getDatabase() != null) {</span>
+<span class="nc" id="L68">            String databaseDictonary = determineDatabaseDictionary(getDatabase());</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">            if (databaseDictonary != null) {</span>
+<span class="nc" id="L70">                jpaProperties.put(&quot;openjpa.jdbc.DBDictionary&quot;, databaseDictonary);</span>
+            }
+        }
+
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (isGenerateDdl()) {</span>
+<span class="nc" id="L75">            jpaProperties.put(&quot;openjpa.jdbc.SynchronizeMappings&quot;, &quot;buildSchema(ForeignKeys=true)&quot;);</span>
+        }
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        if (isShowSql()) {</span>
+            // Taken from the OpenJPA 0.9.6 docs (&quot;Standard OpenJPA Log Configuration + All SQL Statements&quot;)
+<span class="nc" id="L79">            jpaProperties.put(&quot;openjpa.Log&quot;, &quot;DefaultLevel=WARN, Runtime=INFO, Tool=INFO, SQL=TRACE&quot;);</span>
+        }
+
+<span class="nc" id="L82">        return jpaProperties;</span>
+    }
+
+    /**
+     * Determine the OpenJPA database dictionary name for the given database.
+     *
+     * @param database the specified database
+     * @return the OpenJPA database dictionary name, or {@code null} if none found
+     */
+    protected static String determineDatabaseDictionary(final Database database) {
+<span class="nc bnc" id="L92" title="All 10 branches missed.">        switch (database) {</span>
+            case DB2:
+<span class="nc" id="L94">                return &quot;db2&quot;;</span>
+            case DERBY:
+<span class="nc" id="L96">                return &quot;derby&quot;;</span>
+            case HSQL:
+<span class="nc" id="L98">                return &quot;hsql(SimulateLocking=true)&quot;;</span>
+            case INFORMIX:
+<span class="nc" id="L100">                return &quot;informix&quot;;</span>
+            case MYSQL:
+<span class="nc" id="L102">                return &quot;mysql&quot;;</span>
+            case ORACLE:
+<span class="nc" id="L104">                return &quot;oracle&quot;;</span>
+            case POSTGRESQL:
+<span class="nc" id="L106">                return &quot;postgres&quot;;</span>
+            case SQL_SERVER:
+<span class="nc" id="L108">                return &quot;sqlserver&quot;;</span>
+            case SYBASE:
+<span class="nc" id="L110">                return &quot;sybase&quot;;</span>
+            default:
+<span class="nc" id="L112">                return null;</span>
+        }
+    }
+
+    @Override
+    public OpenJpaDialect getJpaDialect() {
+<span class="nc" id="L118">        return this.jpaDialect;</span>
+    }
+
+    @Override
+    public Class&lt;? extends EntityManagerFactory&gt; getEntityManagerFactoryInterface() {
+<span class="nc" id="L123">        return OpenJPAEntityManagerFactorySPI.class;</span>
+    }
+
+    @Override
+    public Class&lt;? extends EntityManager&gt; getEntityManagerInterface() {
+<span class="nc" id="L128">        return OpenJPAEntityManagerSPI.class;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

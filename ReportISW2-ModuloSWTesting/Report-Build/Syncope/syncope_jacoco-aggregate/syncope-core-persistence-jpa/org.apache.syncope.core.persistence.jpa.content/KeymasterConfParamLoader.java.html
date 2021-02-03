@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>KeymasterConfParamLoader.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.content</a> &gt; <span class="el_source">KeymasterConfParamLoader.java</span></div><h1>KeymasterConfParamLoader.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.content;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Iterator;
+import java.util.Map;
+import javax.sql.DataSource;
+import org.apache.syncope.common.keymaster.client.api.ConfParamOps;
+import org.apache.syncope.core.persistence.api.content.ConfParamLoader;
+import org.apache.syncope.core.spring.ApplicationContextProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+/**
+ * Initialize Keymaster with default content if no data is present already.
+ */
+@Component
+<span class="nc" id="L40">public class KeymasterConfParamLoader implements ConfParamLoader {</span>
+
+<span class="nc" id="L42">    private static final Logger LOG = LoggerFactory.getLogger(KeymasterConfParamLoader.class);</span>
+
+<span class="nc" id="L44">    private static final ObjectMapper MAPPER = new ObjectMapper();</span>
+
+    @Autowired
+    private ConfParamOps confParamOps;
+
+    @Override
+    public int getOrder() {
+<span class="nc" id="L51">        return 450;</span>
+    }
+
+    @Override
+    public void load(final String domain, final DataSource datasource) {
+        boolean existingData;
+        try {
+<span class="nc bnc" id="L58" title="All 2 branches missed.">            existingData = !confParamOps.list(domain).isEmpty();</span>
+<span class="nc" id="L59">        } catch (Exception e) {</span>
+<span class="nc" id="L60">            LOG.error(&quot;[{}] Could not access Keymaster&quot;, domain, e);</span>
+<span class="nc" id="L61">            existingData = true;</span>
+<span class="nc" id="L62">        }</span>
+
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        if (existingData) {</span>
+<span class="nc" id="L65">            LOG.info(&quot;[{}] Data found in Keymaster, leaving untouched&quot;, domain);</span>
+        } else {
+<span class="nc" id="L67">            LOG.info(&quot;[{}] Empty Keymaster found, loading default content&quot;, domain);</span>
+
+            try {
+<span class="nc" id="L70">                InputStream contentJSON = ApplicationContextProvider.getBeanFactory().</span>
+<span class="nc" id="L71">                        getBean(domain + &quot;KeymasterConfParamsJSON&quot;, InputStream.class);</span>
+<span class="nc" id="L72">                loadDefaultContent(domain, contentJSON);</span>
+<span class="nc" id="L73">            } catch (Exception e) {</span>
+<span class="nc" id="L74">                LOG.error(&quot;[{}] While loading default Keymaster content&quot;, domain, e);</span>
+<span class="nc" id="L75">            }</span>
+        }
+<span class="nc" id="L77">    }</span>
+
+    private void loadDefaultContent(final String domain, final InputStream contentJSON)
+            throws IOException {
+
+<span class="nc" id="L82">        try (contentJSON) {</span>
+<span class="nc" id="L83">            JsonNode content = MAPPER.readTree(contentJSON);</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">            for (Iterator&lt;Map.Entry&lt;String, JsonNode&gt;&gt; itor = content.fields(); itor.hasNext();) {</span>
+<span class="nc" id="L85">                Map.Entry&lt;String, JsonNode&gt; param = itor.next();</span>
+<span class="nc" id="L86">                Object value = MAPPER.treeToValue(param.getValue(), Object.class);</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">                if (value != null) {</span>
+<span class="nc" id="L88">                    confParamOps.set(domain, param.getKey(), value);</span>
+                }
+<span class="nc" id="L90">            }</span>
+        }
+<span class="nc" id="L92">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

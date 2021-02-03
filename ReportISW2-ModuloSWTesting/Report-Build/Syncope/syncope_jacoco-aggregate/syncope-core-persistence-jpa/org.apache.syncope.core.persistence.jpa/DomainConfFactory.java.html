@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>DomainConfFactory.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa</a> &gt; <span class="el_source">DomainConfFactory.java</span></div><h1>DomainConfFactory.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.Objects;
+import javax.persistence.EntityManagerFactory;
+import javax.sql.DataSource;
+import org.apache.syncope.common.keymaster.client.api.model.Domain;
+import org.apache.syncope.core.persistence.api.DomainRegistry;
+import org.apache.syncope.core.persistence.jpa.spring.DomainEntityManagerFactoryBean;
+import org.apache.syncope.core.spring.ApplicationContextProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.support.AbstractBeanDefinition;
+import org.springframework.beans.factory.support.AutowireCandidateQualifier;
+import org.springframework.beans.factory.support.BeanDefinitionBuilder;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.core.env.Environment;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.init.DataSourceInitializer;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.jndi.JndiObjectFactoryBean;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.vendor.OpenJpaVendorAdapter;
+import org.springframework.stereotype.Component;
+
+@Component
+<span class="nc" id="L51">public class DomainConfFactory implements DomainRegistry, EnvironmentAware {</span>
+
+<span class="nc" id="L53">    private static final Logger LOG = LoggerFactory.getLogger(DomainConfFactory.class);</span>
+
+    private Environment env;
+
+    @Override
+    public void setEnvironment(final Environment env) {
+<span class="nc" id="L59">        this.env = env;</span>
+<span class="nc" id="L60">    }</span>
+
+    private static void unregisterSingleton(final String name) {
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (ApplicationContextProvider.getBeanFactory().containsSingleton(name)) {</span>
+<span class="nc" id="L64">            ApplicationContextProvider.getBeanFactory().destroySingleton(name);</span>
+        }
+<span class="nc" id="L66">    }</span>
+
+    private static void registerSingleton(final String name, final Object bean) {
+<span class="nc" id="L69">        unregisterSingleton(name);</span>
+<span class="nc" id="L70">        ApplicationContextProvider.getBeanFactory().registerSingleton(name, bean);</span>
+<span class="nc" id="L71">    }</span>
+
+    private static void unregisterBeanDefinition(final String name) {
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (ApplicationContextProvider.getBeanFactory().containsBeanDefinition(name)) {</span>
+<span class="nc" id="L75">            ApplicationContextProvider.getBeanFactory().removeBeanDefinition(name);</span>
+        }
+<span class="nc" id="L77">    }</span>
+
+    private static void registerBeanDefinition(final String name, final BeanDefinition beanDefinition) {
+<span class="nc" id="L80">        unregisterBeanDefinition(name);</span>
+<span class="nc" id="L81">        ApplicationContextProvider.getBeanFactory().registerBeanDefinition(name, beanDefinition);</span>
+<span class="nc" id="L82">    }</span>
+
+    @Override
+    public void register(final Domain domain) {
+<span class="nc" id="L86">        HikariConfig hikariConfig = new HikariConfig();</span>
+<span class="nc" id="L87">        hikariConfig.setDriverClassName(domain.getJdbcDriver());</span>
+<span class="nc" id="L88">        hikariConfig.setJdbcUrl(domain.getJdbcURL());</span>
+<span class="nc" id="L89">        hikariConfig.setUsername(domain.getDbUsername());</span>
+<span class="nc" id="L90">        hikariConfig.setPassword(domain.getDbPassword());</span>
+<span class="nc" id="L91">        hikariConfig.setSchema(domain.getDbSchema());</span>
+<span class="nc" id="L92">        hikariConfig.setTransactionIsolation(domain.getTransactionIsolation().name());</span>
+<span class="nc" id="L93">        hikariConfig.setMaximumPoolSize(domain.getPoolMaxActive());</span>
+<span class="nc" id="L94">        hikariConfig.setMinimumIdle(domain.getPoolMinIdle());</span>
+
+        // domainDataSource
+<span class="nc" id="L97">        registerBeanDefinition(</span>
+<span class="nc" id="L98">                domain.getKey() + &quot;DataSource&quot;,</span>
+<span class="nc" id="L99">                BeanDefinitionBuilder.rootBeanDefinition(JndiObjectFactoryBean.class).</span>
+<span class="nc" id="L100">                        addPropertyValue(&quot;jndiName&quot;, &quot;java:comp/env/jdbc/syncope&quot; + domain.getKey() + &quot;DataSource&quot;).</span>
+<span class="nc" id="L101">                        addPropertyValue(&quot;defaultObject&quot;, new HikariDataSource(hikariConfig)).</span>
+<span class="nc" id="L102">                        getBeanDefinition());</span>
+<span class="nc" id="L103">        DataSource initedDataSource = ApplicationContextProvider.getBeanFactory().</span>
+<span class="nc" id="L104">                getBean(domain.getKey() + &quot;DataSource&quot;, DataSource.class);</span>
+
+        // domainResourceDatabasePopulator
+<span class="nc" id="L107">        ResourceDatabasePopulator databasePopulator = new ResourceDatabasePopulator();</span>
+<span class="nc" id="L108">        databasePopulator.setContinueOnError(true);</span>
+<span class="nc" id="L109">        databasePopulator.setIgnoreFailedDrops(true);</span>
+<span class="nc" id="L110">        databasePopulator.setSqlScriptEncoding(StandardCharsets.UTF_8.name());</span>
+<span class="nc" id="L111">        databasePopulator.addScript(new ClassPathResource(&quot;/audit/&quot; + domain.getAuditSql()));</span>
+<span class="nc" id="L112">        registerSingleton(domain.getKey().toLowerCase() + &quot;ResourceDatabasePopulator&quot;, databasePopulator);</span>
+
+        // domainDataSourceInitializer
+<span class="nc" id="L115">        DataSourceInitializer dataSourceInitializer = new DataSourceInitializer();</span>
+<span class="nc" id="L116">        dataSourceInitializer.setDataSource(initedDataSource);</span>
+<span class="nc" id="L117">        dataSourceInitializer.setEnabled(true);</span>
+<span class="nc" id="L118">        dataSourceInitializer.setDatabasePopulator(databasePopulator);</span>
+<span class="nc" id="L119">        registerSingleton(domain.getKey().toLowerCase() + &quot;DataSourceInitializer&quot;, dataSourceInitializer);</span>
+
+        // domainEntityManagerFactory
+<span class="nc" id="L122">        OpenJpaVendorAdapter vendorAdapter = new OpenJpaVendorAdapter();</span>
+<span class="nc" id="L123">        vendorAdapter.setShowSql(false);</span>
+<span class="nc" id="L124">        vendorAdapter.setGenerateDdl(true);</span>
+<span class="nc" id="L125">        vendorAdapter.setDatabasePlatform(domain.getDatabasePlatform());</span>
+
+<span class="nc" id="L127">        BeanDefinitionBuilder emf = BeanDefinitionBuilder.rootBeanDefinition(DomainEntityManagerFactoryBean.class).</span>
+<span class="nc" id="L128">                addPropertyValue(&quot;mappingResources&quot;, domain.getOrm()).</span>
+<span class="nc" id="L129">                addPropertyValue(&quot;persistenceUnitName&quot;, domain.getKey()).</span>
+<span class="nc" id="L130">                addPropertyReference(&quot;dataSource&quot;, domain.getKey() + &quot;DataSource&quot;).</span>
+<span class="nc" id="L131">                addPropertyValue(&quot;jpaVendorAdapter&quot;, vendorAdapter).</span>
+<span class="nc" id="L132">                addPropertyReference(&quot;commonEntityManagerFactoryConf&quot;, &quot;commonEMFConf&quot;);</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        if (env.containsProperty(&quot;openjpaMetaDataFactory&quot;)) {</span>
+<span class="nc" id="L134">            emf.addPropertyValue(&quot;jpaPropertyMap&quot;, Map.of(</span>
+                    &quot;openjpa.MetaDataFactory&quot;,
+<span class="nc" id="L136">                    Objects.requireNonNull(env.getProperty(&quot;openjpaMetaDataFactory&quot;)).</span>
+<span class="nc" id="L137">                            replace(&quot;##orm##&quot;, domain.getOrm())));</span>
+        }
+<span class="nc" id="L139">        registerBeanDefinition(domain.getKey() + &quot;EntityManagerFactory&quot;, emf.getBeanDefinition());</span>
+<span class="nc" id="L140">        ApplicationContextProvider.getBeanFactory().getBean(domain.getKey() + &quot;EntityManagerFactory&quot;);</span>
+
+        // domainTransactionManager
+<span class="nc" id="L143">        AbstractBeanDefinition domainTransactionManager =</span>
+<span class="nc" id="L144">                BeanDefinitionBuilder.rootBeanDefinition(JpaTransactionManager.class).</span>
+<span class="nc" id="L145">                        addPropertyReference(&quot;entityManagerFactory&quot;, domain.getKey() + &quot;EntityManagerFactory&quot;).</span>
+<span class="nc" id="L146">                        getBeanDefinition();</span>
+<span class="nc" id="L147">        domainTransactionManager.addQualifier(new AutowireCandidateQualifier(Qualifier.class, domain.getKey()));</span>
+<span class="nc" id="L148">        registerBeanDefinition(domain.getKey() + &quot;TransactionManager&quot;, domainTransactionManager);</span>
+
+        // domainContentXML
+<span class="nc" id="L151">        registerBeanDefinition(domain.getKey() + &quot;ContentXML&quot;,</span>
+<span class="nc" id="L152">                BeanDefinitionBuilder.rootBeanDefinition(ByteArrayInputStream.class).</span>
+<span class="nc" id="L153">                        addConstructorArgValue(domain.getContent().getBytes()).</span>
+<span class="nc" id="L154">                        getBeanDefinition());</span>
+
+        // domainKeymasterConfParamsJSON
+<span class="nc" id="L157">        registerBeanDefinition(domain.getKey() + &quot;KeymasterConfParamsJSON&quot;,</span>
+<span class="nc" id="L158">                BeanDefinitionBuilder.rootBeanDefinition(ByteArrayInputStream.class).</span>
+<span class="nc" id="L159">                        addConstructorArgValue(domain.getKeymasterConfParams().getBytes()).</span>
+<span class="nc" id="L160">                        getBeanDefinition());</span>
+<span class="nc" id="L161">    }</span>
+
+    @Override
+    public void unregister(final String domain) {
+        // domainKeymasterConfParamsJSON
+<span class="nc" id="L166">        unregisterSingleton(domain + &quot;KeymasterConfParamsJSON&quot;);</span>
+<span class="nc" id="L167">        unregisterBeanDefinition(domain + &quot;KeymasterConfParamsJSON&quot;);</span>
+
+        // domainContentXML
+<span class="nc" id="L170">        unregisterSingleton(domain + &quot;ContentXML&quot;);</span>
+<span class="nc" id="L171">        unregisterBeanDefinition(domain + &quot;ContentXML&quot;);</span>
+
+        // domainEntityManagerFactory
+        try {
+<span class="nc" id="L175">            EntityManagerFactory emf = ApplicationContextProvider.getBeanFactory().</span>
+<span class="nc" id="L176">                    getBean(domain + &quot;EntityManagerFactory&quot;, EntityManagerFactory.class);</span>
+<span class="nc" id="L177">            emf.close();</span>
+<span class="nc" id="L178">        } catch (Exception e) {</span>
+<span class="nc" id="L179">            LOG.error(&quot;Could not close EntityManagerFactory for Domain {}&quot;, domain, e);</span>
+<span class="nc" id="L180">        }</span>
+<span class="nc" id="L181">        unregisterSingleton(domain + &quot;EntityManagerFactory&quot;);</span>
+<span class="nc" id="L182">        unregisterBeanDefinition(domain + &quot;EntityManagerFactory&quot;);</span>
+
+        // domainTransactionManager
+<span class="nc" id="L185">        unregisterSingleton(domain + &quot;TransactionManager&quot;);</span>
+<span class="nc" id="L186">        unregisterBeanDefinition(domain + &quot;TransactionManager&quot;);</span>
+
+        // domainDataSourceInitializer
+<span class="nc" id="L189">        unregisterSingleton(domain.toLowerCase() + &quot;DataSourceInitializer&quot;);</span>
+
+        // domainResourceDatabasePopulator
+<span class="nc" id="L192">        unregisterSingleton(domain.toLowerCase() + &quot;ResourceDatabasePopulator&quot;);</span>
+
+        // domainDataSource
+<span class="nc" id="L195">        unregisterSingleton(domain + &quot;DataSource&quot;);</span>
+<span class="nc" id="L196">        unregisterBeanDefinition(domain + &quot;DataSource&quot;);</span>
+<span class="nc" id="L197">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

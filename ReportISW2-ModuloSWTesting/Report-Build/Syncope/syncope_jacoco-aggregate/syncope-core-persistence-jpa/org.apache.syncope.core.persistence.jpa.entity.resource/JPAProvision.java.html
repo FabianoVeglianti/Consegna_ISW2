@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAProvision.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.resource</a> &gt; <span class="el_source">JPAProvision.java</span></div><h1>JPAProvision.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.resource;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import javax.persistence.Basic;
+import javax.persistence.CascadeType;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.Lob;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.core.provisioning.api.serialization.POJOHelper;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.api.entity.resource.Mapping;
+import org.apache.syncope.core.persistence.api.entity.resource.Provision;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractGeneratedKeyEntity;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyType;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyTypeClass;
+import org.apache.syncope.core.persistence.jpa.entity.JPAPlainSchema;
+import org.identityconnectors.framework.common.objects.ObjectClass;
+import org.identityconnectors.framework.common.objects.SyncToken;
+
+@Entity
+@Table(name = JPAProvision.TABLE, uniqueConstraints =
+        @UniqueConstraint(columnNames = { &quot;resource_id&quot;, &quot;anyType_id&quot; }))
+<span class="nc" id="L55">public class JPAProvision extends AbstractGeneratedKeyEntity implements Provision {</span>
+
+    private static final long serialVersionUID = -1807889487945989443L;
+
+    public static final String TABLE = &quot;Provision&quot;;
+
+    @ManyToOne
+    private JPAExternalResource resource;
+
+    @ManyToOne
+    private JPAAnyType anyType;
+
+    @NotNull
+    private String objectClass;
+
+<span class="nc" id="L70">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;provision_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;anyTypeClass_id&quot;),
+            uniqueConstraints =
+            @UniqueConstraint(columnNames = { &quot;provision_id&quot;, &quot;anyTypeClass_id&quot; }))
+    private List&lt;JPAAnyTypeClass&gt; auxClasses = new ArrayList&lt;&gt;();
+
+    @Lob
+    private String serializedSyncToken;
+
+<span class="nc" id="L82">    @Basic</span>
+<span class="nc" id="L83">    private Boolean ignoreCaseMatch = false;</span>
+
+    @ManyToOne
+    private JPAPlainSchema uidOnCreate;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER, mappedBy = &quot;provision&quot;)
+    private JPAMapping mapping;
+
+    @Override
+    public ExternalResource getResource() {
+<span class="nc" id="L93">        return resource;</span>
+    }
+
+    @Override
+    public void setResource(final ExternalResource resource) {
+<span class="nc" id="L98">        checkType(resource, JPAExternalResource.class);</span>
+<span class="nc" id="L99">        this.resource = (JPAExternalResource) resource;</span>
+<span class="nc" id="L100">    }</span>
+
+    @Override
+    public AnyType getAnyType() {
+<span class="nc" id="L104">        return anyType;</span>
+    }
+
+    @Override
+    public void setAnyType(final AnyType anyType) {
+<span class="nc" id="L109">        checkType(anyType, JPAAnyType.class);</span>
+<span class="nc" id="L110">        this.anyType = (JPAAnyType) anyType;</span>
+<span class="nc" id="L111">    }</span>
+
+    @Override
+    public ObjectClass getObjectClass() {
+<span class="nc" id="L115">        return Optional.ofNullable(objectClass).map(ObjectClass::new).orElse(null);</span>
+    }
+
+    @Override
+    public void setObjectClass(final ObjectClass objectClass) {
+<span class="nc" id="L120">        this.objectClass = Optional.ofNullable(objectClass).map(ObjectClass::getObjectClassValue).orElse(null);</span>
+<span class="nc" id="L121">    }</span>
+
+    @Override
+    public boolean add(final AnyTypeClass auxClass) {
+<span class="nc" id="L125">        checkType(auxClass, JPAAnyTypeClass.class);</span>
+<span class="nc bnc" id="L126" title="All 4 branches missed.">        return auxClasses.contains((JPAAnyTypeClass) auxClass) || auxClasses.add((JPAAnyTypeClass) auxClass);</span>
+    }
+
+    @Override
+    public List&lt;? extends AnyTypeClass&gt; getAuxClasses() {
+<span class="nc" id="L131">        return auxClasses;</span>
+    }
+
+    @Override
+    public SyncToken getSyncToken() {
+<span class="nc" id="L136">        return Optional.ofNullable(serializedSyncToken)</span>
+<span class="nc" id="L137">            .map(syncToken -&gt; POJOHelper.deserialize(syncToken, SyncToken.class)).orElse(null);</span>
+    }
+
+    @Override
+    public String getSerializedSyncToken() {
+<span class="nc" id="L142">        return this.serializedSyncToken;</span>
+    }
+
+    @Override
+    public void setSyncToken(final SyncToken syncToken) {
+<span class="nc" id="L147">        this.serializedSyncToken = Optional.ofNullable(syncToken).map(POJOHelper::serialize).orElse(null);</span>
+<span class="nc" id="L148">    }</span>
+
+    @Override
+    public boolean isIgnoreCaseMatch() {
+<span class="nc" id="L152">        return ignoreCaseMatch;</span>
+    }
+
+    @Override
+    public void setIgnoreCaseMatch(final boolean ignoreCaseMatch) {
+<span class="nc" id="L157">        this.ignoreCaseMatch = ignoreCaseMatch;</span>
+<span class="nc" id="L158">    }</span>
+
+    @Override
+    public PlainSchema getUidOnCreate() {
+<span class="nc" id="L162">        return uidOnCreate;</span>
+    }
+
+    @Override
+    public void setUidOnCreate(final PlainSchema uidOnCreate) {
+<span class="nc" id="L167">        checkType(uidOnCreate, JPAPlainSchema.class);</span>
+<span class="nc" id="L168">        this.uidOnCreate = (JPAPlainSchema) uidOnCreate;</span>
+<span class="nc" id="L169">    }</span>
+
+    @Override
+    public Mapping getMapping() {
+<span class="nc" id="L173">        return mapping;</span>
+    }
+
+    @Override
+    public void setMapping(final Mapping mapping) {
+<span class="nc" id="L178">        checkType(mapping, JPAMapping.class);</span>
+<span class="nc" id="L179">        this.mapping = (JPAMapping) mapping;</span>
+<span class="nc" id="L180">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

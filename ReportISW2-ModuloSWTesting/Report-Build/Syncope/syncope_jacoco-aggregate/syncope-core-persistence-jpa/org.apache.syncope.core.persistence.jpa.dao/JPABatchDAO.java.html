@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPABatchDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPABatchDAO.java</span></div><h1>JPABatchDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.Date;
+import javax.persistence.Query;
+import org.apache.syncope.core.persistence.api.dao.BatchDAO;
+import org.apache.syncope.core.persistence.api.entity.Batch;
+import org.apache.syncope.core.persistence.jpa.entity.JPABatch;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Transactional(rollbackFor = Throwable.class)
+@Repository
+<span class="nc" id="L31">public class JPABatchDAO extends AbstractDAO&lt;Batch&gt; implements BatchDAO {</span>
+
+    @Transactional(readOnly = true)
+    @Override
+    public Batch find(final String key) {
+<span class="nc" id="L36">        return entityManager().find(JPABatch.class, key);</span>
+    }
+
+    @Override
+    public Batch save(final Batch batch) {
+<span class="nc" id="L41">        return entityManager().merge(batch);</span>
+    }
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L46">        Batch batch = find(key);</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        if (batch == null) {</span>
+<span class="nc" id="L48">            return;</span>
+        }
+
+<span class="nc" id="L51">        entityManager().remove(batch);</span>
+<span class="nc" id="L52">    }</span>
+
+    @Override
+    public int deleteExpired() {
+<span class="nc" id="L56">        Query query = entityManager().createQuery(</span>
+<span class="nc" id="L57">                &quot;DELETE FROM &quot; + JPABatch.class.getSimpleName() + &quot; e WHERE e.expiryTime &lt; :now&quot;);</span>
+<span class="nc" id="L58">        query.setParameter(&quot;now&quot;, new Date());</span>
+<span class="nc" id="L59">        return query.executeUpdate();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

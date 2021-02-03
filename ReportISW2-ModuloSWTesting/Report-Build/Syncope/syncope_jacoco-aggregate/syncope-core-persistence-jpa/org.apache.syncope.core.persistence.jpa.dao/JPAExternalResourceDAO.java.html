@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAExternalResourceDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAExternalResourceDAO.java</span></div><h1>JPAExternalResourceDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
+import org.apache.syncope.common.lib.types.IdMEntitlement;
+import org.apache.syncope.common.lib.types.TaskType;
+import org.apache.syncope.core.persistence.api.dao.AnyObjectDAO;
+import org.apache.syncope.core.persistence.api.dao.ExternalResourceDAO;
+import org.apache.syncope.core.persistence.api.dao.NotFoundException;
+import org.apache.syncope.core.persistence.api.dao.PolicyDAO;
+import org.apache.syncope.core.persistence.api.dao.GroupDAO;
+import org.apache.syncope.core.persistence.api.dao.RealmDAO;
+import org.apache.syncope.core.persistence.api.dao.TaskDAO;
+import org.apache.syncope.core.persistence.api.dao.UserDAO;
+import org.apache.syncope.core.persistence.api.dao.VirSchemaDAO;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.Entity;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.policy.AccountPolicy;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.api.entity.resource.MappingItem;
+import org.apache.syncope.core.persistence.api.entity.policy.PasswordPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.Policy;
+import org.apache.syncope.core.persistence.api.entity.policy.PullPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.PushPolicy;
+import org.apache.syncope.core.persistence.api.entity.resource.Provision;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAMappingItem;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAExternalResource;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAMapping;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAProvision;
+import org.apache.syncope.core.provisioning.api.ConnectorRegistry;
+import org.apache.syncope.core.spring.security.AuthContextUtils;
+import org.apache.syncope.core.spring.security.DelegatedAdministrationException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+<span class="nc" id="L61">public class JPAExternalResourceDAO extends AbstractDAO&lt;ExternalResource&gt; implements ExternalResourceDAO {</span>
+
+    @Autowired
+    private ConnectorRegistry connRegistry;
+
+    @Autowired
+    private TaskDAO taskDAO;
+
+    @Autowired
+    private AnyObjectDAO anyObjectDAO;
+
+    @Autowired
+    private UserDAO userDAO;
+
+    @Autowired
+    private GroupDAO groupDAO;
+
+    @Autowired
+    private PolicyDAO policyDAO;
+
+    @Autowired
+    private VirSchemaDAO virSchemaDAO;
+
+    @Autowired
+    private RealmDAO realmDAO;
+
+    @Override
+    public int count() {
+<span class="nc" id="L89">        Query query = entityManager().createQuery(</span>
+<span class="nc" id="L90">                &quot;SELECT COUNT(e) FROM  &quot; + JPAExternalResource.class.getSimpleName() + &quot; e&quot;);</span>
+<span class="nc" id="L91">        return ((Number) query.getSingleResult()).intValue();</span>
+    }
+
+    @Override
+    public ExternalResource find(final String name) {
+<span class="nc" id="L96">        return entityManager().find(JPAExternalResource.class, name);</span>
+    }
+
+    @Override
+    public ExternalResource authFind(final String key) {
+<span class="nc" id="L101">        ExternalResource resource = find(key);</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (resource == null) {</span>
+<span class="nc" id="L103">            return null;</span>
+        }
+
+<span class="nc" id="L106">        Set&lt;String&gt; authRealms = AuthContextUtils.getAuthorizations().get(IdMEntitlement.RESOURCE_READ);</span>
+<span class="nc bnc" id="L107" title="All 4 branches missed.">        if (authRealms == null || authRealms.isEmpty()</span>
+<span class="nc bnc" id="L108" title="All 4 branches missed.">                || !authRealms.stream().anyMatch(realm -&gt; resource.getConnector() != null</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">                &amp;&amp; resource.getConnector().getAdminRealm().getFullPath().startsWith(realm))) {</span>
+
+<span class="nc" id="L111">            throw new DelegatedAdministrationException(</span>
+<span class="nc" id="L112">                    resource.getConnector().getAdminRealm().getFullPath(),</span>
+<span class="nc" id="L113">                    ExternalResource.class.getSimpleName(),</span>
+<span class="nc" id="L114">                    resource.getKey());</span>
+        }
+
+<span class="nc" id="L117">        return resource;</span>
+    }
+
+    @Override
+    public List&lt;Provision&gt; findProvisionsByAuxClass(final AnyTypeClass anyTypeClass) {
+<span class="nc" id="L122">        TypedQuery&lt;Provision&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L123">                &quot;SELECT e FROM &quot; + JPAProvision.class.getSimpleName()</span>
+                + &quot; e WHERE :anyTypeClass MEMBER OF e.auxClasses&quot;, Provision.class);
+<span class="nc" id="L125">        query.setParameter(&quot;anyTypeClass&quot;, anyTypeClass);</span>
+
+<span class="nc" id="L127">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;MappingItem&gt; findByTransformer(final Implementation transformer) {
+<span class="nc" id="L132">        TypedQuery&lt;MappingItem&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L133">                &quot;SELECT e FROM &quot; + JPAMappingItem.class.getSimpleName()</span>
+                + &quot; e WHERE :transformer MEMBER OF e.transformers&quot;, MappingItem.class);
+<span class="nc" id="L135">        query.setParameter(&quot;transformer&quot;, transformer);</span>
+
+<span class="nc" id="L137">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;ExternalResource&gt; findByPropagationActions(final Implementation propagationActions) {
+<span class="nc" id="L142">        TypedQuery&lt;ExternalResource&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L143">                &quot;SELECT e FROM &quot; + JPAExternalResource.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE :propagationActions MEMBER OF e.propagationActions&quot;, ExternalResource.class);
+<span class="nc" id="L145">        query.setParameter(&quot;propagationActions&quot;, propagationActions);</span>
+
+<span class="nc" id="L147">        return query.getResultList();</span>
+    }
+
+    private static StringBuilder getByPolicyQuery(final Class&lt;? extends Policy&gt; policyClass) {
+<span class="nc" id="L151">        StringBuilder query = new StringBuilder(&quot;SELECT e FROM &quot;).</span>
+<span class="nc" id="L152">                append(JPAExternalResource.class.getSimpleName()).</span>
+<span class="nc" id="L153">                append(&quot; e WHERE e.&quot;);</span>
+
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        if (AccountPolicy.class.isAssignableFrom(policyClass)) {</span>
+<span class="nc" id="L156">            query.append(&quot;accountPolicy&quot;);</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        } else if (PasswordPolicy.class.isAssignableFrom(policyClass)) {</span>
+<span class="nc" id="L158">            query.append(&quot;passwordPolicy&quot;);</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        } else if (PullPolicy.class.isAssignableFrom(policyClass)) {</span>
+<span class="nc" id="L160">            query.append(&quot;pullPolicy&quot;);</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">        } else if (PushPolicy.class.isAssignableFrom(policyClass)) {</span>
+<span class="nc" id="L162">            query.append(&quot;pushPolicy&quot;);</span>
+        }
+
+<span class="nc" id="L165">        return query;</span>
+    }
+
+    @Override
+    public List&lt;ExternalResource&gt; findByPolicy(final Policy policy) {
+<span class="nc" id="L170">        TypedQuery&lt;ExternalResource&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L171">                getByPolicyQuery(policy.getClass()).append(&quot;=:policy&quot;).toString(), ExternalResource.class);</span>
+<span class="nc" id="L172">        query.setParameter(&quot;policy&quot;, policy);</span>
+<span class="nc" id="L173">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;ExternalResource&gt; findAll() {
+<span class="nc" id="L178">        final Set&lt;String&gt; authRealms = AuthContextUtils.getAuthorizations().get(IdMEntitlement.RESOURCE_LIST);</span>
+<span class="nc bnc" id="L179" title="All 4 branches missed.">        if (authRealms == null || authRealms.isEmpty()) {</span>
+<span class="nc" id="L180">            return List.of();</span>
+        }
+
+<span class="nc" id="L183">        TypedQuery&lt;ExternalResource&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L184">                &quot;SELECT e FROM  &quot; + JPAExternalResource.class.getSimpleName() + &quot; e&quot;, ExternalResource.class);</span>
+
+<span class="nc" id="L186">        return query.getResultList().stream().filter(resource -&gt; authRealms.stream().</span>
+<span class="nc bnc" id="L187" title="All 2 branches missed.">                anyMatch(realm -&gt; resource.getConnector() != null</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">                &amp;&amp; resource.getConnector().getAdminRealm().getFullPath().startsWith(realm))).</span>
+<span class="nc" id="L189">                collect(Collectors.toList());</span>
+    }
+
+    @Override
+    @Transactional(rollbackFor = { Throwable.class })
+    public ExternalResource save(final ExternalResource resource) {
+<span class="nc" id="L195">        ExternalResource merged = entityManager().merge(resource);</span>
+        try {
+<span class="nc" id="L197">            connRegistry.registerConnector(merged);</span>
+<span class="nc" id="L198">        } catch (NotFoundException e) {</span>
+<span class="nc" id="L199">            LOG.error(&quot;While registering connector for resource&quot;, e);</span>
+<span class="nc" id="L200">        }</span>
+<span class="nc" id="L201">        return merged;</span>
+    }
+
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public void deleteMapping(final String intAttrName) {
+<span class="nc" id="L207">        TypedQuery&lt;MappingItem&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L208">                &quot;SELECT m FROM &quot; + JPAMappingItem.class.getSimpleName()</span>
+                + &quot; m WHERE m.intAttrName=:intAttrName&quot;, MappingItem.class);
+<span class="nc" id="L210">        query.setParameter(&quot;intAttrName&quot;, intAttrName);</span>
+
+<span class="nc" id="L212">        query.getResultList().stream().</span>
+<span class="nc" id="L213">                map(Entity::getKey).</span>
+<span class="nc" id="L214">                map(itemKey -&gt; entityManager().find(JPAMappingItem.class, itemKey)).filter(Objects::nonNull).</span>
+<span class="nc" id="L215">                forEach(item -&gt; {</span>
+<span class="nc" id="L216">                    item.getMapping().getItems().remove(item);</span>
+<span class="nc" id="L217">                    item.setMapping(null);</span>
+<span class="nc" id="L218">                    entityManager().remove(item);</span>
+<span class="nc" id="L219">                });</span>
+
+        // Make empty query cache for *MappingItem and related *Mapping
+<span class="nc" id="L222">        entityManager().getEntityManagerFactory().getCache().evict(JPAMappingItem.class);</span>
+<span class="nc" id="L223">        entityManager().getEntityManagerFactory().getCache().evict(JPAMapping.class);</span>
+<span class="nc" id="L224">    }</span>
+
+    @Override
+    public void delete(final String name) {
+<span class="nc" id="L228">        ExternalResource resource = find(name);</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">        if (resource == null) {</span>
+<span class="nc" id="L230">            return;</span>
+        }
+
+<span class="nc" id="L233">        taskDAO.deleteAll(resource, TaskType.PROPAGATION);</span>
+<span class="nc" id="L234">        taskDAO.deleteAll(resource, TaskType.PULL);</span>
+<span class="nc" id="L235">        taskDAO.deleteAll(resource, TaskType.PUSH);</span>
+
+<span class="nc" id="L237">        realmDAO.findByResource(resource).</span>
+<span class="nc" id="L238">                forEach(realm -&gt; realm.getResources().remove(resource));</span>
+<span class="nc" id="L239">        anyObjectDAO.findByResource(resource).</span>
+<span class="nc" id="L240">                forEach(anyObject -&gt; anyObject.getResources().remove(resource));</span>
+<span class="nc" id="L241">        userDAO.findLinkedAccountsByResource(resource).forEach(account -&gt; {</span>
+<span class="nc" id="L242">            account.getOwner().getLinkedAccounts().remove(account);</span>
+<span class="nc" id="L243">            account.setOwner(null);</span>
+<span class="nc" id="L244">        });</span>
+<span class="nc" id="L245">        userDAO.findByResource(resource).</span>
+<span class="nc" id="L246">                forEach(user -&gt; user.getResources().remove(resource));</span>
+<span class="nc" id="L247">        groupDAO.findByResource(resource).</span>
+<span class="nc" id="L248">                forEach(group -&gt; group.getResources().remove(resource));</span>
+<span class="nc" id="L249">        policyDAO.findByResource(resource).</span>
+<span class="nc" id="L250">                forEach(policy -&gt; policy.getResources().remove(resource));</span>
+
+<span class="nc" id="L252">        resource.getProvisions().stream().</span>
+<span class="nc" id="L253">                peek(provision -&gt; {</span>
+<span class="nc" id="L254">                    provision.setUidOnCreate(null);</span>
+<span class="nc bnc" id="L255" title="All 2 branches missed.">                    if (provision.getMapping() != null) {</span>
+<span class="nc" id="L256">                        provision.getMapping().getItems().forEach(item -&gt; item.setMapping(null));</span>
+<span class="nc" id="L257">                        provision.getMapping().getItems().clear();</span>
+                    }
+<span class="nc" id="L259">                    provision.setMapping(null);</span>
+<span class="nc" id="L260">                    provision.setResource(null);</span>
+<span class="nc" id="L261">                }).</span>
+<span class="nc" id="L262">                forEach(provision -&gt; virSchemaDAO.findByProvision(provision).</span>
+<span class="nc" id="L263">                forEach(schema -&gt; virSchemaDAO.delete(schema.getKey())));</span>
+
+<span class="nc bnc" id="L265" title="All 4 branches missed.">        if (resource.getConnector() != null &amp;&amp; resource.getConnector().getResources() != null</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">                &amp;&amp; !resource.getConnector().getResources().isEmpty()) {</span>
+
+<span class="nc" id="L268">            resource.getConnector().getResources().remove(resource);</span>
+        }
+<span class="nc" id="L270">        resource.setConnector(null);</span>
+
+<span class="nc" id="L272">        entityManager().remove(resource);</span>
+<span class="nc" id="L273">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

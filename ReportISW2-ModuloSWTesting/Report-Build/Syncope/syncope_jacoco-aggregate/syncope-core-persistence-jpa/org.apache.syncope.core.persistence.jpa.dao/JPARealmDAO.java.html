@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPARealmDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPARealmDAO.java</span></div><h1>JPARealmDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import javax.persistence.NoResultException;
+import javax.persistence.TypedQuery;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.syncope.common.lib.SyncopeConstants;
+import org.apache.syncope.core.persistence.api.dao.MalformedPathException;
+import org.apache.syncope.core.persistence.api.dao.RealmDAO;
+import org.apache.syncope.core.persistence.api.dao.RoleDAO;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.policy.AccountPolicy;
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.persistence.api.entity.policy.AccessPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.AttrReleasePolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.PasswordPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.Policy;
+import org.apache.syncope.core.persistence.api.entity.policy.ProvisioningPolicy;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.jpa.entity.JPARealm;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+import org.apache.syncope.core.persistence.api.entity.policy.AuthPolicy;
+
+@Repository
+<span class="nc" id="L49">public class JPARealmDAO extends AbstractDAO&lt;Realm&gt; implements RealmDAO {</span>
+
+    @Autowired
+    @Lazy
+    private RoleDAO roleDAO;
+
+    @Override
+    public Realm getRoot() {
+<span class="nc" id="L57">        TypedQuery&lt;Realm&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L58">                &quot;SELECT e FROM &quot; + JPARealm.class.getSimpleName() + &quot; e WHERE e.parent IS NULL&quot;, Realm.class);</span>
+
+<span class="nc" id="L60">        Realm result = null;</span>
+        try {
+<span class="nc" id="L62">            result = query.getSingleResult();</span>
+<span class="nc" id="L63">        } catch (NoResultException e) {</span>
+<span class="nc" id="L64">            LOG.debug(&quot;Root realm not found&quot;, e);</span>
+<span class="nc" id="L65">        }</span>
+
+<span class="nc" id="L67">        return result;</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public Realm find(final String key) {
+<span class="nc" id="L73">        return entityManager().find(JPARealm.class, key);</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public Realm findByFullPath(final String fullPath) {
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        if (SyncopeConstants.ROOT_REALM.equals(fullPath)) {</span>
+<span class="nc" id="L80">            return getRoot();</span>
+        }
+
+<span class="nc bnc" id="L83" title="All 4 branches missed.">        if (StringUtils.isBlank(fullPath) || !PATH_PATTERN.matcher(fullPath).matches()) {</span>
+<span class="nc" id="L84">            throw new MalformedPathException(fullPath);</span>
+        }
+
+<span class="nc" id="L87">        Realm root = getRoot();</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        if (root == null) {</span>
+<span class="nc" id="L89">            return null;</span>
+        }
+
+<span class="nc" id="L92">        Realm current = root;</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        for (final String pathElement : fullPath.substring(1).split(&quot;/&quot;)) {</span>
+<span class="nc" id="L94">            Optional&lt;Realm&gt; first = findChildren(current).stream().</span>
+<span class="nc" id="L95">                    filter(realm -&gt; pathElement.equals(realm.getName())).findFirst();</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">            if (first.isPresent()) {</span>
+<span class="nc" id="L97">                current = first.get();</span>
+            } else {
+<span class="nc" id="L99">                return null;</span>
+            }
+        }
+<span class="nc" id="L102">        return current;</span>
+    }
+
+    private &lt;T extends Policy&gt; List&lt;Realm&gt; findSamePolicyChildren(final Realm realm, final T policy) {
+<span class="nc" id="L106">        List&lt;Realm&gt; result = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L108">        findChildren(realm).stream().</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">                filter(child -&gt; (policy instanceof AccountPolicy</span>
+<span class="nc bnc" id="L110" title="All 6 branches missed.">                &amp;&amp; child.getAccountPolicy() == null || policy.equals(child.getAccountPolicy()))</span>
+                || (policy instanceof PasswordPolicy
+<span class="nc bnc" id="L112" title="All 4 branches missed.">                &amp;&amp; child.getPasswordPolicy() == null || policy.equals(child.getPasswordPolicy()))).</span>
+<span class="nc" id="L113">                forEach(child -&gt; {</span>
+<span class="nc" id="L114">                    result.add(child);</span>
+<span class="nc" id="L115">                    result.addAll(findSamePolicyChildren(child, policy));</span>
+<span class="nc" id="L116">                });</span>
+
+<span class="nc" id="L118">        return result;</span>
+    }
+
+    @Override
+    public List&lt;Realm&gt; findByName(final String name) {
+<span class="nc" id="L123">        TypedQuery&lt;Realm&gt; query = entityManager().createQuery(&quot;SELECT e FROM &quot; + JPARealm.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE e.name=:name&quot;, Realm.class);
+<span class="nc" id="L125">        query.setParameter(&quot;name&quot;, name);</span>
+
+<span class="nc" id="L127">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;Realm&gt; findByResource(final ExternalResource resource) {
+<span class="nc" id="L132">        TypedQuery&lt;Realm&gt; query = entityManager().createQuery(&quot;SELECT e FROM &quot; + JPARealm.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE :resource MEMBER OF e.resources&quot;, Realm.class);
+<span class="nc" id="L134">        query.setParameter(&quot;resource&quot;, resource);</span>
+
+<span class="nc" id="L136">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;Realm&gt; findMatching(final String keyword) {
+<span class="nc" id="L141">        TypedQuery&lt;Realm&gt; query = entityManager().createQuery(&quot;SELECT e FROM &quot; + JPARealm.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE e.name LIKE :keyword&quot;, Realm.class);
+<span class="nc" id="L143">        query.setParameter(&quot;keyword&quot;, keyword);</span>
+
+<span class="nc" id="L145">        return query.getResultList();</span>
+    }
+
+    @Override
+    public &lt;T extends Policy&gt; List&lt;Realm&gt; findByPolicy(final T policy) {
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        if (ProvisioningPolicy.class.isAssignableFrom(policy.getClass())) {</span>
+<span class="nc" id="L151">            return Collections.&lt;Realm&gt;emptyList();</span>
+        }
+<span class="nc" id="L153">        String policyColumn = null;</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">        if (policy instanceof AccountPolicy) {</span>
+<span class="nc" id="L155">            policyColumn = &quot;accountPolicy&quot;;</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        } else if (policy instanceof PasswordPolicy) {</span>
+<span class="nc" id="L157">            policyColumn = &quot;passwordPolicy&quot;;</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        } else if (policy instanceof AuthPolicy) {</span>
+<span class="nc" id="L159">            policyColumn = &quot;authPolicy&quot;;</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        } else if (policy instanceof AccessPolicy) {</span>
+<span class="nc" id="L161">            policyColumn = &quot;accessPolicy&quot;;</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">        } else if (policy instanceof AttrReleasePolicy) {</span>
+<span class="nc" id="L163">            policyColumn = &quot;attrReleasePolicy&quot;;</span>
+        }
+
+<span class="nc" id="L166">        TypedQuery&lt;Realm&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L167">                &quot;SELECT e FROM &quot; + JPARealm.class.getSimpleName() + &quot; e WHERE e.&quot;</span>
+                + policyColumn + &quot;=:policy&quot;, Realm.class);
+<span class="nc" id="L169">        query.setParameter(&quot;policy&quot;, policy);</span>
+
+<span class="nc" id="L171">        List&lt;Realm&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L172">        query.getResultList().stream().map(realm -&gt; {</span>
+<span class="nc" id="L173">            result.add(realm);</span>
+<span class="nc" id="L174">            return realm;</span>
+<span class="nc" id="L175">        }).forEachOrdered(realm -&gt; result.addAll(findSamePolicyChildren(realm, policy)));</span>
+
+<span class="nc" id="L177">        return result;</span>
+    }
+
+    @Override
+    public List&lt;Realm&gt; findByLogicActions(final Implementation logicActions) {
+<span class="nc" id="L182">        TypedQuery&lt;Realm&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L183">                &quot;SELECT e FROM &quot; + JPARealm.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE :logicActions MEMBER OF e.actions&quot;, Realm.class);
+<span class="nc" id="L185">        query.setParameter(&quot;logicActions&quot;, logicActions);</span>
+
+<span class="nc" id="L187">        return query.getResultList();</span>
+    }
+
+    private static void findAncestors(final List&lt;Realm&gt; result, final Realm realm) {
+<span class="nc bnc" id="L191" title="All 4 branches missed.">        if (realm.getParent() != null &amp;&amp; !result.contains(realm.getParent())) {</span>
+<span class="nc" id="L192">            result.add(realm.getParent());</span>
+<span class="nc" id="L193">            findAncestors(result, realm.getParent());</span>
+        }
+<span class="nc" id="L195">    }</span>
+
+    @Override
+    public List&lt;Realm&gt; findAncestors(final Realm realm) {
+<span class="nc" id="L199">        List&lt;Realm&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L200">        result.add(realm);</span>
+<span class="nc" id="L201">        findAncestors(result, realm);</span>
+<span class="nc" id="L202">        return result;</span>
+    }
+
+    @Override
+    public List&lt;Realm&gt; findChildren(final Realm realm) {
+<span class="nc" id="L207">        TypedQuery&lt;Realm&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L208">                &quot;SELECT e FROM &quot; + JPARealm.class.getSimpleName() + &quot; e WHERE e.parent=:realm&quot;, Realm.class);</span>
+<span class="nc" id="L209">        query.setParameter(&quot;realm&quot;, realm);</span>
+
+<span class="nc" id="L211">        return query.getResultList();</span>
+    }
+
+    private void findDescendants(final List&lt;Realm&gt; result, final Realm realm) {
+<span class="nc" id="L215">        result.add(realm);</span>
+<span class="nc" id="L216">        List&lt;Realm&gt; children = findChildren(realm);</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">        if (children != null) {</span>
+<span class="nc" id="L218">            children.forEach(child -&gt; findDescendants(result, child));</span>
+        }
+<span class="nc" id="L220">    }</span>
+
+    @Override
+    public List&lt;Realm&gt; findDescendants(final Realm realm) {
+<span class="nc" id="L224">        List&lt;Realm&gt; result = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L225">        findDescendants(result, realm);</span>
+<span class="nc" id="L226">        return result;</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List&lt;Realm&gt; findAll() {
+<span class="nc" id="L232">        return findDescendants(getRoot());</span>
+    }
+
+    @Override
+    public Realm save(final Realm realm) {
+<span class="nc" id="L237">        return entityManager().merge(realm);</span>
+    }
+
+    @Override
+    public void delete(final Realm realm) {
+<span class="nc" id="L242">        findDescendants(realm).forEach(toBeDeleted -&gt; {</span>
+<span class="nc" id="L243">            roleDAO.findByRealm(toBeDeleted).forEach(role -&gt; role.getRealms().remove(toBeDeleted));</span>
+
+<span class="nc" id="L245">            toBeDeleted.setParent(null);</span>
+
+<span class="nc" id="L247">            entityManager().remove(toBeDeleted);</span>
+<span class="nc" id="L248">        });</span>
+<span class="nc" id="L249">    }</span>
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L253">        Realm realm = find(key);</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">        if (realm == null) {</span>
+<span class="nc" id="L255">            return;</span>
+        }
+
+<span class="nc" id="L258">        delete(realm);</span>
+<span class="nc" id="L259">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

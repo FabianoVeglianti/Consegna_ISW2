@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>OpenJpaDialect.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.springframework.orm.jpa.vendor</a> &gt; <span class="el_source">OpenJpaDialect.java</span></div><h1>OpenJpaDialect.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2002-2014 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.springframework.orm.jpa.vendor;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceException;
+
+import org.apache.commons.logging.LogFactory;
+import org.apache.openjpa.persistence.FetchPlan;
+import org.apache.openjpa.persistence.OpenJPAEntityManager;
+import org.apache.openjpa.persistence.OpenJPAPersistence;
+import org.apache.openjpa.persistence.jdbc.IsolationLevel;
+import org.apache.openjpa.persistence.jdbc.JDBCFetchPlan;
+
+import org.springframework.jdbc.datasource.ConnectionHandle;
+import org.springframework.jdbc.datasource.ConnectionHolder;
+import org.springframework.jdbc.support.JdbcUtils;
+import org.springframework.orm.jpa.DefaultJpaDialect;
+import org.springframework.transaction.SavepointManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionException;
+
+/**
+ * {@link org.springframework.orm.jpa.JpaDialect} implementation for Apache OpenJPA.
+ * Developed and tested against OpenJPA 2.2.
+ *
+ * @author Juergen Hoeller
+ * @author Costin Leau
+ * @since 2.0
+ */
+<span class="nc" id="L46">public class OpenJpaDialect extends DefaultJpaDialect {</span>
+
+    private static final long serialVersionUID = 2099118508988476959L;
+
+    @Override
+    public Object beginTransaction(final EntityManager entityManager, final TransactionDefinition definition)
+            throws PersistenceException, SQLException, TransactionException {
+
+<span class="nc" id="L54">        OpenJPAEntityManager openJpaEntityManager = getOpenJPAEntityManager(entityManager);</span>
+
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (definition.getIsolationLevel() != TransactionDefinition.ISOLATION_DEFAULT) {</span>
+            // Pass custom isolation level on to OpenJPA's JDBCFetchPlan configuration
+<span class="nc" id="L58">            FetchPlan fetchPlan = openJpaEntityManager.getFetchPlan();</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">            if (fetchPlan instanceof JDBCFetchPlan) {</span>
+<span class="nc" id="L60">                IsolationLevel isolation = IsolationLevel.fromConnectionConstant(definition.getIsolationLevel());</span>
+<span class="nc" id="L61">                ((JDBCFetchPlan) fetchPlan).setIsolation(isolation);</span>
+            }
+        }
+
+<span class="nc" id="L65">        entityManager.getTransaction().begin();</span>
+
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if (!definition.isReadOnly()) {</span>
+            // Like with EclipseLink, make sure to start the logic transaction early so that other
+            // participants using the connection (such as JdbcTemplate) run in a transaction.
+<span class="nc" id="L70">            openJpaEntityManager.beginStore();</span>
+        }
+
+        // Custom implementation for OpenJPA savepoint handling
+<span class="nc" id="L74">        return new OpenJpaTransactionData(openJpaEntityManager);</span>
+    }
+
+    @Override
+    public ConnectionHandle getJdbcConnection(final EntityManager entityManager, final boolean readOnly)
+            throws PersistenceException, SQLException {
+
+<span class="nc" id="L81">        return new OpenJpaConnectionHandle(getOpenJPAEntityManager(entityManager));</span>
+    }
+
+    /**
+     * Return the OpenJPA-specific variant of {@code EntityManager}.
+     *
+     * @param em the generic {@code EntityManager} instance
+     * @return the OpenJPA-specific variant of {@code EntityManager}
+     */
+    protected static OpenJPAEntityManager getOpenJPAEntityManager(final EntityManager em) {
+<span class="nc" id="L91">        return OpenJPAPersistence.cast(em);</span>
+    }
+
+    /**
+     * Transaction data Object exposed from {@code beginTransaction},
+     * implementing the {@link SavepointManager} interface.
+     */
+    private static class OpenJpaTransactionData implements SavepointManager {
+
+        private final OpenJPAEntityManager entityManager;
+
+<span class="nc" id="L102">        private int savepointCounter = 0;</span>
+
+<span class="nc" id="L104">        OpenJpaTransactionData(final OpenJPAEntityManager entityManager) {</span>
+<span class="nc" id="L105">            this.entityManager = entityManager;</span>
+<span class="nc" id="L106">        }</span>
+
+        @Override
+        public Object createSavepoint() throws TransactionException {
+<span class="nc" id="L110">            this.savepointCounter++;</span>
+<span class="nc" id="L111">            String savepointName = ConnectionHolder.SAVEPOINT_NAME_PREFIX + this.savepointCounter;</span>
+<span class="nc" id="L112">            this.entityManager.setSavepoint(savepointName);</span>
+<span class="nc" id="L113">            return savepointName;</span>
+        }
+
+        @Override
+        public void rollbackToSavepoint(final Object savepoint) throws TransactionException {
+<span class="nc" id="L118">            this.entityManager.rollbackToSavepoint((String) savepoint);</span>
+<span class="nc" id="L119">        }</span>
+
+        @Override
+        public void releaseSavepoint(final Object savepoint) throws TransactionException {
+            try {
+<span class="nc" id="L124">                this.entityManager.releaseSavepoint((String) savepoint);</span>
+<span class="nc" id="L125">            } catch (Throwable ex) {</span>
+<span class="nc" id="L126">                LogFactory.getLog(OpenJpaTransactionData.class).debug(</span>
+                        &quot;Could not explicitly release OpenJPA savepoint&quot;, ex);
+<span class="nc" id="L128">            }</span>
+<span class="nc" id="L129">        }</span>
+    }
+
+    /**
+     * {@link ConnectionHandle} implementation that fetches a new OpenJPA-provided
+     * Connection for every {@code getConnection} call and closes the Connection on
+     * {@code releaseConnection}. This is necessary because OpenJPA requires the
+     * fetched Connection to be closed before continuing EntityManager work.
+     *
+     * @see org.apache.openjpa.persistence.OpenJPAEntityManager#getConnection()
+     */
+    private static class OpenJpaConnectionHandle implements ConnectionHandle {
+
+        private final OpenJPAEntityManager entityManager;
+
+<span class="nc" id="L144">        OpenJpaConnectionHandle(final OpenJPAEntityManager entityManager) {</span>
+<span class="nc" id="L145">            this.entityManager = entityManager;</span>
+<span class="nc" id="L146">        }</span>
+
+        @Override
+        public Connection getConnection() {
+<span class="nc" id="L150">            return (Connection) this.entityManager.getConnection();</span>
+        }
+
+        @Override
+        public void releaseConnection(final Connection con) {
+<span class="nc" id="L155">            JdbcUtils.closeConnection(con);</span>
+<span class="nc" id="L156">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

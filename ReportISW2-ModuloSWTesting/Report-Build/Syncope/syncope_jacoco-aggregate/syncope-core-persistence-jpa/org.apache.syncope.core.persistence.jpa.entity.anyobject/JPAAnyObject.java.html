@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAAnyObject.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.anyobject</a> &gt; <span class="el_source">JPAAnyObject.java</span></div><h1>JPAAnyObject.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.anyobject;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import javax.persistence.Cacheable;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.RelationshipType;
+import org.apache.syncope.core.persistence.api.entity.anyobject.AMembership;
+import org.apache.syncope.core.persistence.api.entity.anyobject.APlainAttr;
+import org.apache.syncope.core.persistence.api.entity.anyobject.ARelationship;
+import org.apache.syncope.core.persistence.api.entity.anyobject.AnyObject;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractGroupableRelatable;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyType;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyTypeClass;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAExternalResource;
+import org.apache.syncope.core.persistence.jpa.validation.entity.AnyObjectCheck;
+
+@Entity
+@Table(name = JPAAnyObject.TABLE)
+@Cacheable
+@AnyObjectCheck
+<span class="nc" id="L56">public class JPAAnyObject</span>
+        extends AbstractGroupableRelatable&lt;AnyObject, AMembership, APlainAttr, AnyObject, ARelationship&gt;
+        implements AnyObject {
+
+    private static final long serialVersionUID = 9063766472970643492L;
+
+    public static final String TABLE = &quot;AnyObject&quot;;
+
+    @Column(unique = true)
+    @NotNull
+    private String name;
+
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    private JPAAnyType type;
+
+<span class="nc" id="L71">    @OneToMany(cascade = CascadeType.ALL, mappedBy = &quot;owner&quot;)</span>
+    @Valid
+    private List&lt;JPAAPlainAttr&gt; plainAttrs = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L75">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;anyObject_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;resource_id&quot;),
+            uniqueConstraints = @UniqueConstraint(columnNames = { &quot;anyObject_id&quot;, &quot;resource_id&quot; }))
+    private List&lt;JPAExternalResource&gt; resources = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L83">    @ManyToMany(fetch = FetchType.LAZY)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;anyObject_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;anyTypeClass_id&quot;),
+            uniqueConstraints = @UniqueConstraint(columnNames = { &quot;anyObject_id&quot;, &quot;anyTypeClass_id&quot; }))
+    private List&lt;JPAAnyTypeClass&gt; auxClasses = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L91">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = &quot;leftEnd&quot;)</span>
+    @Valid
+    private List&lt;JPAARelationship&gt; relationships = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L95">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = &quot;leftEnd&quot;)</span>
+    @Valid
+    private List&lt;JPAAMembership&gt; memberships = new ArrayList&lt;&gt;();
+
+    @Override
+    public String getName() {
+<span class="nc" id="L101">        return name;</span>
+    }
+
+    @Override
+    public void setName(final String name) {
+<span class="nc" id="L106">        this.name = name;</span>
+<span class="nc" id="L107">    }</span>
+
+    @Override
+    public AnyType getType() {
+<span class="nc" id="L111">        return type;</span>
+    }
+
+    @Override
+    public void setType(final AnyType type) {
+<span class="nc" id="L116">        checkType(type, JPAAnyType.class);</span>
+<span class="nc" id="L117">        this.type = (JPAAnyType) type;</span>
+<span class="nc" id="L118">    }</span>
+
+    @Override
+    public boolean add(final ExternalResource resource) {
+<span class="nc" id="L122">        checkType(resource, JPAExternalResource.class);</span>
+<span class="nc bnc" id="L123" title="All 4 branches missed.">        return resources.contains((JPAExternalResource) resource) || resources.add((JPAExternalResource) resource);</span>
+    }
+
+    @Override
+    public List&lt;? extends ExternalResource&gt; getResources() {
+<span class="nc" id="L128">        return resources;</span>
+    }
+
+    @Override
+    public boolean add(final APlainAttr attr) {
+<span class="nc" id="L133">        checkType(attr, JPAAPlainAttr.class);</span>
+<span class="nc" id="L134">        return plainAttrs.add((JPAAPlainAttr) attr);</span>
+    }
+
+    @Override
+    protected List&lt;? extends APlainAttr&gt; internalGetPlainAttrs() {
+<span class="nc" id="L139">        return plainAttrs;</span>
+    }
+
+    @Override
+    public boolean add(final AnyTypeClass auxClass) {
+<span class="nc" id="L144">        checkType(auxClass, JPAAnyTypeClass.class);</span>
+<span class="nc bnc" id="L145" title="All 4 branches missed.">        return auxClasses.contains((JPAAnyTypeClass) auxClass) || this.auxClasses.add((JPAAnyTypeClass) auxClass);</span>
+    }
+
+    @Override
+    public List&lt;? extends AnyTypeClass&gt; getAuxClasses() {
+<span class="nc" id="L150">        return auxClasses;</span>
+    }
+
+    @Override
+    public boolean add(final ARelationship relationship) {
+<span class="nc" id="L155">        checkType(relationship, JPAARelationship.class);</span>
+<span class="nc" id="L156">        return this.relationships.add((JPAARelationship) relationship);</span>
+    }
+
+    @Override
+    public Optional&lt;? extends ARelationship&gt; getRelationship(
+            final RelationshipType relationshipType, final String otherEndKey) {
+
+<span class="nc bnc" id="L163" title="All 4 branches missed.">        return getRelationships().stream().filter(relationship -&gt; relationshipType.equals(relationship.getType())</span>
+                &amp;&amp; otherEndKey != null
+<span class="nc bnc" id="L165" title="All 2 branches missed.">                &amp;&amp; (otherEndKey.equals(relationship.getLeftEnd().getKey())</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                || otherEndKey.equals(relationship.getRightEnd().getKey()))).findFirst();</span>
+    }
+
+    @Override
+    public List&lt;? extends ARelationship&gt; getRelationships() {
+<span class="nc" id="L171">        return relationships;</span>
+    }
+
+    @Override
+    public boolean add(final AMembership membership) {
+<span class="nc" id="L176">        checkType(membership, JPAAMembership.class);</span>
+<span class="nc" id="L177">        return this.memberships.add((JPAAMembership) membership);</span>
+    }
+
+    @Override
+    public boolean remove(final AMembership membership) {
+<span class="nc" id="L182">        checkType(membership, JPAAMembership.class);</span>
+<span class="nc" id="L183">        return this.memberships.remove((JPAAMembership) membership);</span>
+    }
+
+    @Override
+    public List&lt;? extends AMembership&gt; getMemberships() {
+<span class="nc" id="L188">        return memberships;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

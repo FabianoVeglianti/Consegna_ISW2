@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAEntityFactory.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity</a> &gt; <span class="el_source">JPAEntityFactory.java</span></div><h1>JPAEntityFactory.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity;
+
+import org.apache.syncope.core.persistence.api.dao.AnySearchDAO;
+import org.apache.syncope.core.persistence.api.entity.AccessToken;
+import org.apache.syncope.core.persistence.api.entity.AnyAbout;
+import org.apache.syncope.core.persistence.api.entity.AnyTemplateRealm;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.Application;
+import org.apache.syncope.core.persistence.api.entity.Batch;
+import org.apache.syncope.core.persistence.api.entity.ConnInstance;
+import org.apache.syncope.core.persistence.api.entity.ConnPoolConf;
+import org.apache.syncope.core.persistence.api.entity.DerSchema;
+import org.apache.syncope.core.persistence.api.entity.DynRealm;
+import org.apache.syncope.core.persistence.api.entity.DynRealmMembership;
+import org.apache.syncope.core.persistence.api.entity.Entity;
+import org.apache.syncope.core.persistence.api.entity.EntityFactory;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.Logger;
+import org.apache.syncope.core.persistence.api.entity.MailTemplate;
+import org.apache.syncope.core.persistence.api.entity.Notification;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.api.entity.Privilege;
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.persistence.api.entity.RelationshipType;
+import org.apache.syncope.core.persistence.api.entity.Remediation;
+import org.apache.syncope.core.persistence.api.entity.Report;
+import org.apache.syncope.core.persistence.api.entity.ReportExec;
+import org.apache.syncope.core.persistence.api.entity.ReportTemplate;
+import org.apache.syncope.core.persistence.api.entity.Role;
+import org.apache.syncope.core.persistence.api.entity.SchemaLabel;
+import org.apache.syncope.core.persistence.api.entity.VirSchema;
+import org.apache.syncope.core.persistence.api.entity.anyobject.ADynGroupMembership;
+import org.apache.syncope.core.persistence.api.entity.anyobject.AMembership;
+import org.apache.syncope.core.persistence.api.entity.anyobject.APlainAttr;
+import org.apache.syncope.core.persistence.api.entity.anyobject.APlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.api.entity.anyobject.APlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.anyobject.ARelationship;
+import org.apache.syncope.core.persistence.api.entity.anyobject.AnyObject;
+import org.apache.syncope.core.persistence.api.entity.auth.AuthModule;
+import org.apache.syncope.core.persistence.api.entity.auth.AuthModuleItem;
+import org.apache.syncope.core.persistence.api.entity.auth.AuthProfile;
+import org.apache.syncope.core.persistence.api.entity.auth.CASSP;
+import org.apache.syncope.core.persistence.api.entity.auth.OIDCJWKS;
+import org.apache.syncope.core.persistence.api.entity.auth.OIDCRP;
+import org.apache.syncope.core.persistence.api.entity.auth.SAML2IdPMetadata;
+import org.apache.syncope.core.persistence.api.entity.auth.SAML2SP;
+import org.apache.syncope.core.persistence.api.entity.auth.SAML2SPKeystore;
+import org.apache.syncope.core.persistence.api.entity.auth.SAML2SPMetadata;
+import org.apache.syncope.core.persistence.api.entity.auth.WAConfigEntry;
+import org.apache.syncope.core.persistence.api.entity.group.GPlainAttr;
+import org.apache.syncope.core.persistence.api.entity.group.GPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.api.entity.group.GPlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.group.Group;
+import org.apache.syncope.core.persistence.api.entity.group.TypeExtension;
+import org.apache.syncope.core.persistence.api.entity.policy.AccessPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.AccountPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.AttrReleasePolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.AuthPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.PasswordPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.PullCorrelationRuleEntity;
+import org.apache.syncope.core.persistence.api.entity.policy.PullPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.PushCorrelationRuleEntity;
+import org.apache.syncope.core.persistence.api.entity.policy.PushPolicy;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.api.entity.resource.Mapping;
+import org.apache.syncope.core.persistence.api.entity.resource.MappingItem;
+import org.apache.syncope.core.persistence.api.entity.resource.OrgUnit;
+import org.apache.syncope.core.persistence.api.entity.resource.OrgUnitItem;
+import org.apache.syncope.core.persistence.api.entity.resource.Provision;
+import org.apache.syncope.core.persistence.api.entity.task.AnyTemplatePullTask;
+import org.apache.syncope.core.persistence.api.entity.task.NotificationTask;
+import org.apache.syncope.core.persistence.api.entity.task.PropagationTask;
+import org.apache.syncope.core.persistence.api.entity.task.PullTask;
+import org.apache.syncope.core.persistence.api.entity.task.PushTask;
+import org.apache.syncope.core.persistence.api.entity.task.PushTaskAnyFilter;
+import org.apache.syncope.core.persistence.api.entity.task.SchedTask;
+import org.apache.syncope.core.persistence.api.entity.task.TaskExec;
+import org.apache.syncope.core.persistence.api.entity.user.DynRoleMembership;
+import org.apache.syncope.core.persistence.api.entity.user.LAPlainAttr;
+import org.apache.syncope.core.persistence.api.entity.user.LAPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.api.entity.user.LAPlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.user.LinkedAccount;
+import org.apache.syncope.core.persistence.api.entity.user.SecurityQuestion;
+import org.apache.syncope.core.persistence.api.entity.user.UDynGroupMembership;
+import org.apache.syncope.core.persistence.api.entity.user.UMembership;
+import org.apache.syncope.core.persistence.api.entity.user.UPlainAttr;
+import org.apache.syncope.core.persistence.api.entity.user.UPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.api.entity.user.UPlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.user.URelationship;
+import org.apache.syncope.core.persistence.api.entity.user.User;
+import org.apache.syncope.core.persistence.jpa.dao.JPAAnySearchDAO;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAADynGroupMembership;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAMembership;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAPlainAttrValue;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAARelationship;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAnyObject;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPAAuthProfile;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPACASSP;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPAOIDCJWKS;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPAOIDCRP;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPASAML2SP;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPASAML2SPKeystore;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPASAML2SPMetadata;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPAWAConfigEntry;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPAGPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPAGPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPAGPlainAttrValue;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPAGroup;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPATypeExtension;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAccessPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAccountPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAttrReleasePolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAuthPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPasswordPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPullCorrelationRuleEntity;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPullPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPushCorrelationRuleEntity;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPushPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAExternalResource;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAMapping;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAMappingItem;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAOrgUnit;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAOrgUnitItem;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAProvision;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPAAnyTemplatePullTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPANotificationTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPAPropagationTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPAPullTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPAPushTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPAPushTaskAnyFilter;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPASchedTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPATaskExec;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPADynRoleMembership;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPALAPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPALAPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPALAPlainAttrValue;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPALinkedAccount;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPASecurityQuestion;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUDynGroupMembership;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUMembership;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUPlainAttrValue;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAURelationship;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUser;
+import org.apache.syncope.core.spring.security.SecureRandomUtils;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPAAuthModule;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPAAuthModuleItem;
+import org.apache.syncope.core.persistence.jpa.entity.auth.JPASAML2IdPMetadata;
+import org.apache.syncope.core.persistence.api.entity.SRARoute;
+
+<span class="nc" id="L173">public class JPAEntityFactory implements EntityFactory {</span>
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    @Override
+    public &lt;E extends Entity&gt; E newEntity(final Class&lt;E&gt; reference) {
+        E result;
+
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        if (reference.equals(Realm.class)) {</span>
+<span class="nc" id="L181">            result = (E) new JPARealm();</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        } else if (reference.equals(DynRealm.class)) {</span>
+<span class="nc" id="L183">            result = (E) new JPADynRealm();</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">        } else if (reference.equals(DynRealmMembership.class)) {</span>
+<span class="nc" id="L185">            result = (E) new JPADynRealmMembership();</span>
+<span class="nc bnc" id="L186" title="All 2 branches missed.">        } else if (reference.equals(AnyTemplateRealm.class)) {</span>
+<span class="nc" id="L187">            result = (E) new JPAAnyTemplateRealm();</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">        } else if (reference.equals(AccountPolicy.class)) {</span>
+<span class="nc" id="L189">            result = (E) new JPAAccountPolicy();</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">        } else if (reference.equals(PasswordPolicy.class)) {</span>
+<span class="nc" id="L191">            result = (E) new JPAPasswordPolicy();</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        } else if (reference.equals(PushPolicy.class)) {</span>
+<span class="nc" id="L193">            result = (E) new JPAPushPolicy();</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">        } else if (reference.equals(PullPolicy.class)) {</span>
+<span class="nc" id="L195">            result = (E) new JPAPullPolicy();</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">        } else if (reference.equals(PullCorrelationRuleEntity.class)) {</span>
+<span class="nc" id="L197">            result = (E) new JPAPullCorrelationRuleEntity();</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        } else if (reference.equals(PushCorrelationRuleEntity.class)) {</span>
+<span class="nc" id="L199">            result = (E) new JPAPushCorrelationRuleEntity();</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        } else if (reference.equals(AnyTypeClass.class)) {</span>
+<span class="nc" id="L201">            result = (E) new JPAAnyTypeClass();</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">        } else if (reference.equals(AnyType.class)) {</span>
+<span class="nc" id="L203">            result = (E) new JPAAnyType();</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">        } else if (reference.equals(AnyObject.class)) {</span>
+<span class="nc" id="L205">            result = (E) new JPAAnyObject();</span>
+<span class="nc bnc" id="L206" title="All 2 branches missed.">        } else if (reference.equals(Role.class)) {</span>
+<span class="nc" id="L207">            result = (E) new JPARole();</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">        } else if (reference.equals(Application.class)) {</span>
+<span class="nc" id="L209">            result = (E) new JPAApplication();</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        } else if (reference.equals(Privilege.class)) {</span>
+<span class="nc" id="L211">            result = (E) new JPAPrivilege();</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">        } else if (reference.equals(User.class)) {</span>
+<span class="nc" id="L213">            result = (E) new JPAUser();</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        } else if (reference.equals(Group.class)) {</span>
+<span class="nc" id="L215">            result = (E) new JPAGroup();</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">        } else if (reference.equals(TypeExtension.class)) {</span>
+<span class="nc" id="L217">            result = (E) new JPATypeExtension();</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        } else if (reference.equals(RelationshipType.class)) {</span>
+<span class="nc" id="L219">            result = (E) new JPARelationshipType();</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">        } else if (reference.equals(ARelationship.class)) {</span>
+<span class="nc" id="L221">            result = (E) new JPAARelationship();</span>
+<span class="nc bnc" id="L222" title="All 2 branches missed.">        } else if (reference.equals(URelationship.class)) {</span>
+<span class="nc" id="L223">            result = (E) new JPAURelationship();</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">        } else if (reference.equals(AMembership.class)) {</span>
+<span class="nc" id="L225">            result = (E) new JPAAMembership();</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">        } else if (reference.equals(UMembership.class)) {</span>
+<span class="nc" id="L227">            result = (E) new JPAUMembership();</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        } else if (reference.equals(LinkedAccount.class)) {</span>
+<span class="nc" id="L229">            result = (E) new JPALinkedAccount();</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">        } else if (reference.equals(AnyAbout.class)) {</span>
+<span class="nc" id="L231">            result = (E) new JPAAnyAbout();</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">        } else if (reference.equals(MailTemplate.class)) {</span>
+<span class="nc" id="L233">            result = (E) new JPAMailTemplate();</span>
+<span class="nc bnc" id="L234" title="All 2 branches missed.">        } else if (reference.equals(Notification.class)) {</span>
+<span class="nc" id="L235">            result = (E) new JPANotification();</span>
+<span class="nc bnc" id="L236" title="All 2 branches missed.">        } else if (reference.equals(ExternalResource.class)) {</span>
+<span class="nc" id="L237">            result = (E) new JPAExternalResource();</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        } else if (reference.equals(Provision.class)) {</span>
+<span class="nc" id="L239">            result = (E) new JPAProvision();</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">        } else if (reference.equals(OrgUnit.class)) {</span>
+<span class="nc" id="L241">            result = (E) new JPAOrgUnit();</span>
+<span class="nc bnc" id="L242" title="All 2 branches missed.">        } else if (reference.equals(ConnInstance.class)) {</span>
+<span class="nc" id="L243">            result = (E) new JPAConnInstance();</span>
+<span class="nc bnc" id="L244" title="All 2 branches missed.">        } else if (reference.equals(SchemaLabel.class)) {</span>
+<span class="nc" id="L245">            result = (E) new JPASchemaLabel();</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">        } else if (reference.equals(PlainSchema.class)) {</span>
+<span class="nc" id="L247">            result = (E) new JPAPlainSchema();</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        } else if (reference.equals(APlainAttr.class)) {</span>
+<span class="nc" id="L249">            result = (E) new JPAAPlainAttr();</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        } else if (reference.equals(APlainAttrValue.class)) {</span>
+<span class="nc" id="L251">            result = (E) new JPAAPlainAttrValue();</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">        } else if (reference.equals(APlainAttrUniqueValue.class)) {</span>
+<span class="nc" id="L253">            result = (E) new JPAAPlainAttrUniqueValue();</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">        } else if (reference.equals(UPlainAttr.class)) {</span>
+<span class="nc" id="L255">            result = (E) new JPAUPlainAttr();</span>
+<span class="nc bnc" id="L256" title="All 2 branches missed.">        } else if (reference.equals(UPlainAttrValue.class)) {</span>
+<span class="nc" id="L257">            result = (E) new JPAUPlainAttrValue();</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        } else if (reference.equals(UPlainAttrUniqueValue.class)) {</span>
+<span class="nc" id="L259">            result = (E) new JPAUPlainAttrUniqueValue();</span>
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        } else if (reference.equals(LAPlainAttr.class)) {</span>
+<span class="nc" id="L261">            result = (E) new JPALAPlainAttr();</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        } else if (reference.equals(LAPlainAttrValue.class)) {</span>
+<span class="nc" id="L263">            result = (E) new JPALAPlainAttrValue();</span>
+<span class="nc bnc" id="L264" title="All 2 branches missed.">        } else if (reference.equals(LAPlainAttrUniqueValue.class)) {</span>
+<span class="nc" id="L265">            result = (E) new JPALAPlainAttrUniqueValue();</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">        } else if (reference.equals(DerSchema.class)) {</span>
+<span class="nc" id="L267">            result = (E) new JPADerSchema();</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">        } else if (reference.equals(VirSchema.class)) {</span>
+<span class="nc" id="L269">            result = (E) new JPAVirSchema();</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">        } else if (reference.equals(Mapping.class)) {</span>
+<span class="nc" id="L271">            result = (E) new JPAMapping();</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">        } else if (reference.equals(MappingItem.class)) {</span>
+<span class="nc" id="L273">            result = (E) new JPAMappingItem();</span>
+<span class="nc bnc" id="L274" title="All 2 branches missed.">        } else if (reference.equals(OrgUnitItem.class)) {</span>
+<span class="nc" id="L275">            result = (E) new JPAOrgUnitItem();</span>
+<span class="nc bnc" id="L276" title="All 2 branches missed.">        } else if (reference.equals(GPlainAttr.class)) {</span>
+<span class="nc" id="L277">            result = (E) new JPAGPlainAttr();</span>
+<span class="nc bnc" id="L278" title="All 2 branches missed.">        } else if (reference.equals(GPlainAttrValue.class)) {</span>
+<span class="nc" id="L279">            result = (E) new JPAGPlainAttrValue();</span>
+<span class="nc bnc" id="L280" title="All 2 branches missed.">        } else if (reference.equals(GPlainAttrUniqueValue.class)) {</span>
+<span class="nc" id="L281">            result = (E) new JPAGPlainAttrUniqueValue();</span>
+<span class="nc bnc" id="L282" title="All 2 branches missed.">        } else if (reference.equals(Report.class)) {</span>
+<span class="nc" id="L283">            result = (E) new JPAReport();</span>
+<span class="nc bnc" id="L284" title="All 2 branches missed.">        } else if (reference.equals(ReportTemplate.class)) {</span>
+<span class="nc" id="L285">            result = (E) new JPAReportTemplate();</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">        } else if (reference.equals(ReportExec.class)) {</span>
+<span class="nc" id="L287">            result = (E) new JPAReportExec();</span>
+<span class="nc bnc" id="L288" title="All 2 branches missed.">        } else if (reference.equals(NotificationTask.class)) {</span>
+<span class="nc" id="L289">            result = (E) new JPANotificationTask();</span>
+<span class="nc bnc" id="L290" title="All 2 branches missed.">        } else if (reference.equals(PropagationTask.class)) {</span>
+<span class="nc" id="L291">            result = (E) new JPAPropagationTask();</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">        } else if (reference.equals(PushTask.class)) {</span>
+<span class="nc" id="L293">            result = (E) new JPAPushTask();</span>
+<span class="nc bnc" id="L294" title="All 2 branches missed.">        } else if (reference.equals(PullTask.class)) {</span>
+<span class="nc" id="L295">            result = (E) new JPAPullTask();</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">        } else if (reference.equals(SchedTask.class)) {</span>
+<span class="nc" id="L297">            result = (E) new JPASchedTask();</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">        } else if (reference.equals(TaskExec.class)) {</span>
+<span class="nc" id="L299">            result = (E) new JPATaskExec();</span>
+<span class="nc bnc" id="L300" title="All 2 branches missed.">        } else if (reference.equals(PushTaskAnyFilter.class)) {</span>
+<span class="nc" id="L301">            result = (E) new JPAPushTaskAnyFilter();</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">        } else if (reference.equals(AnyTemplatePullTask.class)) {</span>
+<span class="nc" id="L303">            result = (E) new JPAAnyTemplatePullTask();</span>
+<span class="nc bnc" id="L304" title="All 2 branches missed.">        } else if (reference.equals(SecurityQuestion.class)) {</span>
+<span class="nc" id="L305">            result = (E) new JPASecurityQuestion();</span>
+<span class="nc bnc" id="L306" title="All 2 branches missed.">        } else if (reference.equals(Logger.class)) {</span>
+<span class="nc" id="L307">            result = (E) new JPALogger();</span>
+<span class="nc bnc" id="L308" title="All 2 branches missed.">        } else if (reference.equals(DynRoleMembership.class)) {</span>
+<span class="nc" id="L309">            result = (E) new JPADynRoleMembership();</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">        } else if (reference.equals(ADynGroupMembership.class)) {</span>
+<span class="nc" id="L311">            result = (E) new JPAADynGroupMembership();</span>
+<span class="nc bnc" id="L312" title="All 2 branches missed.">        } else if (reference.equals(UDynGroupMembership.class)) {</span>
+<span class="nc" id="L313">            result = (E) new JPAUDynGroupMembership();</span>
+<span class="nc bnc" id="L314" title="All 2 branches missed.">        } else if (reference.equals(AccessToken.class)) {</span>
+<span class="nc" id="L315">            result = (E) new JPAAccessToken();</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">        } else if (reference.equals(Implementation.class)) {</span>
+<span class="nc" id="L317">            result = (E) new JPAImplementation();</span>
+<span class="nc bnc" id="L318" title="All 2 branches missed.">        } else if (reference.equals(Remediation.class)) {</span>
+<span class="nc" id="L319">            result = (E) new JPARemediation();</span>
+<span class="nc bnc" id="L320" title="All 2 branches missed.">        } else if (reference.equals(Batch.class)) {</span>
+<span class="nc" id="L321">            result = (E) new JPABatch();</span>
+<span class="nc bnc" id="L322" title="All 2 branches missed.">        } else if (reference.equals(SRARoute.class)) {</span>
+<span class="nc" id="L323">            result = (E) new JPASRARoute();</span>
+<span class="nc bnc" id="L324" title="All 2 branches missed.">        } else if (reference.equals(AuthModule.class)) {</span>
+<span class="nc" id="L325">            result = (E) new JPAAuthModule();</span>
+<span class="nc bnc" id="L326" title="All 2 branches missed.">        } else if (reference.equals(AuthModuleItem.class)) {</span>
+<span class="nc" id="L327">            result = (E) new JPAAuthModuleItem();</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">        } else if (reference.equals(AuthPolicy.class)) {</span>
+<span class="nc" id="L329">            result = (E) new JPAAuthPolicy();</span>
+<span class="nc bnc" id="L330" title="All 2 branches missed.">        } else if (reference.equals(AccessPolicy.class)) {</span>
+<span class="nc" id="L331">            result = (E) new JPAAccessPolicy();</span>
+<span class="nc bnc" id="L332" title="All 2 branches missed.">        } else if (reference.equals(AttrReleasePolicy.class)) {</span>
+<span class="nc" id="L333">            result = (E) new JPAAttrReleasePolicy();</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">        } else if (reference.equals(OIDCRP.class)) {</span>
+<span class="nc" id="L335">            result = (E) new JPAOIDCRP();</span>
+<span class="nc bnc" id="L336" title="All 2 branches missed.">        } else if (reference.equals(CASSP.class)) {</span>
+<span class="nc" id="L337">            result = (E) new JPACASSP();</span>
+<span class="nc bnc" id="L338" title="All 2 branches missed.">        } else if (reference.equals(SAML2SP.class)) {</span>
+<span class="nc" id="L339">            result = (E) new JPASAML2SP();</span>
+<span class="nc bnc" id="L340" title="All 2 branches missed.">        } else if (reference.equals(SAML2IdPMetadata.class)) {</span>
+<span class="nc" id="L341">            result = (E) new JPASAML2IdPMetadata();</span>
+<span class="nc bnc" id="L342" title="All 2 branches missed.">        } else if (reference.equals(SAML2SPMetadata.class)) {</span>
+<span class="nc" id="L343">            result = (E) new JPASAML2SPMetadata();</span>
+<span class="nc bnc" id="L344" title="All 2 branches missed.">        } else if (reference.equals(SAML2SPKeystore.class)) {</span>
+<span class="nc" id="L345">            result = (E) new JPASAML2SPKeystore();</span>
+<span class="nc bnc" id="L346" title="All 2 branches missed.">        } else if (reference.equals(AuthProfile.class)) {</span>
+<span class="nc" id="L347">            result = (E) new JPAAuthProfile();</span>
+<span class="nc bnc" id="L348" title="All 2 branches missed.">        } else if (reference.equals(OIDCJWKS.class)) {</span>
+<span class="nc" id="L349">            result = (E) new JPAOIDCJWKS();</span>
+<span class="nc bnc" id="L350" title="All 2 branches missed.">        } else if (reference.equals(WAConfigEntry.class)) {</span>
+<span class="nc" id="L351">            result = (E) new JPAWAConfigEntry();</span>
+        } else {
+<span class="nc" id="L353">            throw new IllegalArgumentException(&quot;Could not find a JPA implementation of &quot; + reference.getName());</span>
+        }
+
+<span class="nc bnc" id="L356" title="All 2 branches missed.">        if (result instanceof AbstractGeneratedKeyEntity) {</span>
+<span class="nc" id="L357">            ((AbstractGeneratedKeyEntity) result).setKey(SecureRandomUtils.generateRandomUUID().toString());</span>
+        }
+
+<span class="nc" id="L360">        return result;</span>
+    }
+
+    @Override
+    public ConnPoolConf newConnPoolConf() {
+<span class="nc" id="L365">        return new JPAConnPoolConf();</span>
+    }
+
+    @Override
+    public Class&lt;? extends User&gt; userClass() {
+<span class="nc" id="L370">        return JPAUser.class;</span>
+    }
+
+    @Override
+    public Class&lt;? extends Group&gt; groupClass() {
+<span class="nc" id="L375">        return JPAGroup.class;</span>
+    }
+
+    @Override
+    public Class&lt;? extends AnyObject&gt; anyObjectClass() {
+<span class="nc" id="L380">        return JPAAnyObject.class;</span>
+    }
+
+    @Override
+    public Class&lt;? extends AnySearchDAO&gt; anySearchDAOClass() {
+<span class="nc" id="L385">        return JPAAnySearchDAO.class;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

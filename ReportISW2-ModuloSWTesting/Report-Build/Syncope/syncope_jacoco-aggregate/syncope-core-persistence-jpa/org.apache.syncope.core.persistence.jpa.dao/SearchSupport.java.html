@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>SearchSupport.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">SearchSupport.java</span></div><h1>SearchSupport.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.syncope.common.lib.types.AnyTypeKind;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAnyObject;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPAGroup;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUser;
+
+public class SearchSupport {
+
+    public static class SearchView {
+
+        protected String alias;
+
+        protected String name;
+
+<span class="nc" id="L36">        protected SearchView(final String alias, final String name) {</span>
+<span class="nc" id="L37">            this.alias = alias;</span>
+<span class="nc" id="L38">            this.name = name;</span>
+<span class="nc" id="L39">        }</span>
+
+        @Override
+        public int hashCode() {
+<span class="nc" id="L43">            return new HashCodeBuilder().</span>
+<span class="nc" id="L44">                    append(alias).</span>
+<span class="nc" id="L45">                    append(name).</span>
+<span class="nc" id="L46">                    build();</span>
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">            if (this == obj) {</span>
+<span class="nc" id="L52">                return true;</span>
+            }
+<span class="nc bnc" id="L54" title="All 2 branches missed.">            if (obj == null) {</span>
+<span class="nc" id="L55">                return false;</span>
+            }
+<span class="nc bnc" id="L57" title="All 2 branches missed.">            if (getClass() != obj.getClass()) {</span>
+<span class="nc" id="L58">                return false;</span>
+            }
+<span class="nc" id="L60">            final SearchView other = (SearchView) obj;</span>
+<span class="nc" id="L61">            return new EqualsBuilder().</span>
+<span class="nc" id="L62">                    append(alias, other.alias).</span>
+<span class="nc" id="L63">                    append(name, other.name).</span>
+<span class="nc" id="L64">                    build();</span>
+        }
+    }
+
+    protected final AnyTypeKind anyTypeKind;
+
+<span class="nc" id="L70">    protected boolean nonMandatorySchemas = false;</span>
+
+<span class="nc" id="L72">    public SearchSupport(final AnyTypeKind anyTypeKind) {</span>
+<span class="nc" id="L73">        this.anyTypeKind = anyTypeKind;</span>
+<span class="nc" id="L74">    }</span>
+
+    public SearchView table() {
+        String result;
+
+<span class="nc bnc" id="L79" title="All 3 branches missed.">        switch (anyTypeKind) {</span>
+            case ANY_OBJECT:
+<span class="nc" id="L81">                result = JPAAnyObject.TABLE;</span>
+<span class="nc" id="L82">                break;</span>
+
+            case GROUP:
+<span class="nc" id="L85">                result = JPAGroup.TABLE;</span>
+<span class="nc" id="L86">                break;</span>
+
+            case USER:
+            default:
+<span class="nc" id="L90">                result = JPAUser.TABLE;</span>
+                break;
+        }
+
+<span class="nc" id="L94">        return new SearchView(&quot;t&quot;, result);</span>
+    }
+
+    public SearchView field() {
+        String result;
+
+<span class="nc bnc" id="L100" title="All 3 branches missed.">        switch (anyTypeKind) {</span>
+            case ANY_OBJECT:
+<span class="nc" id="L102">                result = &quot;anyObject_search&quot;;</span>
+<span class="nc" id="L103">                break;</span>
+
+            case GROUP:
+<span class="nc" id="L106">                result = &quot;group_search&quot;;</span>
+<span class="nc" id="L107">                break;</span>
+
+            case USER:
+            default:
+<span class="nc" id="L111">                result = &quot;user_search&quot;;</span>
+                break;
+        }
+
+<span class="nc" id="L115">        return new SearchView(&quot;sv&quot;, result);</span>
+    }
+
+    public SearchView relationship() {
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        String kind = anyTypeKind == AnyTypeKind.USER ? &quot;u&quot; : &quot;a&quot;;</span>
+<span class="nc" id="L120">        return new SearchView(&quot;sv&quot; + kind + 'm', field().name + '_' + kind + &quot;relationship&quot;);</span>
+    }
+
+    public SearchView membership() {
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        String kind = anyTypeKind == AnyTypeKind.USER ? &quot;u&quot; : &quot;a&quot;;</span>
+<span class="nc" id="L125">        return new SearchView(&quot;sv&quot; + kind + 'm', field().name + '_' + kind + &quot;membership&quot;);</span>
+    }
+
+    public SearchView dyngroupmembership() {
+<span class="nc" id="L129">        return new SearchView(&quot;sv&quot; + anyTypeKind.name() + &quot;dgm&quot;,</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">                anyTypeKind == AnyTypeKind.USER ? JPAGroupDAO.UDYNMEMB_TABLE : JPAGroupDAO.ADYNMEMB_TABLE);</span>
+    }
+
+    public SearchView role() {
+<span class="nc" id="L134">        return new SearchView(&quot;svr&quot;, field().name + &quot;_role&quot;);</span>
+    }
+
+    public SearchView priv() {
+<span class="nc" id="L138">        return new SearchView(&quot;svp&quot;, field().name + &quot;_priv&quot;);</span>
+    }
+
+    public SearchView dynpriv() {
+<span class="nc" id="L142">        return new SearchView(&quot;svdp&quot;, field().name + &quot;_dynpriv&quot;);</span>
+    }
+
+    public static SearchView dynrolemembership() {
+<span class="nc" id="L146">        return new SearchView(&quot;svdr&quot;, JPARoleDAO.DYNMEMB_TABLE);</span>
+    }
+
+    public static SearchView dynrealmmembership() {
+<span class="nc" id="L150">        return new SearchView(&quot;svdrealm&quot;, JPADynRealmDAO.DYNMEMB_TABLE);</span>
+    }
+
+    public SearchView resource() {
+<span class="nc" id="L154">        return new SearchView(&quot;svr&quot;, field().name + &quot;_resource&quot;);</span>
+    }
+
+    public SearchView groupResource() {
+<span class="nc" id="L158">        return new SearchView(&quot;svrr&quot;, field().name + &quot;_group_res&quot;);</span>
+    }
+
+    public SearchView entitlements() {
+<span class="nc" id="L162">        return new SearchView(&quot;sve&quot;, field().name + &quot;_entitlements&quot;);</span>
+    }
+
+    SearchViewSupport asSearchViewSupport() {
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (this instanceof SearchViewSupport) {</span>
+<span class="nc" id="L167">            return (SearchViewSupport) this;</span>
+        }
+<span class="nc" id="L169">        throw new IllegalArgumentException(&quot;Not an &quot; + SearchViewSupport.class + &quot; instance&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

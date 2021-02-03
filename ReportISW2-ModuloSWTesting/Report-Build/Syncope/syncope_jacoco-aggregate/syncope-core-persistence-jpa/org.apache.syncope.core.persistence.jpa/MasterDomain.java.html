@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>MasterDomain.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa</a> &gt; <span class="el_source">MasterDomain.java</span></div><h1>MasterDomain.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Map;
+import java.util.Objects;
+
+import javax.sql.DataSource;
+import org.apache.syncope.core.persistence.jpa.spring.CommonEntityManagerFactoryConf;
+import org.apache.syncope.core.persistence.jpa.spring.DomainEntityManagerFactoryBean;
+import org.apache.syncope.core.spring.ResourceWithFallbackLoader;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.Environment;
+import org.springframework.core.io.Resource;
+import org.springframework.jdbc.datasource.init.DataSourceInitializer;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.jndi.JndiObjectFactoryBean;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.vendor.OpenJpaVendorAdapter;
+import org.springframework.transaction.PlatformTransactionManager;
+
+@PropertySource(&quot;classpath:domains/Master.properties&quot;)
+@PropertySource(value = &quot;file:${conf.directory}/domains/Master.properties&quot;, ignoreResourceNotFound = true)
+@Configuration
+<span class="nc" id="L52">public class MasterDomain {</span>
+
+    @Autowired
+    private CommonEntityManagerFactoryConf commonEMFConf;
+
+    @Autowired
+    private ConfigurableApplicationContext ctx;
+
+    @Autowired
+    private Environment env;
+
+    @Value(&quot;${Master.driverClassName}&quot;)
+    private String driverClassName;
+
+    @Value(&quot;${Master.url}&quot;)
+    private String url;
+
+    @Value(&quot;${Master.schema}&quot;)
+    private String schema;
+
+    @Value(&quot;${Master.username}&quot;)
+    private String username;
+
+    @Value(&quot;${Master.password}&quot;)
+    private String password;
+
+    @Value(&quot;${Master.pool.transactionIsolation:TRANSACTION_READ_COMMITTED}&quot;)
+    private String transactionIsolation;
+
+    @Value(&quot;${Master.pool.maxActive:10}&quot;)
+    private int maximumPoolSize;
+
+    @Value(&quot;${Master.pool.minIdle:2}&quot;)
+    private int minimumIdle;
+
+    @Value(&quot;classpath:/audit/${Master.audit.sql}&quot;)
+    private Resource auditSql;
+
+    @Value(&quot;${Master.orm}&quot;)
+    private String orm;
+
+    @Value(&quot;${Master.databasePlatform}&quot;)
+    private String databasePlatform;
+
+    @Value(&quot;${content.directory}&quot;)
+    private String contentDirectory;
+
+    @Bean(name = &quot;MasterDataSource&quot;)
+    @ConditionalOnMissingBean(name = &quot;MasterDataSource&quot;)
+    public JndiObjectFactoryBean masterDataSource() {
+<span class="nc" id="L102">        HikariConfig hikariConfig = new HikariConfig();</span>
+<span class="nc" id="L103">        hikariConfig.setDriverClassName(driverClassName);</span>
+<span class="nc" id="L104">        hikariConfig.setJdbcUrl(url);</span>
+<span class="nc" id="L105">        hikariConfig.setUsername(username);</span>
+<span class="nc" id="L106">        hikariConfig.setPassword(password);</span>
+<span class="nc" id="L107">        hikariConfig.setTransactionIsolation(transactionIsolation);</span>
+<span class="nc" id="L108">        hikariConfig.setMaximumPoolSize(maximumPoolSize);</span>
+<span class="nc" id="L109">        hikariConfig.setMinimumIdle(minimumIdle);</span>
+
+<span class="nc" id="L111">        JndiObjectFactoryBean masterDataSource = new JndiObjectFactoryBean();</span>
+<span class="nc" id="L112">        masterDataSource.setJndiName(&quot;java:comp/env/jdbc/syncopeMasterDataSource&quot;);</span>
+<span class="nc" id="L113">        masterDataSource.setDefaultObject(new HikariDataSource(hikariConfig));</span>
+<span class="nc" id="L114">        return masterDataSource;</span>
+    }
+
+    @Bean(name = &quot;MasterResourceDatabasePopulator&quot;)
+    @ConditionalOnMissingBean(name = &quot;MasterResourceDatabasePopulator&quot;)
+    public ResourceDatabasePopulator masterResourceDatabasePopulator() {
+<span class="nc" id="L120">        ResourceDatabasePopulator databasePopulator = new ResourceDatabasePopulator();</span>
+<span class="nc" id="L121">        databasePopulator.setContinueOnError(true);</span>
+<span class="nc" id="L122">        databasePopulator.setIgnoreFailedDrops(true);</span>
+<span class="nc" id="L123">        databasePopulator.setSqlScriptEncoding(&quot;UTF-8&quot;);</span>
+<span class="nc" id="L124">        databasePopulator.addScript(auditSql);</span>
+<span class="nc" id="L125">        return databasePopulator;</span>
+    }
+
+    @Bean(name = &quot;MasterDataSourceInitializer&quot;)
+    @ConditionalOnMissingBean(name = &quot;MasterDataSourceInitializer&quot;)
+    public DataSourceInitializer masterDataSourceInitializer() {
+<span class="nc" id="L131">        DataSourceInitializer dataSourceInitializer = new DataSourceInitializer();</span>
+<span class="nc" id="L132">        dataSourceInitializer.setDataSource((DataSource) Objects.requireNonNull(masterDataSource().getObject()));</span>
+<span class="nc" id="L133">        dataSourceInitializer.setEnabled(true);</span>
+<span class="nc" id="L134">        dataSourceInitializer.setDatabasePopulator(masterResourceDatabasePopulator());</span>
+<span class="nc" id="L135">        return dataSourceInitializer;</span>
+    }
+
+    @Bean(name = &quot;MasterEntityManagerFactory&quot;)
+    @DependsOn(&quot;commonEMFConf&quot;)
+    @ConditionalOnMissingBean(name = &quot;MasterEntityManagerFactory&quot;)
+    public DomainEntityManagerFactoryBean masterEntityManagerFactory() {
+<span class="nc" id="L142">        OpenJpaVendorAdapter vendorAdapter = new OpenJpaVendorAdapter();</span>
+<span class="nc" id="L143">        vendorAdapter.setShowSql(false);</span>
+<span class="nc" id="L144">        vendorAdapter.setGenerateDdl(true);</span>
+<span class="nc" id="L145">        vendorAdapter.setDatabasePlatform(databasePlatform);</span>
+<span class="nc" id="L146">        DomainEntityManagerFactoryBean masterEntityManagerFactory = new DomainEntityManagerFactoryBean();</span>
+<span class="nc" id="L147">        masterEntityManagerFactory.setMappingResources(orm);</span>
+<span class="nc" id="L148">        masterEntityManagerFactory.setPersistenceUnitName(&quot;Master&quot;);</span>
+
+<span class="nc" id="L150">        masterEntityManagerFactory.setDataSource(Objects.requireNonNull((DataSource) masterDataSource().getObject()));</span>
+<span class="nc" id="L151">        masterEntityManagerFactory.setJpaVendorAdapter(vendorAdapter);</span>
+<span class="nc" id="L152">        masterEntityManagerFactory.setCommonEntityManagerFactoryConf(commonEMFConf);</span>
+
+<span class="nc bnc" id="L154" title="All 2 branches missed.">        if (env.containsProperty(&quot;openjpaMetaDataFactory&quot;)) {</span>
+<span class="nc" id="L155">            masterEntityManagerFactory.setJpaPropertyMap(Map.of(</span>
+                    &quot;openjpa.MetaDataFactory&quot;,
+<span class="nc" id="L157">                    Objects.requireNonNull(env.getProperty(&quot;openjpaMetaDataFactory&quot;)).replace(&quot;##orm##&quot;, orm)));</span>
+        }
+
+<span class="nc" id="L160">        return masterEntityManagerFactory;</span>
+    }
+
+    @Bean(name = { &quot;MasterTransactionManager&quot;, &quot;Master&quot; })
+    @ConditionalOnMissingBean(name = &quot;MasterTransactionManager&quot;)
+    public PlatformTransactionManager transactionManager() {
+<span class="nc" id="L166">        return new JpaTransactionManager(Objects.requireNonNull(masterEntityManagerFactory().getObject()));</span>
+    }
+
+    @Bean(name = &quot;MasterProperties&quot;)
+    @ConditionalOnMissingBean(name = &quot;MasterProperties&quot;)
+    public ResourceWithFallbackLoader masterProperties() {
+<span class="nc" id="L172">        ResourceWithFallbackLoader masterProperties = new ResourceWithFallbackLoader();</span>
+<span class="nc" id="L173">        masterProperties.setPrimary(&quot;file:&quot; + contentDirectory + &quot;/domains/Master.properties&quot;);</span>
+<span class="nc" id="L174">        masterProperties.setFallback(&quot;classpath:domains/Master.properties&quot;);</span>
+<span class="nc" id="L175">        return masterProperties;</span>
+    }
+
+    @Bean(name = &quot;MasterContentXML&quot;)
+    @ConditionalOnMissingBean(name = &quot;MasterContentXML&quot;)
+    public InputStream masterContentXML() throws IOException {
+<span class="nc" id="L181">        ResourceWithFallbackLoader masterContentXML =</span>
+<span class="nc" id="L182">                ctx.getBeanFactory().createBean(ResourceWithFallbackLoader.class);</span>
+<span class="nc" id="L183">        masterContentXML.setPrimary(&quot;file:&quot; + contentDirectory + &quot;/domains/MasterContent.xml&quot;);</span>
+<span class="nc" id="L184">        masterContentXML.setFallback(&quot;classpath:domains/MasterContent.xml&quot;);</span>
+<span class="nc" id="L185">        return masterContentXML.getResource().getInputStream();</span>
+    }
+
+    @Bean(name = &quot;MasterKeymasterConfParamsJSON&quot;)
+    @ConditionalOnMissingBean(name = &quot;MasterKeymasterConfParamsJSON&quot;)
+    public InputStream masterKeymasterConfParamsJSON() throws IOException {
+<span class="nc" id="L191">        ResourceWithFallbackLoader keymasterConfParamsJSON =</span>
+<span class="nc" id="L192">                ctx.getBeanFactory().createBean(ResourceWithFallbackLoader.class);</span>
+<span class="nc" id="L193">        keymasterConfParamsJSON.setPrimary(&quot;file:&quot; + contentDirectory + &quot;/domains/MasterKeymasterConfParams.json&quot;);</span>
+<span class="nc" id="L194">        keymasterConfParamsJSON.setFallback(&quot;classpath:domains/MasterKeymasterConfParams.json&quot;);</span>
+<span class="nc" id="L195">        return keymasterConfParamsJSON.getResource().getInputStream();</span>
+    }
+
+    @Bean(name = &quot;MasterDatabaseSchema&quot;)
+    @ConditionalOnMissingBean(name = &quot;MasterDatabaseSchema&quot;)
+    public String masterDatabaseSchema() {
+<span class="nc" id="L201">        return schema;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

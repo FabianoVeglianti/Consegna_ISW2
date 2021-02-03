@@ -1,0 +1,493 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAAnyMatchDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAAnyMatchDAO.java</span></div><h1>JPAAnyMatchDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.beans.PropertyDescriptor;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import javax.persistence.Entity;
+import javax.validation.ValidationException;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import org.apache.commons.lang3.BooleanUtils;
+import org.apache.commons.lang3.ClassUtils;
+import org.apache.syncope.common.lib.SyncopeConstants;
+import org.apache.syncope.common.lib.types.AnyTypeKind;
+import org.apache.syncope.common.lib.types.AttrSchemaType;
+import org.apache.syncope.core.persistence.api.dao.AnyObjectDAO;
+import org.apache.syncope.core.persistence.api.dao.GroupDAO;
+import org.apache.syncope.core.persistence.api.dao.RealmDAO;
+import org.apache.syncope.core.persistence.api.dao.UserDAO;
+import org.apache.syncope.core.persistence.api.dao.search.AnyCond;
+import org.apache.syncope.core.persistence.api.dao.search.AnyTypeCond;
+import org.apache.syncope.core.persistence.api.dao.search.AssignableCond;
+import org.apache.syncope.core.persistence.api.dao.search.AttrCond;
+import org.apache.syncope.core.persistence.api.dao.search.DynRealmCond;
+import org.apache.syncope.core.persistence.api.dao.search.MemberCond;
+import org.apache.syncope.core.persistence.api.dao.search.MembershipCond;
+import org.apache.syncope.core.persistence.api.dao.search.RelationshipCond;
+import org.apache.syncope.core.persistence.api.dao.search.RelationshipTypeCond;
+import org.apache.syncope.core.persistence.api.dao.search.ResourceCond;
+import org.apache.syncope.core.persistence.api.dao.search.RoleCond;
+import org.apache.syncope.core.persistence.api.dao.search.SearchCond;
+import org.apache.syncope.core.persistence.api.entity.Any;
+import org.apache.syncope.core.persistence.api.entity.AnyUtils;
+import org.apache.syncope.core.persistence.api.entity.AnyUtilsFactory;
+import org.apache.syncope.core.persistence.api.entity.GroupableRelatable;
+import org.apache.syncope.core.persistence.api.entity.PlainAttr;
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.persistence.api.entity.group.Group;
+import org.apache.syncope.core.persistence.api.entity.user.User;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import org.apache.syncope.core.persistence.api.dao.AnyMatchDAO;
+import org.apache.syncope.core.persistence.api.dao.PlainSchemaDAO;
+import org.apache.syncope.core.persistence.api.entity.PlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.jpa.entity.JPAPlainSchema;
+import org.springframework.beans.BeanUtils;
+
+@Component
+<span class="nc" id="L73">public class JPAAnyMatchDAO extends AbstractDAO&lt;Any&lt;?&gt;&gt; implements AnyMatchDAO {</span>
+
+    @Autowired
+    private UserDAO userDAO;
+
+    @Autowired
+    private GroupDAO groupDAO;
+
+    @Autowired
+    private AnyObjectDAO anyObjectDAO;
+
+    @Autowired
+    private RealmDAO realmDAO;
+
+    @Autowired
+    private PlainSchemaDAO plainSchemaDAO;
+
+    @Autowired
+    private AnyUtilsFactory anyUtilsFactory;
+
+    /**
+     * Verify if any matches the given search condition.
+     *
+     * @param any to be checked
+     * @param cond to be verified
+     * @param &lt;T&gt; any
+     * @return true if any matches cond
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public &lt;T extends Any&lt;?&gt;&gt; boolean matches(final T any, final SearchCond cond) {
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        boolean not = cond.getType() == SearchCond.Type.NOT_LEAF;</span>
+<span class="nc bnc" id="L105" title="All 4 branches missed.">        switch (cond.getType()) {</span>
+            case LEAF:
+            case NOT_LEAF:
+<span class="nc" id="L108">                Boolean match = cond.getLeaf(AnyTypeCond.class).</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">                        filter(leaf -&gt; AnyTypeKind.ANY_OBJECT == any.getType().getKind()).</span>
+<span class="nc" id="L110">                        map(leaf -&gt; matches(any, leaf, not)).</span>
+<span class="nc" id="L111">                        orElse(null);</span>
+
+<span class="nc bnc" id="L113" title="All 2 branches missed.">                if (match == null) {</span>
+<span class="nc" id="L114">                    match = cond.getLeaf(RelationshipTypeCond.class).</span>
+<span class="nc" id="L115">                            filter(leaf -&gt; any instanceof GroupableRelatable).</span>
+<span class="nc" id="L116">                            map(leaf -&gt; matches((GroupableRelatable) any, leaf, not)).</span>
+<span class="nc" id="L117">                            orElse(null);</span>
+                }
+
+<span class="nc bnc" id="L120" title="All 2 branches missed.">                if (match == null) {</span>
+<span class="nc" id="L121">                    match = cond.getLeaf(RelationshipCond.class).</span>
+<span class="nc" id="L122">                            filter(leaf -&gt; any instanceof GroupableRelatable).</span>
+<span class="nc" id="L123">                            map(leaf -&gt; matches((GroupableRelatable) any, leaf, not)).</span>
+<span class="nc" id="L124">                            orElse(null);</span>
+                }
+
+<span class="nc bnc" id="L127" title="All 2 branches missed.">                if (match == null) {</span>
+<span class="nc" id="L128">                    match = cond.getLeaf(MembershipCond.class).</span>
+<span class="nc" id="L129">                            filter(leaf -&gt; any instanceof GroupableRelatable).</span>
+<span class="nc" id="L130">                            map(leaf -&gt; matches((GroupableRelatable) any, leaf, not)).</span>
+<span class="nc" id="L131">                            orElse(null);</span>
+                }
+
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                if (match == null) {</span>
+<span class="nc" id="L135">                    match = cond.getLeaf(AssignableCond.class).</span>
+<span class="nc" id="L136">                            map(leaf -&gt; matches(any, leaf, not)).</span>
+<span class="nc" id="L137">                            orElse(null);</span>
+                }
+
+<span class="nc bnc" id="L140" title="All 2 branches missed.">                if (match == null) {</span>
+<span class="nc" id="L141">                    match = cond.getLeaf(RoleCond.class).</span>
+<span class="nc" id="L142">                            filter(leaf -&gt; any instanceof User).</span>
+<span class="nc" id="L143">                            map(leaf -&gt; matches((User) any, leaf, not)).</span>
+<span class="nc" id="L144">                            orElse(null);</span>
+                }
+
+<span class="nc bnc" id="L147" title="All 2 branches missed.">                if (match == null) {</span>
+<span class="nc" id="L148">                    match = cond.getLeaf(DynRealmCond.class).</span>
+<span class="nc" id="L149">                            map(leaf -&gt; matches(any, leaf, not)).</span>
+<span class="nc" id="L150">                            orElse(null);</span>
+                }
+
+<span class="nc bnc" id="L153" title="All 2 branches missed.">                if (match == null) {</span>
+<span class="nc" id="L154">                    match = cond.getLeaf(MemberCond.class).</span>
+<span class="nc" id="L155">                            filter(leaf -&gt; any instanceof Group).</span>
+<span class="nc" id="L156">                            map(leaf -&gt; matches((Group) any, leaf, not)).</span>
+<span class="nc" id="L157">                            orElse(null);</span>
+                }
+
+<span class="nc bnc" id="L160" title="All 2 branches missed.">                if (match == null) {</span>
+<span class="nc" id="L161">                    match = cond.getLeaf(ResourceCond.class).</span>
+<span class="nc" id="L162">                            map(leaf -&gt; matches(any, leaf, not)).</span>
+<span class="nc" id="L163">                            orElse(null);</span>
+                }
+
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                if (match == null) {</span>
+<span class="nc" id="L167">                    Optional&lt;AnyCond&gt; anyCond = cond.getLeaf(AnyCond.class);</span>
+<span class="nc bnc" id="L168" title="All 2 branches missed.">                    if (anyCond.isPresent()) {</span>
+<span class="nc" id="L169">                        match = matches(any, anyCond.get(), not);</span>
+                    } else {
+<span class="nc" id="L171">                        match = cond.getLeaf(AttrCond.class).</span>
+<span class="nc" id="L172">                                map(leaf -&gt; matches(any, leaf, not)).</span>
+<span class="nc" id="L173">                                orElse(null);</span>
+                    }
+                }
+
+<span class="nc bnc" id="L177" title="All 2 branches missed.">                if (match == null) {</span>
+<span class="nc" id="L178">                    match = cond.getLeaf(AttrCond.class).</span>
+<span class="nc" id="L179">                            map(leaf -&gt; matches(any, leaf, not)).</span>
+<span class="nc" id="L180">                            orElse(null);</span>
+                }
+
+<span class="nc" id="L183">                return BooleanUtils.toBoolean(match);</span>
+
+            case AND:
+<span class="nc bnc" id="L186" title="All 4 branches missed.">                return matches(any, cond.getLeft()) &amp;&amp; matches(any, cond.getRight());</span>
+
+            case OR:
+<span class="nc bnc" id="L189" title="All 4 branches missed.">                return matches(any, cond.getLeft()) || matches(any, cond.getRight());</span>
+
+            default:
+        }
+
+<span class="nc" id="L194">        return false;</span>
+    }
+
+    private static boolean matches(final Any&lt;?&gt; any, final AnyTypeCond cond, final boolean not) {
+<span class="nc" id="L198">        boolean equals = any.getType().getKey().equals(cond.getAnyTypeKey());</span>
+<span class="nc bnc" id="L199" title="All 4 branches missed.">        return not ? !equals : equals;</span>
+    }
+
+    private static boolean matches(
+        final GroupableRelatable&lt;?, ?, ?, ?, ?&gt; any, final RelationshipTypeCond cond, final boolean not) {
+
+<span class="nc" id="L205">        boolean found = any.getRelationships().stream().</span>
+<span class="nc" id="L206">                anyMatch(rel -&gt; rel.getType().getKey().equals(cond.getRelationshipTypeKey()));</span>
+<span class="nc bnc" id="L207" title="All 4 branches missed.">        return not ? !found : found;</span>
+    }
+
+    private boolean matches(
+            final GroupableRelatable&lt;?, ?, ?, ?, ?&gt; any, final RelationshipCond cond, final boolean not) {
+
+<span class="nc" id="L213">        String anyObject = cond.getAnyObject();</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        if (!SyncopeConstants.UUID_PATTERN.matcher(cond.getAnyObject()).matches()) {</span>
+<span class="nc" id="L215">            anyObject = anyObjectDAO.findKey(anyObject);</span>
+        }
+
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        boolean found = !any.getRelationships(anyObject).isEmpty();</span>
+<span class="nc bnc" id="L219" title="All 4 branches missed.">        return not ? !found : found;</span>
+    }
+
+    private boolean matches(
+            final GroupableRelatable&lt;?, ?, ?, ?, ?&gt; any, final MembershipCond cond, final boolean not) {
+
+<span class="nc bnc" id="L225" title="All 2 branches missed.">        final String group = SyncopeConstants.UUID_PATTERN.matcher(cond.getGroup()).matches()</span>
+<span class="nc" id="L226">                ? cond.getGroup()</span>
+<span class="nc" id="L227">                : groupDAO.findKey(cond.getGroup());</span>
+
+<span class="nc bnc" id="L229" title="All 2 branches missed.">        boolean found = any.getMembership(group).isPresent()</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">                || (any instanceof User</span>
+<span class="nc" id="L231">                        ? userDAO.findDynGroups(any.getKey())</span>
+<span class="nc" id="L232">                        : anyObjectDAO.findDynGroups(any.getKey())).stream().</span>
+<span class="nc bnc" id="L233" title="All 2 branches missed.">                        anyMatch(item -&gt; item.getKey().equals(group));</span>
+<span class="nc bnc" id="L234" title="All 4 branches missed.">        return not ? !found : found;</span>
+    }
+
+    private boolean matches(final Any&lt;?&gt; any, final AssignableCond cond, final boolean not) {
+<span class="nc" id="L238">        Realm realm = realmDAO.findByFullPath(cond.getRealmFullPath());</span>
+<span class="nc" id="L239">        boolean found = Optional.ofNullable(realm)</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">            .filter(realm1 -&gt; (cond.isFromGroup() ? realmDAO.findDescendants(realm1) : realmDAO.findAncestors(realm1)).</span>
+<span class="nc" id="L241">            stream().anyMatch(item -&gt; item.equals(any.getRealm()))).isPresent();</span>
+<span class="nc bnc" id="L242" title="All 4 branches missed.">        return not ? !found : found;</span>
+    }
+
+    private boolean matches(final User user, final RoleCond cond, final boolean not) {
+<span class="nc" id="L246">        boolean found = userDAO.findAllRoles(user).stream().anyMatch(role -&gt; role.getKey().equals(cond.getRole()));</span>
+<span class="nc bnc" id="L247" title="All 4 branches missed.">        return not ? !found : found;</span>
+    }
+
+    private boolean matches(final Any&lt;?&gt; any, final DynRealmCond cond, final boolean not) {
+<span class="nc" id="L251">        boolean found = anyUtilsFactory.getInstance(any).dao().findDynRealms(any.getKey()).stream().</span>
+<span class="nc" id="L252">                anyMatch(dynRealm -&gt; dynRealm.equals(cond.getDynRealm()));</span>
+<span class="nc bnc" id="L253" title="All 4 branches missed.">        return not ? !found : found;</span>
+    }
+
+    private boolean matches(final Group group, final MemberCond cond, final boolean not) {
+<span class="nc" id="L257">        boolean found = false;</span>
+
+<span class="nc" id="L259">        GroupableRelatable&lt;?, ?, ?, ?, ?&gt; any = userDAO.find(cond.getMember());</span>
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        if (any == null) {</span>
+<span class="nc" id="L261">            any = anyObjectDAO.find(cond.getMember());</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">            if (any != null) {</span>
+<span class="nc" id="L263">                found = groupDAO.findAMemberships(group).stream().</span>
+<span class="nc bnc" id="L264" title="All 2 branches missed.">                        anyMatch(memb -&gt; memb.getLeftEnd().getKey().equals(cond.getMember()))</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">                        || groupDAO.findADynMembers(group).contains(cond.getMember());</span>
+            }
+        } else {
+<span class="nc" id="L268">            found = groupDAO.findUMemberships(group).stream().</span>
+<span class="nc bnc" id="L269" title="All 2 branches missed.">                    anyMatch(memb -&gt; memb.getLeftEnd().getKey().equals(cond.getMember()))</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">                    || groupDAO.findUDynMembers(group).contains(cond.getMember());</span>
+        }
+
+<span class="nc bnc" id="L273" title="All 4 branches missed.">        return not ? !found : found;</span>
+    }
+
+    private boolean matches(final Any&lt;?&gt; any, final ResourceCond cond, final boolean not) {
+<span class="nc" id="L277">        boolean found = anyUtilsFactory.getInstance(any).getAllResources(any).stream().</span>
+<span class="nc" id="L278">                anyMatch(resource -&gt; resource.getKey().equals(cond.getResourceKey()));</span>
+<span class="nc bnc" id="L279" title="All 4 branches missed.">        return not ? !found : found;</span>
+    }
+
+    @SuppressWarnings({ &quot;unchecked&quot;, &quot;rawtypes&quot; })
+    private static boolean matches(
+            final List&lt;? extends PlainAttrValue&gt; anyAttrValues,
+            final PlainAttrValue attrValue,
+            final PlainSchema schema,
+            final AttrCond cond) {
+
+<span class="nc" id="L289">        return anyAttrValues.stream().anyMatch(item -&gt; {</span>
+<span class="nc bnc" id="L290" title="All 8 branches missed.">            switch (cond.getType()) {</span>
+                case EQ:
+<span class="nc" id="L292">                    return attrValue.getValue().equals(item.getValue());</span>
+
+                case IEQ:
+<span class="nc bnc" id="L295" title="All 4 branches missed.">                    if (schema.getType() == AttrSchemaType.String || schema.getType() == AttrSchemaType.Enum) {</span>
+<span class="nc" id="L296">                        return attrValue.getStringValue().equalsIgnoreCase(item.getStringValue());</span>
+                    } else {
+<span class="nc" id="L298">                        LOG.error(&quot;IEQ is only compatible with string or enum schemas&quot;);</span>
+<span class="nc" id="L299">                        return false;</span>
+                    }
+
+                case LIKE:
+                case ILIKE:
+<span class="nc bnc" id="L304" title="All 4 branches missed.">                    if (schema.getType() == AttrSchemaType.String || schema.getType() == AttrSchemaType.Enum) {</span>
+<span class="nc" id="L305">                        StringBuilder output = new StringBuilder();</span>
+<span class="nc bnc" id="L306" title="All 2 branches missed.">                        for (char c : cond.getExpression().toLowerCase().toCharArray()) {</span>
+<span class="nc bnc" id="L307" title="All 2 branches missed.">                            if (c == '%') {</span>
+<span class="nc" id="L308">                                output.append(&quot;.*&quot;);</span>
+<span class="nc bnc" id="L309" title="All 2 branches missed.">                            } else if (Character.isLetter(c)) {</span>
+<span class="nc" id="L310">                                output.append('[').</span>
+<span class="nc" id="L311">                                        append(c).</span>
+<span class="nc" id="L312">                                        append(Character.toUpperCase(c)).</span>
+<span class="nc" id="L313">                                        append(']');</span>
+                            } else {
+<span class="nc" id="L315">                                output.append(c);</span>
+                            }
+                        }
+<span class="nc bnc" id="L318" title="All 2 branches missed.">                        return (cond.getType() == AttrCond.Type.LIKE</span>
+<span class="nc" id="L319">                                ? Pattern.compile(output.toString())</span>
+<span class="nc" id="L320">                                : Pattern.compile(output.toString(), Pattern.CASE_INSENSITIVE)).</span>
+<span class="nc" id="L321">                                matcher(item.getStringValue()).matches();</span>
+                    } else {
+<span class="nc" id="L323">                        LOG.error(&quot;LIKE is only compatible with string or enum schemas&quot;);</span>
+<span class="nc" id="L324">                        return false;</span>
+                    }
+
+                case GT:
+<span class="nc bnc" id="L328" title="All 2 branches missed.">                    return item.&lt;Comparable&gt;getValue().compareTo(attrValue.getValue()) &gt; 0;</span>
+
+                case GE:
+<span class="nc bnc" id="L331" title="All 2 branches missed.">                    return item.&lt;Comparable&gt;getValue().compareTo(attrValue.getValue()) &gt;= 0;</span>
+
+                case LT:
+<span class="nc bnc" id="L334" title="All 2 branches missed.">                    return item.&lt;Comparable&gt;getValue().compareTo(attrValue.getValue()) &lt; 0;</span>
+
+                case LE:
+<span class="nc bnc" id="L337" title="All 2 branches missed.">                    return item.&lt;Comparable&gt;getValue().compareTo(attrValue.getValue()) &lt;= 0;</span>
+
+                default:
+<span class="nc" id="L340">                    return false;</span>
+            }
+        });
+    }
+
+    private boolean matches(final Any&lt;?&gt; any, final AttrCond cond, final boolean not) {
+<span class="nc" id="L346">        PlainSchema schema = plainSchemaDAO.find(cond.getSchema());</span>
+<span class="nc bnc" id="L347" title="All 2 branches missed.">        if (schema == null) {</span>
+<span class="nc" id="L348">            LOG.warn(&quot;Ignoring invalid schema '{}'&quot;, cond.getSchema());</span>
+<span class="nc" id="L349">            return false;</span>
+        }
+
+        @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L353">        Optional&lt;PlainAttr&lt;?&gt;&gt; attr = (Optional&lt;PlainAttr&lt;?&gt;&gt;) any.getPlainAttr(cond.getSchema());</span>
+
+        boolean found;
+<span class="nc bnc" id="L356" title="All 3 branches missed.">        switch (cond.getType()) {</span>
+            case ISNULL:
+<span class="nc" id="L358">                found = attr.isEmpty();</span>
+<span class="nc" id="L359">                break;</span>
+
+            case ISNOTNULL:
+<span class="nc" id="L362">                found = attr.isPresent();</span>
+<span class="nc" id="L363">                break;</span>
+
+            default:
+<span class="nc" id="L366">                PlainAttrValue attrValue = anyUtilsFactory.getInstance(any).newPlainAttrValue();</span>
+                try {
+<span class="nc bnc" id="L368" title="All 2 branches missed.">                    if (cond.getType() != AttrCond.Type.LIKE</span>
+<span class="nc bnc" id="L369" title="All 2 branches missed.">                            &amp;&amp; cond.getType() != AttrCond.Type.ILIKE</span>
+<span class="nc bnc" id="L370" title="All 2 branches missed.">                            &amp;&amp; cond.getType() != AttrCond.Type.ISNULL</span>
+<span class="nc bnc" id="L371" title="All 2 branches missed.">                            &amp;&amp; cond.getType() != AttrCond.Type.ISNOTNULL) {</span>
+
+<span class="nc" id="L373">                        ((JPAPlainSchema) schema).validator().validate(cond.getExpression(), attrValue);</span>
+                    }
+<span class="nc" id="L375">                } catch (ValidationException e) {</span>
+<span class="nc" id="L376">                    LOG.error(&quot;Could not validate expression '&quot; + cond.getExpression() + '\'', e);</span>
+<span class="nc" id="L377">                    return false;</span>
+<span class="nc" id="L378">                }</span>
+
+<span class="nc bnc" id="L380" title="All 4 branches missed.">                found = attr.isPresent() &amp;&amp; matches(attr.get().getValues(), attrValue, schema, cond);</span>
+        }
+<span class="nc bnc" id="L382" title="All 4 branches missed.">        return not ? !found : found;</span>
+    }
+
+    private boolean matches(final Any&lt;?&gt; any, final AnyCond cond, final boolean not) {
+        // Keeps track of difference between entity's getKey() and JPA @Id fields
+<span class="nc bnc" id="L387" title="All 2 branches missed.">        if (&quot;key&quot;.equals(cond.getSchema())) {</span>
+<span class="nc" id="L388">            cond.setSchema(&quot;id&quot;);</span>
+        }
+
+        PropertyDescriptor pd;
+        Object anyAttrValue;
+        try {
+<span class="nc" id="L394">            pd = BeanUtils.getPropertyDescriptor(any.getClass(), cond.getSchema());</span>
+<span class="nc bnc" id="L395" title="All 2 branches missed.">            if (pd == null) {</span>
+<span class="nc" id="L396">                LOG.warn(&quot;Ignoring invalid schema '{}'&quot;, cond.getSchema());</span>
+<span class="nc" id="L397">                return false;</span>
+            }
+
+<span class="nc" id="L400">            anyAttrValue = pd.getReadMethod().invoke(any);</span>
+<span class="nc" id="L401">        } catch (Exception e) {</span>
+<span class="nc" id="L402">            LOG.error(&quot;While accessing {}.{}&quot;, any, cond.getSchema(), e);</span>
+<span class="nc" id="L403">            return false;</span>
+<span class="nc" id="L404">        }</span>
+
+        boolean found;
+<span class="nc bnc" id="L407" title="All 3 branches missed.">        switch (cond.getType()) {</span>
+            case ISNULL:
+<span class="nc bnc" id="L409" title="All 2 branches missed.">                found = anyAttrValue == null;</span>
+<span class="nc" id="L410">                break;</span>
+
+            case ISNOTNULL:
+<span class="nc bnc" id="L413" title="All 2 branches missed.">                found = anyAttrValue != null;</span>
+<span class="nc" id="L414">                break;</span>
+
+            default:
+<span class="nc" id="L417">                PlainSchema schema = new JPAPlainSchema();</span>
+<span class="nc" id="L418">                schema.setKey(pd.getName());</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                for (AttrSchemaType attrSchemaType : AttrSchemaType.values()) {</span>
+<span class="nc bnc" id="L420" title="All 2 branches missed.">                    if (pd.getPropertyType().isAssignableFrom(attrSchemaType.getType())) {</span>
+<span class="nc" id="L421">                        schema.setType(attrSchemaType);</span>
+                    }
+                }
+
+                // Deal with any Integer fields logically mapping to boolean values
+<span class="nc" id="L426">                boolean foundBooleanMin = false;</span>
+<span class="nc" id="L427">                boolean foundBooleanMax = false;</span>
+<span class="nc bnc" id="L428" title="All 2 branches missed.">                if (Integer.class.equals(pd.getPropertyType())) {</span>
+<span class="nc bnc" id="L429" title="All 2 branches missed.">                    for (Annotation annotation : pd.getPropertyType().getAnnotations()) {</span>
+<span class="nc bnc" id="L430" title="All 2 branches missed.">                        if (Min.class.equals(annotation.annotationType())) {</span>
+<span class="nc bnc" id="L431" title="All 2 branches missed.">                            foundBooleanMin = ((Min) annotation).value() == 0;</span>
+<span class="nc bnc" id="L432" title="All 2 branches missed.">                        } else if (Max.class.equals(annotation.annotationType())) {</span>
+<span class="nc bnc" id="L433" title="All 2 branches missed.">                            foundBooleanMax = ((Max) annotation).value() == 1;</span>
+                        }
+                    }
+                }
+<span class="nc bnc" id="L437" title="All 4 branches missed.">                if (foundBooleanMin &amp;&amp; foundBooleanMax) {</span>
+<span class="nc" id="L438">                    schema.setType(AttrSchemaType.Boolean);</span>
+                }
+
+                // Deal with any fields representing relationships to other entities
+<span class="nc bnc" id="L442" title="All 2 branches missed.">                if (pd.getPropertyType().getAnnotation(Entity.class) != null) {</span>
+<span class="nc" id="L443">                    Method relMethod = null;</span>
+                    try {
+<span class="nc" id="L445">                        relMethod = ClassUtils.getPublicMethod(pd.getPropertyType(), &quot;getKey&quot;, new Class&lt;?&gt;[0]);</span>
+<span class="nc" id="L446">                    } catch (Exception e) {</span>
+<span class="nc" id="L447">                        LOG.error(&quot;Could not find {}#getKey&quot;, pd.getPropertyType(), e);</span>
+<span class="nc" id="L448">                    }</span>
+
+<span class="nc bnc" id="L450" title="All 4 branches missed.">                    if (relMethod != null &amp;&amp; String.class.isAssignableFrom(relMethod.getReturnType())) {</span>
+<span class="nc" id="L451">                        cond.setSchema(cond.getSchema() + &quot;_id&quot;);</span>
+<span class="nc" id="L452">                        schema.setType(AttrSchemaType.String);</span>
+                    }
+                }
+
+<span class="nc" id="L456">                AnyUtils anyUtils = anyUtilsFactory.getInstance(any);</span>
+
+<span class="nc" id="L458">                PlainAttrValue attrValue = anyUtils.newPlainAttrValue();</span>
+<span class="nc bnc" id="L459" title="All 2 branches missed.">                if (cond.getType() != AttrCond.Type.LIKE</span>
+<span class="nc bnc" id="L460" title="All 2 branches missed.">                        &amp;&amp; cond.getType() != AttrCond.Type.ILIKE</span>
+<span class="nc bnc" id="L461" title="All 2 branches missed.">                        &amp;&amp; cond.getType() != AttrCond.Type.ISNULL</span>
+<span class="nc bnc" id="L462" title="All 2 branches missed.">                        &amp;&amp; cond.getType() != AttrCond.Type.ISNOTNULL) {</span>
+
+                    try {
+<span class="nc" id="L465">                        ((JPAPlainSchema) schema).validator().validate(cond.getExpression(), attrValue);</span>
+<span class="nc" id="L466">                    } catch (ValidationException e) {</span>
+<span class="nc" id="L467">                        LOG.error(&quot;Could not validate expression '&quot; + cond.getExpression() + '\'', e);</span>
+<span class="nc" id="L468">                        return false;</span>
+<span class="nc" id="L469">                    }</span>
+                }
+
+<span class="nc" id="L472">                List&lt;PlainAttrValue&gt; anyAttrValues = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L473">                anyAttrValues.add(anyUtils.newPlainAttrValue());</span>
+<span class="nc bnc" id="L474" title="All 2 branches missed.">                if (anyAttrValue instanceof String) {</span>
+<span class="nc" id="L475">                    anyAttrValues.get(0).setStringValue((String) anyAttrValue);</span>
+<span class="nc bnc" id="L476" title="All 2 branches missed.">                } else if (anyAttrValue instanceof Long) {</span>
+<span class="nc" id="L477">                    anyAttrValues.get(0).setLongValue((Long) anyAttrValue);</span>
+<span class="nc bnc" id="L478" title="All 2 branches missed.">                } else if (anyAttrValue instanceof Double) {</span>
+<span class="nc" id="L479">                    anyAttrValues.get(0).setDoubleValue((Double) anyAttrValue);</span>
+<span class="nc bnc" id="L480" title="All 2 branches missed.">                } else if (anyAttrValue instanceof Boolean) {</span>
+<span class="nc" id="L481">                    anyAttrValues.get(0).setBooleanValue((Boolean) anyAttrValue);</span>
+<span class="nc bnc" id="L482" title="All 2 branches missed.">                } else if (anyAttrValue instanceof Date) {</span>
+<span class="nc" id="L483">                    anyAttrValues.get(0).setDateValue((Date) anyAttrValue);</span>
+<span class="nc bnc" id="L484" title="All 2 branches missed.">                } else if (anyAttrValue instanceof byte[]) {</span>
+<span class="nc" id="L485">                    anyAttrValues.get(0).setBinaryValue((byte[]) anyAttrValue);</span>
+                }
+
+<span class="nc" id="L488">                found = matches(anyAttrValues, attrValue, schema, cond);</span>
+        }
+<span class="nc bnc" id="L490" title="All 4 branches missed.">        return not ? !found : found;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

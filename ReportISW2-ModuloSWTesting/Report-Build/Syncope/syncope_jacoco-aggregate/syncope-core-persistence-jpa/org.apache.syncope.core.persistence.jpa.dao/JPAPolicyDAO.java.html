@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAPolicyDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAPolicyDAO.java</span></div><h1>JPAPolicyDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.List;
+import javax.persistence.TypedQuery;
+import org.apache.syncope.core.persistence.api.dao.ExternalResourceDAO;
+import org.apache.syncope.core.persistence.api.dao.PolicyDAO;
+import org.apache.syncope.core.persistence.api.dao.RealmDAO;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.policy.AccessPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.AccountPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.AttrReleasePolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.AuthPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.PasswordPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.Policy;
+import org.apache.syncope.core.persistence.api.entity.policy.PullPolicy;
+import org.apache.syncope.core.persistence.api.entity.policy.PushPolicy;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.jpa.entity.policy.AbstractPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAccessPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAccountPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAttrReleasePolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAAuthPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPasswordPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPullCorrelationRuleEntity;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPullPolicy;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPushCorrelationRuleEntity;
+import org.apache.syncope.core.persistence.jpa.entity.policy.JPAPushPolicy;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Repository;
+
+@Repository
+<span class="nc" id="L51">public class JPAPolicyDAO extends AbstractDAO&lt;Policy&gt; implements PolicyDAO {</span>
+
+    @Autowired
+    @Lazy
+    private RealmDAO realmDAO;
+
+    @Autowired
+    @Lazy
+    private ExternalResourceDAO resourceDAO;
+
+    private static &lt;T extends Policy&gt; Class&lt;? extends AbstractPolicy&gt; getEntityReference(final Class&lt;T&gt; reference) {
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        return AccountPolicy.class.isAssignableFrom(reference)</span>
+<span class="nc" id="L63">                ? JPAAccountPolicy.class</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">                : PasswordPolicy.class.isAssignableFrom(reference)</span>
+<span class="nc" id="L65">                ? JPAPasswordPolicy.class</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">                : PullPolicy.class.isAssignableFrom(reference)</span>
+<span class="nc" id="L67">                ? JPAPullPolicy.class</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">                : PushPolicy.class.isAssignableFrom(reference)</span>
+<span class="nc" id="L69">                ? JPAPushPolicy.class</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">                : AuthPolicy.class.isAssignableFrom(reference)</span>
+<span class="nc" id="L71">                ? JPAAuthPolicy.class</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">                : AccessPolicy.class.isAssignableFrom(reference)</span>
+<span class="nc" id="L73">                ? JPAAccessPolicy.class</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">                : AttrReleasePolicy.class.isAssignableFrom(reference)</span>
+<span class="nc" id="L75">                ? JPAAttrReleasePolicy.class</span>
+<span class="nc" id="L76">                : null;</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    @Override
+    public &lt;T extends Policy&gt; T find(final String key) {
+<span class="nc" id="L82">        return (T) entityManager().find(AbstractPolicy.class, key);</span>
+    }
+
+    @Override
+    public &lt;T extends Policy&gt; List&lt;T&gt; find(final Class&lt;T&gt; reference) {
+<span class="nc" id="L87">        TypedQuery&lt;T&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L88">                &quot;SELECT e FROM &quot; + getEntityReference(reference).getSimpleName() + &quot; e&quot;, reference);</span>
+
+<span class="nc" id="L90">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;AccountPolicy&gt; findByAccountRule(final Implementation accountRule) {
+<span class="nc" id="L95">        TypedQuery&lt;AccountPolicy&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L96">                &quot;SELECT e FROM &quot; + JPAAccountPolicy.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE :accountRule MEMBER OF e.rules&quot;, AccountPolicy.class);
+<span class="nc" id="L98">        query.setParameter(&quot;accountRule&quot;, accountRule);</span>
+
+<span class="nc" id="L100">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;PasswordPolicy&gt; findByPasswordRule(final Implementation passwordRule) {
+<span class="nc" id="L105">        TypedQuery&lt;PasswordPolicy&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L106">                &quot;SELECT e FROM &quot; + JPAPasswordPolicy.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE :passwordRule MEMBER OF e.rules&quot;, PasswordPolicy.class);
+<span class="nc" id="L108">        query.setParameter(&quot;passwordRule&quot;, passwordRule);</span>
+
+<span class="nc" id="L110">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;PullPolicy&gt; findByPullCorrelationRule(final Implementation correlationRule) {
+<span class="nc" id="L115">        TypedQuery&lt;PullPolicy&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L116">                &quot;SELECT DISTINCT e.pullPolicy FROM &quot; + JPAPullCorrelationRuleEntity.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE e.implementation=:correlationRule&quot;, PullPolicy.class);
+<span class="nc" id="L118">        query.setParameter(&quot;correlationRule&quot;, correlationRule);</span>
+
+<span class="nc" id="L120">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;PushPolicy&gt; findByPushCorrelationRule(final Implementation correlationRule) {
+<span class="nc" id="L125">        TypedQuery&lt;PushPolicy&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L126">                &quot;SELECT DISTINCT e.pushPolicy FROM &quot; + JPAPushCorrelationRuleEntity.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE e.implementation=:correlationRule&quot;, PushPolicy.class);
+<span class="nc" id="L128">        query.setParameter(&quot;correlationRule&quot;, correlationRule);</span>
+
+<span class="nc" id="L130">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;AccountPolicy&gt; findByResource(final ExternalResource resource) {
+<span class="nc" id="L135">        TypedQuery&lt;AccountPolicy&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L136">                &quot;SELECT e FROM &quot; + JPAAccountPolicy.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE :resource MEMBER OF e.resources&quot;, AccountPolicy.class);
+<span class="nc" id="L138">        query.setParameter(&quot;resource&quot;, resource);</span>
+
+<span class="nc" id="L140">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;Policy&gt; findAll() {
+<span class="nc" id="L145">        TypedQuery&lt;Policy&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L146">                &quot;SELECT e FROM &quot; + AbstractPolicy.class.getSimpleName() + &quot; e&quot;, Policy.class);</span>
+<span class="nc" id="L147">        return query.getResultList();</span>
+    }
+
+    @Override
+    public &lt;T extends Policy&gt; T save(final T policy) {
+<span class="nc" id="L152">        return entityManager().merge(policy);</span>
+    }
+
+    @Override
+    public &lt;T extends Policy&gt; void delete(final T policy) {
+<span class="nc" id="L157">        realmDAO.findByPolicy(policy).forEach(realm -&gt; {</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">            if (policy instanceof AccountPolicy) {</span>
+<span class="nc" id="L159">                realm.setAccountPolicy(null);</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">            } else if (policy instanceof PasswordPolicy) {</span>
+<span class="nc" id="L161">                realm.setPasswordPolicy(null);</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">            } else if (policy instanceof AuthPolicy) {</span>
+<span class="nc" id="L163">                realm.setAuthPolicy(null);</span>
+<span class="nc bnc" id="L164" title="All 2 branches missed.">            } else if (policy instanceof AccessPolicy) {</span>
+<span class="nc" id="L165">                realm.setAccessPolicy(null);</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            } else if (policy instanceof AttrReleasePolicy) {</span>
+<span class="nc" id="L167">                realm.setAttrReleasePolicy(null);</span>
+            }
+<span class="nc" id="L169">        });</span>
+
+<span class="nc bnc" id="L171" title="All 6 branches missed.">        if (!(policy instanceof AuthPolicy)</span>
+                &amp;&amp; !(policy instanceof AttrReleasePolicy)
+                &amp;&amp; !(policy instanceof AccessPolicy)) {
+<span class="nc" id="L174">            resourceDAO.findByPolicy(policy).forEach(resource -&gt; {</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                if (policy instanceof AccountPolicy) {</span>
+<span class="nc" id="L176">                    resource.setAccountPolicy(null);</span>
+<span class="nc bnc" id="L177" title="All 2 branches missed.">                } else if (policy instanceof PasswordPolicy) {</span>
+<span class="nc" id="L178">                    resource.setPasswordPolicy(null);</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">                } else if (policy instanceof PullPolicy) {</span>
+<span class="nc" id="L180">                    resource.setPullPolicy(null);</span>
+<span class="nc bnc" id="L181" title="All 2 branches missed.">                } else if (policy instanceof PushPolicy) {</span>
+<span class="nc" id="L182">                    resource.setPushPolicy(null);</span>
+                }
+<span class="nc" id="L184">            });</span>
+        }
+
+<span class="nc" id="L187">        entityManager().remove(policy);</span>
+<span class="nc" id="L188">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

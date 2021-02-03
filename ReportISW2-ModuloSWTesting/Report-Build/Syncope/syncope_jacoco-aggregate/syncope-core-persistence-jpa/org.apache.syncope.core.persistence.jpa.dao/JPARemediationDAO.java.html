@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPARemediationDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPARemediationDAO.java</span></div><h1>JPARemediationDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.lang.reflect.Field;
+import java.util.List;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
+import org.apache.syncope.core.persistence.api.dao.RemediationDAO;
+import org.apache.syncope.core.persistence.api.dao.search.OrderByClause;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.Remediation;
+import org.apache.syncope.core.persistence.api.entity.task.PullTask;
+import org.apache.syncope.core.persistence.jpa.entity.JPARemediation;
+import org.springframework.stereotype.Repository;
+import org.springframework.util.ReflectionUtils;
+
+@Repository
+<span class="nc" id="L35">public class JPARemediationDAO extends AbstractDAO&lt;Remediation&gt; implements RemediationDAO {</span>
+
+    @Override
+    public Remediation find(final String key) {
+<span class="nc" id="L39">        return entityManager().find(JPARemediation.class, key);</span>
+    }
+
+    @Override
+    public List&lt;Remediation&gt; findByAnyType(final AnyType anyType) {
+<span class="nc" id="L44">        TypedQuery&lt;Remediation&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L45">                &quot;SELECT e FROM &quot; + JPARemediation.class.getSimpleName() + &quot; e WHERE e.anyType=:anyType&quot;,</span>
+                Remediation.class);
+<span class="nc" id="L47">        query.setParameter(&quot;anyType&quot;, anyType);</span>
+<span class="nc" id="L48">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;Remediation&gt; findByPullTask(final PullTask pullTask) {
+<span class="nc" id="L53">        TypedQuery&lt;Remediation&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L54">                &quot;SELECT e FROM &quot; + JPARemediation.class.getSimpleName() + &quot; e WHERE e.pullTask=:pullTask&quot;,</span>
+                Remediation.class);
+<span class="nc" id="L56">        query.setParameter(&quot;pullTask&quot;, pullTask);</span>
+<span class="nc" id="L57">        return query.getResultList();</span>
+    }
+
+    @Override
+    public int count() {
+<span class="nc" id="L62">        Query query = entityManager().createNativeQuery(&quot;SELECT COUNT(id) FROM &quot; + JPARemediation.TABLE);</span>
+<span class="nc" id="L63">        return ((Number) query.getSingleResult()).intValue();</span>
+    }
+
+    @Override
+    public List&lt;Remediation&gt; findAll(
+            final int page,
+            final int itemsPerPage,
+            final List&lt;OrderByClause&gt; orderByClauses) {
+
+<span class="nc" id="L72">        StringBuilder queryString = new StringBuilder(</span>
+<span class="nc" id="L73">                &quot;SELECT e FROM &quot; + JPARemediation.class.getSimpleName() + &quot; e&quot;);</span>
+
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        if (!orderByClauses.isEmpty()) {</span>
+<span class="nc" id="L76">            queryString.append(&quot; ORDER BY &quot;);</span>
+<span class="nc" id="L77">            orderByClauses.forEach(clause -&gt; {</span>
+<span class="nc" id="L78">                String field = clause.getField().trim();</span>
+<span class="nc" id="L79">                boolean ack = true;</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">                if (&quot;resource&quot;.equals(field)) {</span>
+<span class="nc" id="L81">                    queryString.append(&quot;e.pullTask.resource.id&quot;);</span>
+                } else {
+<span class="nc" id="L83">                    Field beanField = ReflectionUtils.findField(JPARemediation.class, field);</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">                    if (beanField == null) {</span>
+<span class="nc" id="L85">                        ack = false;</span>
+<span class="nc" id="L86">                        LOG.warn(&quot;Remediation sort request by {}: unsupported, ignoring&quot;, field);</span>
+                    } else {
+<span class="nc" id="L88">                        queryString.append(&quot;e.&quot;).append(field);</span>
+                    }
+                }
+<span class="nc bnc" id="L91" title="All 2 branches missed.">                if (ack) {</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">                    if (clause.getDirection() == OrderByClause.Direction.ASC) {</span>
+<span class="nc" id="L93">                        queryString.append(&quot; ASC&quot;);</span>
+                    } else {
+<span class="nc" id="L95">                        queryString.append(&quot; DESC&quot;);</span>
+                    }
+<span class="nc" id="L97">                    queryString.append(',');</span>
+                }
+<span class="nc" id="L99">            });</span>
+
+<span class="nc" id="L101">            queryString.deleteCharAt(queryString.length() - 1);</span>
+        }
+
+<span class="nc" id="L104">        TypedQuery&lt;Remediation&gt; query = entityManager().createQuery(queryString.toString(), Remediation.class);</span>
+
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        query.setFirstResult(itemsPerPage * (page &lt;= 0 ? 0 : page - 1));</span>
+
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (itemsPerPage &gt; 0) {</span>
+<span class="nc" id="L109">            query.setMaxResults(itemsPerPage);</span>
+        }
+
+<span class="nc" id="L112">        return query.getResultList();</span>
+    }
+
+    @Override
+    public Remediation save(final Remediation remediation) {
+<span class="nc" id="L117">        return entityManager().merge(remediation);</span>
+    }
+
+    @Override
+    public void delete(final Remediation remediation) {
+<span class="nc" id="L122">        entityManager().remove(remediation);</span>
+<span class="nc" id="L123">    }</span>
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L127">        Remediation remediation = find(key);</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if (remediation == null) {</span>
+<span class="nc" id="L129">            return;</span>
+        }
+
+<span class="nc" id="L132">        delete(remediation);</span>
+<span class="nc" id="L133">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

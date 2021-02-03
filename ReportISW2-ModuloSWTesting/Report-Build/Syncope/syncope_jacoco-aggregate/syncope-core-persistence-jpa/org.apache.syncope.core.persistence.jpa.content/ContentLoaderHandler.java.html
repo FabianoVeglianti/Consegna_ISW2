@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>ContentLoaderHandler.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.content</a> &gt; <span class="el_source">ContentLoaderHandler.java</span></div><h1>ContentLoaderHandler.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.content;
+
+import java.sql.Types;
+import java.text.ParseException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+
+import javax.sql.DataSource;
+import javax.xml.bind.DatatypeConverter;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.text.StringSubstitutor;
+import org.apache.syncope.core.provisioning.api.utils.FormatUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
+
+/**
+ * SAX handler for generating SQL INSERT statements out of given XML file.
+ */
+public class ContentLoaderHandler extends DefaultHandler {
+
+<span class="nc" id="L46">    private static final Logger LOG = LoggerFactory.getLogger(ContentLoaderHandler.class);</span>
+
+    private final JdbcTemplate jdbcTemplate;
+
+    private final String rootElement;
+
+    private final boolean continueOnError;
+
+<span class="nc" id="L54">    private final Map&lt;String, String&gt; fetches = new HashMap&lt;&gt;();</span>
+
+    private final StringSubstitutor paramSubstitutor;
+
+    public ContentLoaderHandler(
+            final DataSource dataSource,
+            final String rootElement,
+            final boolean continueOnError,
+<span class="nc" id="L62">            final Environment env) {</span>
+
+<span class="nc" id="L64">        this.jdbcTemplate = new JdbcTemplate(dataSource);</span>
+<span class="nc" id="L65">        this.rootElement = rootElement;</span>
+<span class="nc" id="L66">        this.continueOnError = continueOnError;</span>
+<span class="nc" id="L67">        this.paramSubstitutor = new StringSubstitutor(key -&gt; {</span>
+<span class="nc" id="L68">            String value = env.getProperty(key, fetches.get(key));</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">            return StringUtils.isBlank(value) ? null : value;</span>
+        });
+<span class="nc" id="L71">    }</span>
+
+    private Object[] getParameters(final String tableName, final Attributes attrs) {
+<span class="nc" id="L74">        Map&lt;String, Integer&gt; colTypes = jdbcTemplate.query(</span>
+                &quot;SELECT * FROM &quot; + tableName + &quot; WHERE 0=1&quot;, rs -&gt; {
+<span class="nc" id="L76">                    Map&lt;String, Integer&gt; types = new HashMap&lt;&gt;();</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">                    for (int i = 1; i &lt;= rs.getMetaData().getColumnCount(); i++) {</span>
+<span class="nc" id="L78">                        types.put(rs.getMetaData().getColumnName(i).toUpperCase(), rs.getMetaData().getColumnType(i));</span>
+                    }
+<span class="nc" id="L80">                    return types;</span>
+                });
+
+<span class="nc" id="L83">        Object[] parameters = new Object[attrs.getLength()];</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        for (int i = 0; i &lt; attrs.getLength(); i++) {</span>
+<span class="nc" id="L85">            Integer colType = Objects.requireNonNull(colTypes).get(attrs.getQName(i).toUpperCase());</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">            if (colType == null) {</span>
+<span class="nc" id="L87">                LOG.warn(&quot;No column type found for {}&quot;, attrs.getQName(i).toUpperCase());</span>
+<span class="nc" id="L88">                colType = Types.VARCHAR;</span>
+            }
+
+<span class="nc" id="L91">            String value = paramSubstitutor.replace(attrs.getValue(i));</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">            if (value == null) {</span>
+<span class="nc" id="L93">                LOG.warn(&quot;Variable ${} could not be resolved&quot;, attrs.getValue(i));</span>
+<span class="nc" id="L94">                value = attrs.getValue(i);</span>
+            }
+
+<span class="nc bnc" id="L97" title="All 9 branches missed.">            switch (colType) {</span>
+                case Types.INTEGER:
+                case Types.TINYINT:
+                case Types.SMALLINT:
+                    try {
+<span class="nc" id="L102">                    parameters[i] = Integer.valueOf(value);</span>
+<span class="nc" id="L103">                } catch (NumberFormatException e) {</span>
+<span class="nc" id="L104">                    LOG.error(&quot;Unparsable Integer '{}'&quot;, value);</span>
+<span class="nc" id="L105">                    parameters[i] = value;</span>
+<span class="nc" id="L106">                }</span>
+<span class="nc" id="L107">                break;</span>
+
+                case Types.NUMERIC:
+                case Types.DECIMAL:
+                case Types.BIGINT:
+                    try {
+<span class="nc" id="L113">                    parameters[i] = Long.valueOf(value);</span>
+<span class="nc" id="L114">                } catch (NumberFormatException e) {</span>
+<span class="nc" id="L115">                    LOG.error(&quot;Unparsable Long '{}'&quot;, value);</span>
+<span class="nc" id="L116">                    parameters[i] = value;</span>
+<span class="nc" id="L117">                }</span>
+<span class="nc" id="L118">                break;</span>
+
+                case Types.DOUBLE:
+                    try {
+<span class="nc" id="L122">                    parameters[i] = Double.valueOf(value);</span>
+<span class="nc" id="L123">                } catch (NumberFormatException e) {</span>
+<span class="nc" id="L124">                    LOG.error(&quot;Unparsable Double '{}'&quot;, value);</span>
+<span class="nc" id="L125">                    parameters[i] = value;</span>
+<span class="nc" id="L126">                }</span>
+<span class="nc" id="L127">                break;</span>
+
+                case Types.REAL:
+                case Types.FLOAT:
+                    try {
+<span class="nc" id="L132">                    parameters[i] = Float.valueOf(value);</span>
+<span class="nc" id="L133">                } catch (NumberFormatException e) {</span>
+<span class="nc" id="L134">                    LOG.error(&quot;Unparsable Float '{}'&quot;, value);</span>
+<span class="nc" id="L135">                    parameters[i] = value;</span>
+<span class="nc" id="L136">                }</span>
+<span class="nc" id="L137">                break;</span>
+
+                case Types.DATE:
+                case Types.TIME:
+                case Types.TIMESTAMP:
+                    try {
+<span class="nc" id="L143">                    parameters[i] = FormatUtils.parseDate(value);</span>
+<span class="nc" id="L144">                } catch (ParseException e) {</span>
+<span class="nc" id="L145">                    LOG.error(&quot;Unparsable Date '{}'&quot;, value);</span>
+<span class="nc" id="L146">                    parameters[i] = value;</span>
+<span class="nc" id="L147">                }</span>
+<span class="nc" id="L148">                break;</span>
+
+                case Types.BIT:
+                case Types.BOOLEAN:
+<span class="nc bnc" id="L152" title="All 2 branches missed.">                    parameters[i] = &quot;1&quot;.equals(value) ? Boolean.TRUE : Boolean.FALSE;</span>
+<span class="nc" id="L153">                    break;</span>
+
+                case Types.BINARY:
+                case Types.VARBINARY:
+                case Types.LONGVARBINARY:
+                    try {
+<span class="nc" id="L159">                    parameters[i] = DatatypeConverter.parseHexBinary(value);</span>
+<span class="nc" id="L160">                } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L161">                    parameters[i] = value;</span>
+<span class="nc" id="L162">                }</span>
+<span class="nc" id="L163">                break;</span>
+
+                case Types.BLOB:
+                    try {
+<span class="nc" id="L167">                    parameters[i] = DatatypeConverter.parseHexBinary(value);</span>
+<span class="nc" id="L168">                } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L169">                    LOG.warn(&quot;Error decoding hex string to specify a blob parameter&quot;, e);</span>
+<span class="nc" id="L170">                    parameters[i] = value;</span>
+<span class="nc" id="L171">                } catch (Exception e) {</span>
+<span class="nc" id="L172">                    LOG.warn(&quot;Error creating a new blob parameter&quot;, e);</span>
+<span class="nc" id="L173">                }</span>
+<span class="nc" id="L174">                break;</span>
+
+                default:
+<span class="nc" id="L177">                    parameters[i] = value;</span>
+            }
+        }
+
+<span class="nc" id="L181">        return parameters;</span>
+    }
+
+    @Override
+    public void startElement(final String uri, final String localName, final String qName, final Attributes atts)
+            throws SAXException {
+
+        // skip root element
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        if (rootElement.equals(qName)) {</span>
+<span class="nc" id="L190">            return;</span>
+        }
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        if (&quot;fetch&quot;.equalsIgnoreCase(qName)) {</span>
+<span class="nc" id="L193">            String value = jdbcTemplate.queryForObject(atts.getValue(&quot;query&quot;), String.class);</span>
+<span class="nc" id="L194">            String key = atts.getValue(&quot;key&quot;);</span>
+<span class="nc" id="L195">            fetches.put(key, value);</span>
+<span class="nc" id="L196">        } else {</span>
+<span class="nc" id="L197">            StringBuilder query = new StringBuilder(&quot;INSERT INTO &quot;).append(qName).append('(');</span>
+
+<span class="nc" id="L199">            StringBuilder values = new StringBuilder();</span>
+
+<span class="nc bnc" id="L201" title="All 2 branches missed.">            for (int i = 0; i &lt; atts.getLength(); i++) {</span>
+<span class="nc" id="L202">                query.append(atts.getQName(i));</span>
+<span class="nc" id="L203">                values.append('?');</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">                if (i &lt; atts.getLength() - 1) {</span>
+<span class="nc" id="L205">                    query.append(',');</span>
+<span class="nc" id="L206">                    values.append(',');</span>
+                }
+            }
+<span class="nc" id="L209">            query.append(&quot;) VALUES (&quot;).append(values).append(')');</span>
+
+            try {
+<span class="nc" id="L212">                jdbcTemplate.update(query.toString(), getParameters(qName, atts));</span>
+<span class="nc" id="L213">            } catch (DataAccessException e) {</span>
+<span class="nc" id="L214">                LOG.error(&quot;While trying to perform {} with params {}&quot;, query, getParameters(qName, atts), e);</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">                if (!continueOnError) {</span>
+<span class="nc" id="L216">                    throw e;</span>
+                }
+<span class="nc" id="L218">            }</span>
+        }
+<span class="nc" id="L220">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAGPlainAttrUniqueValue.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.group</a> &gt; <span class="el_source">JPAGPlainAttrUniqueValue.java</span></div><h1>JPAGPlainAttrUniqueValue.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.group;
+
+import javax.persistence.Entity;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
+import org.apache.syncope.core.persistence.api.entity.PlainAttr;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.api.entity.group.GPlainAttr;
+import org.apache.syncope.core.persistence.api.entity.group.GPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractPlainAttrValue;
+import org.apache.syncope.core.persistence.jpa.entity.JPAPlainSchema;
+
+@Entity
+@Table(name = JPAGPlainAttrUniqueValue.TABLE)
+<span class="nc" id="L35">public class JPAGPlainAttrUniqueValue extends AbstractPlainAttrValue implements GPlainAttrUniqueValue {</span>
+
+    private static final long serialVersionUID = 4681561795607192855L;
+
+    public static final String TABLE = &quot;GPlainAttrUniqueValue&quot;;
+
+    @OneToOne(optional = false)
+    private JPAGPlainAttr attribute;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = &quot;schema_id&quot;)
+    private JPAPlainSchema schema;
+
+    @Override
+    public GPlainAttr getAttr() {
+<span class="nc" id="L50">        return attribute;</span>
+    }
+
+    @Override
+    public void setAttr(final PlainAttr&lt;?&gt; attr) {
+<span class="nc" id="L55">        checkType(attr, JPAGPlainAttr.class);</span>
+<span class="nc" id="L56">        this.attribute = (JPAGPlainAttr) attr;</span>
+<span class="nc" id="L57">    }</span>
+
+    @Override
+    public PlainSchema getSchema() {
+<span class="nc" id="L61">        return schema;</span>
+    }
+
+    @Override
+    public void setSchema(final PlainSchema schema) {
+<span class="nc" id="L66">        checkType(schema, JPAPlainSchema.class);</span>
+<span class="nc" id="L67">        this.schema = (JPAPlainSchema) schema;</span>
+<span class="nc" id="L68">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>SecurityContext.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-spring</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.spring.security</a> &gt; <span class="el_source">SecurityContext.java</span></div><h1>SecurityContext.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.spring.security;
+
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.KeyLengthException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import org.apache.syncope.core.spring.ApplicationContextProvider;
+import org.apache.syncope.core.spring.security.jws.AccessTokenJWSSigner;
+import org.apache.syncope.core.spring.security.jws.AccessTokenJWSVerifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.Environment;
+import org.springframework.security.config.core.GrantedAuthorityDefaults;
+
+@PropertySource(&quot;classpath:security.properties&quot;)
+@PropertySource(value = &quot;file:${conf.directory}/security.properties&quot;, ignoreResourceNotFound = true)
+@Configuration
+<span class="nc" id="L40">public class SecurityContext implements EnvironmentAware {</span>
+
+    private Environment env;
+
+    @Override
+    public void setEnvironment(final Environment env) {
+<span class="nc" id="L46">        this.env = env;</span>
+<span class="nc" id="L47">    }</span>
+
+    @Bean
+    public String adminUser() {
+<span class="nc" id="L51">        return env.getProperty(&quot;adminUser&quot;);</span>
+    }
+
+    @Bean
+    public String adminPassword() {
+<span class="nc" id="L56">        return env.getProperty(&quot;adminPassword&quot;);</span>
+    }
+
+    @Bean
+    public String adminPasswordAlgorithm() {
+<span class="nc" id="L61">        return env.getProperty(&quot;adminPasswordAlgorithm&quot;);</span>
+    }
+
+    @Bean
+    public String anonymousUser() {
+<span class="nc" id="L66">        return env.getProperty(&quot;anonymousUser&quot;);</span>
+    }
+
+    @Bean
+    public String anonymousKey() {
+<span class="nc" id="L71">        return env.getProperty(&quot;anonymousKey&quot;);</span>
+    }
+
+    @Bean
+    public String jwtIssuer() {
+<span class="nc" id="L76">        return env.getProperty(&quot;jwtIssuer&quot;);</span>
+    }
+
+    @Bean
+    public String jwsKey() {
+<span class="nc" id="L81">        return env.getProperty(&quot;jwsKey&quot;);</span>
+    }
+
+    @ConditionalOnMissingBean
+    @Bean
+    public DefaultCredentialChecker credentialChecker() {
+<span class="nc" id="L87">        return new DefaultCredentialChecker(jwsKey(), adminPassword(), anonymousKey());</span>
+    }
+
+    @ConditionalOnMissingBean
+    @Bean
+    public AccessTokenJWSVerifier accessTokenJWSVerifier()
+            throws JOSEException, NoSuchAlgorithmException, InvalidKeySpecException {
+
+<span class="nc" id="L95">        return new AccessTokenJWSVerifier(</span>
+<span class="nc" id="L96">                JWSAlgorithm.parse(env.getProperty(&quot;jwsAlgorithm&quot;)),</span>
+<span class="nc" id="L97">                jwsKey());</span>
+    }
+
+    @ConditionalOnMissingBean
+    @Bean
+    public AccessTokenJWSSigner accessTokenJWSSigner()
+            throws KeyLengthException, NoSuchAlgorithmException, InvalidKeySpecException {
+
+<span class="nc" id="L105">        return new AccessTokenJWSSigner(</span>
+<span class="nc" id="L106">                JWSAlgorithm.parse(env.getProperty(&quot;jwsAlgorithm&quot;)),</span>
+<span class="nc" id="L107">                jwsKey());</span>
+    }
+
+    @ConditionalOnMissingBean
+    @Bean
+    public PasswordGenerator passwordGenerator() {
+<span class="nc" id="L113">        return new DefaultPasswordGenerator();</span>
+    }
+
+    @Bean
+    public GrantedAuthorityDefaults grantedAuthorityDefaults() {
+<span class="nc" id="L118">        return new GrantedAuthorityDefaults(&quot;&quot;); // Remove the ROLE_ prefix</span>
+    }
+
+    @Bean
+    public ApplicationContextProvider applicationContextProvider() {
+<span class="nc" id="L123">        return new ApplicationContextProvider();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

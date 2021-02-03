@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>XMLContentLoader.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.content</a> &gt; <span class="el_source">XMLContentLoader.java</span></div><h1>XMLContentLoader.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.content;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+import javax.annotation.Resource;
+import javax.sql.DataSource;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+import org.apache.syncope.core.persistence.api.content.ContentLoader;
+import org.apache.syncope.core.persistence.jpa.entity.JPARealm;
+import org.apache.syncope.core.spring.ApplicationContextProvider;
+import org.apache.syncope.core.spring.ResourceWithFallbackLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.orm.jpa.EntityManagerFactoryUtils;
+import org.springframework.stereotype.Component;
+import org.xml.sax.SAXException;
+
+/**
+ * Initialize Database with default content if no data is present already.
+ */
+@Component
+<span class="nc" id="L49">public class XMLContentLoader implements ContentLoader {</span>
+
+<span class="nc" id="L51">    private static final Logger LOG = LoggerFactory.getLogger(XMLContentLoader.class);</span>
+
+    @Resource(name = &quot;viewsXML&quot;)
+    private ResourceWithFallbackLoader viewsXML;
+
+    @Resource(name = &quot;indexesXML&quot;)
+    private ResourceWithFallbackLoader indexesXML;
+
+    @Autowired
+    private Environment env;
+
+    @Override
+    public int getOrder() {
+<span class="nc" id="L64">        return 400;</span>
+    }
+
+    @Override
+    public void load(final String domain, final DataSource datasource) {
+<span class="nc" id="L69">        LOG.debug(&quot;Loading data for domain [{}]&quot;, domain);</span>
+
+        // create EntityManager so OpenJPA will build the SQL schema
+<span class="nc" id="L72">        EntityManagerFactoryUtils.findEntityManagerFactory(</span>
+<span class="nc" id="L73">                ApplicationContextProvider.getBeanFactory(), domain).createEntityManager();</span>
+
+<span class="nc" id="L75">        JdbcTemplate jdbcTemplate = new JdbcTemplate(datasource);</span>
+        boolean existingData;
+        try {
+<span class="nc bnc" id="L78" title="All 2 branches missed.">            existingData = jdbcTemplate.queryForObject(&quot;SELECT COUNT(0) FROM &quot; + JPARealm.TABLE, Integer.class) &gt; 0;</span>
+<span class="nc" id="L79">        } catch (DataAccessException e) {</span>
+<span class="nc" id="L80">            LOG.error(&quot;[{}] Could not access table &quot; + JPARealm.TABLE, domain, e);</span>
+<span class="nc" id="L81">            existingData = true;</span>
+<span class="nc" id="L82">        }</span>
+
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if (existingData) {</span>
+<span class="nc" id="L85">            LOG.info(&quot;[{}] Data found in the database, leaving untouched&quot;, domain);</span>
+        } else {
+<span class="nc" id="L87">            LOG.info(&quot;[{}] Empty database found, loading default content&quot;, domain);</span>
+
+            try {
+<span class="nc" id="L90">                createViews(domain, datasource);</span>
+<span class="nc" id="L91">            } catch (IOException e) {</span>
+<span class="nc" id="L92">                LOG.error(&quot;[{}] While creating views&quot;, domain, e);</span>
+<span class="nc" id="L93">            }</span>
+            try {
+<span class="nc" id="L95">                createIndexes(domain, datasource);</span>
+<span class="nc" id="L96">            } catch (IOException e) {</span>
+<span class="nc" id="L97">                LOG.error(&quot;[{}] While creating indexes&quot;, domain, e);</span>
+<span class="nc" id="L98">            }</span>
+            try {
+<span class="nc" id="L100">                InputStream contentXML = ApplicationContextProvider.getBeanFactory().</span>
+<span class="nc" id="L101">                        getBean(domain + &quot;ContentXML&quot;, InputStream.class);</span>
+<span class="nc" id="L102">                loadDefaultContent(domain, contentXML, datasource);</span>
+<span class="nc" id="L103">            } catch (Exception e) {</span>
+<span class="nc" id="L104">                LOG.error(&quot;[{}] While loading default content&quot;, domain, e);</span>
+<span class="nc" id="L105">            }</span>
+        }
+<span class="nc" id="L107">    }</span>
+
+    private void loadDefaultContent(
+            final String domain, final InputStream contentXML, final DataSource dataSource)
+            throws IOException, ParserConfigurationException, SAXException {
+
+<span class="nc" id="L113">        SAXParserFactory factory = SAXParserFactory.newInstance();</span>
+<span class="nc" id="L114">        factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, Boolean.TRUE);</span>
+<span class="nc" id="L115">        factory.setFeature(&quot;http://apache.org/xml/features/disallow-doctype-decl&quot;, true);</span>
+<span class="nc" id="L116">        try (contentXML) {</span>
+<span class="nc" id="L117">            SAXParser parser = factory.newSAXParser();</span>
+<span class="nc" id="L118">            parser.parse(contentXML, new ContentLoaderHandler(dataSource, ROOT_ELEMENT, true, env));</span>
+<span class="nc" id="L119">            LOG.debug(&quot;[{}] Default content successfully loaded&quot;, domain);</span>
+        }
+<span class="nc" id="L121">    }</span>
+
+    private void createViews(final String domain, final DataSource dataSource) throws IOException {
+<span class="nc" id="L124">        LOG.debug(&quot;[{}] Creating views&quot;, domain);</span>
+
+<span class="nc" id="L126">        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);</span>
+
+<span class="nc" id="L128">        Properties views = PropertiesLoaderUtils.loadProperties(viewsXML.getResource());</span>
+<span class="nc" id="L129">        views.stringPropertyNames().stream().sorted().forEachOrdered(idx -&gt; {</span>
+<span class="nc" id="L130">            LOG.debug(&quot;[{}] Creating view {}&quot;, domain, views.get(idx).toString());</span>
+            try {
+<span class="nc" id="L132">                jdbcTemplate.execute(views.getProperty(idx).replaceAll(&quot;\\n&quot;, &quot; &quot;));</span>
+<span class="nc" id="L133">            } catch (DataAccessException e) {</span>
+<span class="nc" id="L134">                LOG.error(&quot;[{}] Could not create view&quot;, domain, e);</span>
+<span class="nc" id="L135">            }</span>
+<span class="nc" id="L136">        });</span>
+
+<span class="nc" id="L138">        LOG.debug(&quot;Views created&quot;);</span>
+<span class="nc" id="L139">    }</span>
+
+    private void createIndexes(final String domain, final DataSource dataSource) throws IOException {
+<span class="nc" id="L142">        LOG.debug(&quot;[{}] Creating indexes&quot;, domain);</span>
+
+<span class="nc" id="L144">        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);</span>
+
+<span class="nc" id="L146">        Properties indexes = PropertiesLoaderUtils.loadProperties(indexesXML.getResource());</span>
+<span class="nc" id="L147">        indexes.stringPropertyNames().stream().sorted().forEachOrdered(idx -&gt; {</span>
+<span class="nc" id="L148">            LOG.debug(&quot;[{}] Creating index {}&quot;, domain, indexes.get(idx).toString());</span>
+            try {
+<span class="nc" id="L150">                jdbcTemplate.execute(indexes.getProperty(idx));</span>
+<span class="nc" id="L151">            } catch (DataAccessException e) {</span>
+<span class="nc" id="L152">                LOG.error(&quot;[{}] Could not create index&quot;, domain, e);</span>
+<span class="nc" id="L153">            }</span>
+<span class="nc" id="L154">        });</span>
+
+<span class="nc" id="L156">        LOG.debug(&quot;Indexes created&quot;);</span>
+<span class="nc" id="L157">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

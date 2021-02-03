@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>DefaultPushCorrelationRule.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">DefaultPushCorrelationRule.java</span></div><h1>DefaultPushCorrelationRule.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.syncope.common.lib.policy.DefaultPushCorrelationRuleConf;
+import org.apache.syncope.common.lib.policy.PushCorrelationRuleConf;
+import org.apache.syncope.common.lib.types.MappingPurpose;
+import org.apache.syncope.core.persistence.api.entity.resource.Provision;
+import org.identityconnectors.framework.common.objects.Attribute;
+import org.apache.syncope.core.persistence.api.dao.PushCorrelationRule;
+import org.apache.syncope.core.persistence.api.dao.PushCorrelationRuleConfClass;
+import org.apache.syncope.core.persistence.api.entity.Any;
+import org.apache.syncope.core.provisioning.api.AccountGetter;
+import org.apache.syncope.core.provisioning.api.MappingManager;
+import org.apache.syncope.core.provisioning.api.PlainAttrGetter;
+import org.identityconnectors.framework.common.objects.AttributeBuilder;
+import org.identityconnectors.framework.common.objects.filter.Filter;
+import org.identityconnectors.framework.common.objects.filter.FilterBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
+
+@PushCorrelationRuleConfClass(DefaultPushCorrelationRuleConf.class)
+<span class="nc" id="L41">public class DefaultPushCorrelationRule implements PushCorrelationRule {</span>
+
+    @Autowired
+    private MappingManager mappingManager;
+
+    private DefaultPushCorrelationRuleConf conf;
+
+    @Override
+    public void setConf(final PushCorrelationRuleConf conf) {
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        if (conf instanceof DefaultPushCorrelationRuleConf) {</span>
+<span class="nc" id="L51">            this.conf = DefaultPushCorrelationRuleConf.class.cast(conf);</span>
+        } else {
+<span class="nc" id="L53">            throw new IllegalArgumentException(</span>
+<span class="nc" id="L54">                    DefaultPushCorrelationRuleConf.class.getName() + &quot; expected, got &quot; + conf.getClass().getName());</span>
+        }
+<span class="nc" id="L56">    }</span>
+
+    @Override
+    public Filter getFilter(final Any&lt;?&gt; any, final Provision provision) {
+<span class="nc" id="L60">        List&lt;Filter&gt; filters = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L62">        provision.getMapping().getItems().stream().filter(</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">                item -&gt; conf.getSchemas().contains(item.getIntAttrName())</span>
+<span class="nc bnc" id="L64" title="All 4 branches missed.">                &amp;&amp; (item.getPurpose() == MappingPurpose.PROPAGATION || item.getPurpose() == MappingPurpose.BOTH)).</span>
+<span class="nc" id="L65">                forEach(item -&gt; {</span>
+<span class="nc" id="L66">                    Pair&lt;String, Attribute&gt; attr = mappingManager.prepareAttr(</span>
+                            provision,
+                            item,
+                            any,
+                            null,
+                            AccountGetter.DEFAULT,
+                            AccountGetter.DEFAULT,
+                            PlainAttrGetter.DEFAULT);
+<span class="nc bnc" id="L74" title="All 2 branches missed.">                    if (attr != null) {</span>
+<span class="nc" id="L75">                        Attribute toFilter = null;</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                        if (attr.getLeft() != null) {</span>
+<span class="nc" id="L77">                            toFilter = AttributeBuilder.build(item.getExtAttrName(), attr.getLeft());</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">                        } else if (attr.getRight() != null) {</span>
+<span class="nc" id="L79">                            toFilter = attr.getRight();</span>
+                        }
+<span class="nc bnc" id="L81" title="All 2 branches missed.">                        if (toFilter != null) {</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">                            filters.add(provision.isIgnoreCaseMatch()</span>
+<span class="nc" id="L83">                                    ? FilterBuilder.equalsIgnoreCase(toFilter)</span>
+<span class="nc" id="L84">                                    : FilterBuilder.equalTo(toFilter));</span>
+                        }
+                    }
+<span class="nc" id="L87">                });</span>
+
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        return conf.isOrSchemas()</span>
+<span class="nc" id="L90">                ? FilterBuilder.or(filters)</span>
+<span class="nc" id="L91">                : FilterBuilder.and(filters);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

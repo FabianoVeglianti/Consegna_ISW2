@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAPushTask.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.task</a> &gt; <span class="el_source">JPAPushTask.java</span></div><h1>JPAPushTask.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.task;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import javax.persistence.CascadeType;
+import javax.persistence.DiscriminatorValue;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import org.apache.syncope.common.lib.types.IdMImplementationType;
+import javax.persistence.UniqueConstraint;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.persistence.api.entity.task.PushTask;
+import org.apache.syncope.core.persistence.api.entity.task.PushTaskAnyFilter;
+import org.apache.syncope.core.persistence.jpa.entity.JPAImplementation;
+import org.apache.syncope.core.persistence.jpa.entity.JPARealm;
+
+@Entity
+@DiscriminatorValue(&quot;PushTask&quot;)
+<span class="nc" id="L45">public class JPAPushTask extends AbstractProvisioningTask implements PushTask {</span>
+
+    private static final long serialVersionUID = -4141057723006682564L;
+
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    private JPARealm sourceRealm;
+
+<span class="nc" id="L52">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(name = &quot;PushTaskAction&quot;,
+            joinColumns =
+            @JoinColumn(name = &quot;task_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;implementation_id&quot;),
+            uniqueConstraints =
+            @UniqueConstraint(columnNames = { &quot;task_id&quot;, &quot;implementation_id&quot; }))
+    private List&lt;JPAImplementation&gt; actions = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L62">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER, mappedBy = &quot;pushTask&quot;)</span>
+    private List&lt;JPAPushTaskAnyFilter&gt; filters = new ArrayList&lt;&gt;();
+
+    @Override
+    public JPARealm getSourceRealm() {
+<span class="nc" id="L67">        return sourceRealm;</span>
+    }
+
+    @Override
+    public void setSourceRealm(final Realm sourceRealm) {
+<span class="nc" id="L72">        checkType(sourceRealm, JPARealm.class);</span>
+<span class="nc" id="L73">        this.sourceRealm = (JPARealm) sourceRealm;</span>
+<span class="nc" id="L74">    }</span>
+
+    @Override
+    public boolean add(final Implementation action) {
+<span class="nc" id="L78">        checkType(action, JPAImplementation.class);</span>
+<span class="nc" id="L79">        checkImplementationType(action, IdMImplementationType.PUSH_ACTIONS);</span>
+<span class="nc bnc" id="L80" title="All 4 branches missed.">        return actions.contains((JPAImplementation) action) || actions.add((JPAImplementation) action);</span>
+    }
+
+    @Override
+    public List&lt;? extends Implementation&gt; getActions() {
+<span class="nc" id="L85">        return actions;</span>
+    }
+
+    @Override
+    public boolean add(final PushTaskAnyFilter filter) {
+<span class="nc" id="L90">        checkType(filter, JPAPushTaskAnyFilter.class);</span>
+<span class="nc" id="L91">        return this.filters.add((JPAPushTaskAnyFilter) filter);</span>
+    }
+
+    @Override
+    public Optional&lt;? extends PushTaskAnyFilter&gt; getFilter(final AnyType anyType) {
+<span class="nc bnc" id="L96" title="All 4 branches missed.">        return filters.stream().filter(filter -&gt; anyType != null &amp;&amp; anyType.equals(filter.getAnyType())).findFirst();</span>
+    }
+
+    @Override
+    public List&lt;? extends PushTaskAnyFilter&gt; getFilters() {
+<span class="nc" id="L101">        return filters;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

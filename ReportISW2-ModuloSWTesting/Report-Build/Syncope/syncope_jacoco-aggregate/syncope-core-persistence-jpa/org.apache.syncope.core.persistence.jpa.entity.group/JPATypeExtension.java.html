@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPATypeExtension.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.group</a> &gt; <span class="el_source">JPATypeExtension.java</span></div><h1>JPATypeExtension.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.group;
+
+import java.util.ArrayList;
+import java.util.List;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.group.Group;
+import org.apache.syncope.core.persistence.api.entity.group.TypeExtension;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractGeneratedKeyEntity;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyType;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyTypeClass;
+
+@Entity
+@Table(name = JPATypeExtension.TABLE, uniqueConstraints =
+        @UniqueConstraint(columnNames = { &quot;group_id&quot;, &quot;anyType_id&quot; }))
+<span class="nc" id="L42">public class JPATypeExtension extends AbstractGeneratedKeyEntity implements TypeExtension {</span>
+
+    private static final long serialVersionUID = -8367626793791263551L;
+
+    public static final String TABLE = &quot;TypeExtension&quot;;
+
+    private Group group;
+
+    @ManyToOne
+    private JPAAnyType anyType;
+
+<span class="nc" id="L53">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;typeExtension_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;anyTypeClass_id&quot;),
+            uniqueConstraints = @UniqueConstraint(columnNames = { &quot;typeExtension_id&quot;, &quot;anyTypeClass_id&quot; }))
+    private List&lt;JPAAnyTypeClass&gt; auxClasses = new ArrayList&lt;&gt;();
+
+    @Override
+    public Group getGroup() {
+<span class="nc" id="L63">        return group;</span>
+    }
+
+    @Override
+    public void setGroup(final Group group) {
+<span class="nc" id="L68">        checkType(group, JPAGroup.class);</span>
+<span class="nc" id="L69">        this.group = (JPAGroup) group;</span>
+<span class="nc" id="L70">    }</span>
+
+    @Override
+    public AnyType getAnyType() {
+<span class="nc" id="L74">        return anyType;</span>
+    }
+
+    @Override
+    public void setAnyType(final AnyType anyType) {
+<span class="nc" id="L79">        checkType(anyType, JPAAnyType.class);</span>
+<span class="nc" id="L80">        this.anyType = (JPAAnyType) anyType;</span>
+<span class="nc" id="L81">    }</span>
+
+    @Override
+    public boolean add(final AnyTypeClass auxClass) {
+<span class="nc" id="L85">        checkType(auxClass, JPAAnyTypeClass.class);</span>
+<span class="nc bnc" id="L86" title="All 4 branches missed.">        return auxClasses.contains((JPAAnyTypeClass) auxClass) || auxClasses.add((JPAAnyTypeClass) auxClass);</span>
+    }
+
+    @Override
+    public List&lt;? extends AnyTypeClass&gt; getAuxClasses() {
+<span class="nc" id="L91">        return auxClasses;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

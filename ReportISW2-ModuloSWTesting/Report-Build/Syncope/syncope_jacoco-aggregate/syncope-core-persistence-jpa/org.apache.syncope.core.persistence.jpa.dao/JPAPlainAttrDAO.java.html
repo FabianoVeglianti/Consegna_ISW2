@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAPlainAttrDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAPlainAttrDAO.java</span></div><h1>JPAPlainAttrDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import org.apache.syncope.core.persistence.api.dao.PlainAttrDAO;
+import org.apache.syncope.core.persistence.api.entity.Any;
+import org.apache.syncope.core.persistence.api.entity.PlainAttr;
+import org.apache.syncope.core.persistence.api.entity.anyobject.APlainAttr;
+import org.apache.syncope.core.persistence.api.entity.group.GPlainAttr;
+import org.apache.syncope.core.persistence.api.entity.user.UPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.group.JPAGPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUPlainAttr;
+
+<span class="nc" id="L32">public class JPAPlainAttrDAO extends AbstractDAO&lt;PlainAttr&lt;?&gt;&gt; implements PlainAttrDAO {</span>
+
+    public static &lt;T extends PlainAttr&lt;?&gt;&gt; Class&lt;? extends AbstractPlainAttr&lt;?&gt;&gt; getEntityReference(
+            final Class&lt;T&gt; reference) {
+
+<span class="nc bnc" id="L37" title="All 2 branches missed.">        return GPlainAttr.class.isAssignableFrom(reference)</span>
+<span class="nc" id="L38">                ? JPAGPlainAttr.class</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">                : APlainAttr.class.isAssignableFrom(reference)</span>
+<span class="nc" id="L40">                ? JPAAPlainAttr.class</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">                : UPlainAttr.class.isAssignableFrom(reference)</span>
+<span class="nc" id="L42">                ? JPAUPlainAttr.class</span>
+<span class="nc" id="L43">                : null;</span>
+    }
+
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public &lt;T extends PlainAttr&lt;?&gt;&gt; void delete(final T plainAttr) {
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        if (plainAttr.getOwner() != null) {</span>
+<span class="nc" id="L50">            ((Any&lt;T&gt;) plainAttr.getOwner()).remove(plainAttr);</span>
+        }
+
+<span class="nc" id="L53">        entityManager().remove(plainAttr);</span>
+<span class="nc" id="L54">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

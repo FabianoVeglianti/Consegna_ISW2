@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAAccountPolicy.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.policy</a> &gt; <span class="el_source">JPAAccountPolicy.java</span></div><h1>JPAAccountPolicy.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.policy;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.common.lib.types.IdRepoImplementationType;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.policy.AccountPolicy;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.jpa.entity.JPAImplementation;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAExternalResource;
+
+@Entity
+@Table(name = JPAAccountPolicy.TABLE)
+<span class="nc" id="L42">public class JPAAccountPolicy extends AbstractPolicy implements AccountPolicy {</span>
+
+    private static final long serialVersionUID = -2767606675667839060L;
+
+    public static final String TABLE = &quot;AccountPolicy&quot;;
+
+<span class="nc" id="L48">    @NotNull</span>
+<span class="nc" id="L49">    private Boolean propagateSuspension = false;</span>
+
+    private int maxAuthenticationAttempts;
+
+<span class="nc" id="L53">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(name = TABLE + &quot;Rule&quot;,
+            joinColumns =
+            @JoinColumn(name = &quot;policy_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;implementation_id&quot;),
+            uniqueConstraints =
+            @UniqueConstraint(columnNames = { &quot;policy_id&quot;, &quot;implementation_id&quot; }))
+    private List&lt;JPAImplementation&gt; rules = new ArrayList&lt;&gt;();
+
+    /**
+     * Resources for alternative user authentication: if empty, only internal storage will be used.
+     */
+<span class="nc" id="L66">    @ManyToMany(fetch = FetchType.EAGER)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;accountPolicy_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;resource_id&quot;),
+            uniqueConstraints =
+            @UniqueConstraint(columnNames = { &quot;accountPolicy_id&quot;, &quot;resource_id&quot; }))
+    private Set&lt;JPAExternalResource&gt; resources = new HashSet&lt;&gt;();
+
+    @Override
+    public boolean isPropagateSuspension() {
+<span class="nc" id="L77">        return propagateSuspension;</span>
+    }
+
+    @Override
+    public void setPropagateSuspension(final boolean propagateSuspension) {
+<span class="nc" id="L82">        this.propagateSuspension = propagateSuspension;</span>
+<span class="nc" id="L83">    }</span>
+
+    @Override
+    public int getMaxAuthenticationAttempts() {
+<span class="nc" id="L87">        return maxAuthenticationAttempts;</span>
+    }
+
+    @Override
+    public void setMaxAuthenticationAttempts(final int maxAuthenticationAttempts) {
+<span class="nc" id="L92">        this.maxAuthenticationAttempts = maxAuthenticationAttempts;</span>
+<span class="nc" id="L93">    }</span>
+
+    @Override
+    public boolean add(final Implementation rule) {
+<span class="nc" id="L97">        checkType(rule, JPAImplementation.class);</span>
+<span class="nc" id="L98">        checkImplementationType(rule, IdRepoImplementationType.ACCOUNT_RULE);</span>
+<span class="nc bnc" id="L99" title="All 4 branches missed.">        return rules.contains((JPAImplementation) rule) || rules.add((JPAImplementation) rule);</span>
+    }
+
+    @Override
+    public List&lt;? extends Implementation&gt; getRules() {
+<span class="nc" id="L104">        return rules;</span>
+    }
+
+    @Override
+    public boolean add(final ExternalResource resource) {
+<span class="nc" id="L109">        checkType(resource, JPAExternalResource.class);</span>
+<span class="nc bnc" id="L110" title="All 4 branches missed.">        return resources.contains((JPAExternalResource) resource) || resources.add((JPAExternalResource) resource);</span>
+    }
+
+    @Override
+    public Set&lt;? extends ExternalResource&gt; getResources() {
+<span class="nc" id="L115">        return resources;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

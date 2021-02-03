@@ -1,0 +1,1085 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAAnySearchDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAAnySearchDAO.java</span></div><h1>JPAAnySearchDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.persistence.Query;
+import javax.persistence.TemporalType;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
+import org.apache.syncope.common.lib.SyncopeClientException;
+import org.apache.syncope.common.lib.types.AnyTypeKind;
+import org.apache.syncope.common.lib.types.AttrSchemaType;
+import org.apache.syncope.common.lib.types.ClientExceptionType;
+import org.apache.syncope.core.persistence.api.dao.search.AttrCond;
+import org.apache.syncope.core.persistence.api.dao.search.AnyCond;
+import org.apache.syncope.core.persistence.api.dao.search.AnyTypeCond;
+import org.apache.syncope.core.persistence.api.dao.search.AssignableCond;
+import org.apache.syncope.core.persistence.api.dao.search.DynRealmCond;
+import org.apache.syncope.core.persistence.api.dao.search.MemberCond;
+import org.apache.syncope.core.persistence.api.dao.search.MembershipCond;
+import org.apache.syncope.core.persistence.api.dao.search.OrderByClause;
+import org.apache.syncope.core.persistence.api.dao.search.PrivilegeCond;
+import org.apache.syncope.core.persistence.api.dao.search.RelationshipCond;
+import org.apache.syncope.core.persistence.api.dao.search.RelationshipTypeCond;
+import org.apache.syncope.core.persistence.api.dao.search.ResourceCond;
+import org.apache.syncope.core.persistence.api.dao.search.RoleCond;
+import org.apache.syncope.core.persistence.api.dao.search.SearchCond;
+import org.apache.syncope.core.persistence.api.entity.Any;
+import org.apache.syncope.core.persistence.api.entity.AnyUtils;
+import org.apache.syncope.core.persistence.api.entity.DynRealm;
+import org.apache.syncope.core.persistence.api.entity.Entity;
+import org.apache.syncope.core.persistence.api.entity.PlainAttrValue;
+import org.apache.syncope.core.persistence.api.entity.PlainSchema;
+import org.apache.syncope.core.persistence.api.entity.Realm;
+import org.apache.syncope.core.provisioning.api.utils.RealmUtils;
+
+/**
+ * Search engine implementation for users, groups and any objects, based on self-updating SQL views.
+ */
+<span class="nc" id="L64">public class JPAAnySearchDAO extends AbstractAnySearchDAO {</span>
+
+    protected static final String EMPTY_QUERY = &quot;SELECT any_id FROM user_search WHERE 1=2&quot;;
+
+    protected String buildAdminRealmsFilter(
+            final Set&lt;String&gt; realmKeys,
+            final SearchSupport svs,
+            final List&lt;Object&gt; parameters) {
+
+<span class="nc" id="L73">        List&lt;String&gt; realmKeyArgs = realmKeys.stream().</span>
+<span class="nc" id="L74">                map(realmKey -&gt; &quot;?&quot; + setParameter(parameters, realmKey)).</span>
+<span class="nc" id="L75">                collect(Collectors.toList());</span>
+<span class="nc" id="L76">        return &quot;u.any_id IN (SELECT any_id FROM &quot; + svs.field().name</span>
+<span class="nc" id="L77">                + &quot; WHERE realm_id IN (&quot; + StringUtils.join(realmKeyArgs, &quot;, &quot;) + &quot;))&quot;;</span>
+    }
+
+    private Pair&lt;String, Set&lt;String&gt;&gt; getAdminRealmsFilter(
+            final Set&lt;String&gt; adminRealms,
+            final SearchSupport svs,
+            final List&lt;Object&gt; parameters) {
+
+<span class="nc" id="L85">        Set&lt;String&gt; realmKeys = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L86">        Set&lt;String&gt; dynRealmKeys = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L87">        RealmUtils.normalize(adminRealms).forEach(realmPath -&gt; {</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">            if (realmPath.startsWith(&quot;/&quot;)) {</span>
+<span class="nc" id="L89">                Realm realm = realmDAO.findByFullPath(realmPath);</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">                if (realm == null) {</span>
+<span class="nc" id="L91">                    SyncopeClientException noRealm = SyncopeClientException.build(ClientExceptionType.InvalidRealm);</span>
+<span class="nc" id="L92">                    noRealm.getElements().add(&quot;Invalid realm specified: &quot; + realmPath);</span>
+<span class="nc" id="L93">                    throw noRealm;</span>
+                } else {
+<span class="nc" id="L95">                    realmKeys.addAll(realmDAO.findDescendants(realm).stream().</span>
+<span class="nc" id="L96">                            map(Entity::getKey).collect(Collectors.toSet()));</span>
+                }
+<span class="nc" id="L98">            } else {</span>
+<span class="nc" id="L99">                DynRealm dynRealm = dynRealmDAO.find(realmPath);</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">                if (dynRealm == null) {</span>
+<span class="nc" id="L101">                    LOG.warn(&quot;Ignoring invalid dynamic realm {}&quot;, realmPath);</span>
+                } else {
+<span class="nc" id="L103">                    dynRealmKeys.add(dynRealm.getKey());</span>
+                }
+            }
+<span class="nc" id="L106">        });</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        if (!dynRealmKeys.isEmpty()) {</span>
+<span class="nc" id="L108">            realmKeys.addAll(realmDAO.findAll().stream().</span>
+<span class="nc" id="L109">                    map(Entity::getKey).collect(Collectors.toSet()));</span>
+        }
+
+<span class="nc" id="L112">        return Pair.of(buildAdminRealmsFilter(realmKeys, svs, parameters), dynRealmKeys);</span>
+    }
+
+    SearchSupport buildSearchSupport(final AnyTypeKind kind) {
+<span class="nc" id="L116">        return new SearchViewSupport(kind);</span>
+    }
+
+    @Override
+    protected int doCount(final Set&lt;String&gt; adminRealms, final SearchCond cond, final AnyTypeKind kind) {
+<span class="nc" id="L121">        List&lt;Object&gt; parameters = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L123">        SearchSupport svs = buildSearchSupport(kind);</span>
+
+<span class="nc" id="L125">        Pair&lt;String, Set&lt;String&gt;&gt; filter = getAdminRealmsFilter(adminRealms, svs, parameters);</span>
+
+        // 1. get the query string from the search condition
+<span class="nc" id="L128">        Pair&lt;StringBuilder, Set&lt;String&gt;&gt; queryInfo =</span>
+<span class="nc" id="L129">                getQuery(buildEffectiveCond(cond, filter.getRight()), parameters, svs);</span>
+
+<span class="nc" id="L131">        StringBuilder queryString = queryInfo.getLeft();</span>
+
+        // 2. take into account administrative realms
+<span class="nc" id="L134">        queryString.insert(0, &quot;SELECT u.any_id FROM (&quot;);</span>
+<span class="nc" id="L135">        queryString.append(&quot;) u WHERE &quot;).append(filter.getLeft());</span>
+
+        // 3. prepare the COUNT query
+<span class="nc" id="L138">        queryString.insert(0, &quot;SELECT COUNT(any_id) FROM (&quot;);</span>
+<span class="nc" id="L139">        queryString.append(&quot;) count_any_id&quot;);</span>
+
+<span class="nc" id="L141">        Query countQuery = entityManager().createNativeQuery(queryString.toString());</span>
+<span class="nc" id="L142">        fillWithParameters(countQuery, parameters);</span>
+
+<span class="nc" id="L144">        return ((Number) countQuery.getSingleResult()).intValue();</span>
+    }
+
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    protected &lt;T extends Any&lt;?&gt;&gt; List&lt;T&gt; doSearch(
+            final Set&lt;String&gt; adminRealms,
+            final SearchCond cond,
+            final int page,
+            final int itemsPerPage,
+            final List&lt;OrderByClause&gt; orderBy,
+            final AnyTypeKind kind) {
+
+        try {
+<span class="nc" id="L158">            List&lt;Object&gt; parameters = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L160">            SearchSupport svs = buildSearchSupport(kind);</span>
+
+<span class="nc" id="L162">            Pair&lt;String, Set&lt;String&gt;&gt; filter = getAdminRealmsFilter(adminRealms, svs, parameters);</span>
+
+            // 1. get the query string from the search condition
+<span class="nc" id="L165">            Pair&lt;StringBuilder, Set&lt;String&gt;&gt; queryInfo =</span>
+<span class="nc" id="L166">                    getQuery(buildEffectiveCond(cond, filter.getRight()), parameters, svs);</span>
+
+<span class="nc" id="L168">            StringBuilder queryString = queryInfo.getLeft();</span>
+
+<span class="nc" id="L170">            LOG.debug(&quot;Query: {}, parameters: {}&quot;, queryString, parameters);</span>
+
+            // 2. take into account realms and ordering
+<span class="nc" id="L173">            OrderBySupport obs = parseOrderBy(svs, orderBy);</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            if (queryString.charAt(0) == '(') {</span>
+<span class="nc" id="L175">                queryString.insert(0, buildSelect(obs));</span>
+<span class="nc" id="L176">                queryString.append(buildWhere(svs, obs));</span>
+            } else {
+<span class="nc" id="L178">                queryString.insert(0, buildSelect(obs).append('('));</span>
+<span class="nc" id="L179">                queryString.append(')').append(buildWhere(svs, obs));</span>
+            }
+<span class="nc" id="L181">            queryString.</span>
+<span class="nc" id="L182">                    append(filter.getLeft()).</span>
+<span class="nc" id="L183">                    append(buildOrderBy(obs));</span>
+
+<span class="nc" id="L185">            LOG.debug(&quot;Query with auth and order by statements: {}, parameters: {}&quot;, queryString, parameters);</span>
+
+            // 3. prepare the search query
+<span class="nc" id="L188">            Query query = entityManager().createNativeQuery(queryString.toString());</span>
+
+            // 4. page starts from 1, while setFirtResult() starts from 0
+<span class="nc bnc" id="L191" title="All 2 branches missed.">            query.setFirstResult(itemsPerPage * (page &lt;= 0 ? 0 : page - 1));</span>
+
+<span class="nc bnc" id="L193" title="All 2 branches missed.">            if (itemsPerPage &gt;= 0) {</span>
+<span class="nc" id="L194">                query.setMaxResults(itemsPerPage);</span>
+            }
+
+            // 5. populate the search query with parameter values
+<span class="nc" id="L198">            fillWithParameters(query, parameters);</span>
+
+            // 6. Prepare the result (avoiding duplicates)
+<span class="nc" id="L201">            return buildResult(query.getResultList(), kind);</span>
+<span class="nc" id="L202">        } catch (SyncopeClientException e) {</span>
+<span class="nc" id="L203">            throw e;</span>
+<span class="nc" id="L204">        } catch (Exception e) {</span>
+<span class="nc" id="L205">            LOG.error(&quot;While searching for {}&quot;, kind, e);</span>
+        }
+
+<span class="nc" id="L208">        return List.of();</span>
+    }
+
+    protected static int setParameter(final List&lt;Object&gt; parameters, final Object parameter) {
+<span class="nc" id="L212">        parameters.add(parameter);</span>
+<span class="nc" id="L213">        return parameters.size();</span>
+    }
+
+    private static void fillWithParameters(final Query query, final List&lt;Object&gt; parameters) {
+<span class="nc bnc" id="L217" title="All 2 branches missed.">        for (int i = 0; i &lt; parameters.size(); i++) {</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">            if (parameters.get(i) instanceof Date) {</span>
+<span class="nc" id="L219">                query.setParameter(i + 1, (Date) parameters.get(i), TemporalType.TIMESTAMP);</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">            } else if (parameters.get(i) instanceof Boolean) {</span>
+<span class="nc bnc" id="L221" title="All 2 branches missed.">                query.setParameter(i + 1, ((Boolean) parameters.get(i))</span>
+<span class="nc" id="L222">                        ? 1</span>
+<span class="nc" id="L223">                        : 0);</span>
+            } else {
+<span class="nc" id="L225">                query.setParameter(i + 1, parameters.get(i));</span>
+            }
+        }
+<span class="nc" id="L228">    }</span>
+
+    private static StringBuilder buildSelect(final OrderBySupport obs) {
+<span class="nc" id="L231">        StringBuilder select = new StringBuilder(&quot;SELECT DISTINCT u.any_id&quot;);</span>
+
+<span class="nc" id="L233">        obs.items.forEach(item -&gt; select.append(',').append(item.select));</span>
+<span class="nc" id="L234">        select.append(&quot; FROM &quot;);</span>
+
+<span class="nc" id="L236">        return select;</span>
+    }
+
+    protected void processOBS(
+            final SearchSupport svs,
+            final OrderBySupport obs,
+            final StringBuilder where) {
+
+<span class="nc" id="L244">        Set&lt;String&gt; attrs = obs.items.stream().</span>
+<span class="nc" id="L245">                map(item -&gt; item.orderBy.substring(0, item.orderBy.indexOf(&quot; &quot;))).collect(Collectors.toSet());</span>
+
+<span class="nc" id="L247">        obs.views.forEach(searchView -&gt; {</span>
+<span class="nc" id="L248">            where.append(',');</span>
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            if (searchView.name.equals(svs.asSearchViewSupport().attr().name)) {</span>
+<span class="nc" id="L250">                StringBuilder attrWhere = new StringBuilder();</span>
+<span class="nc" id="L251">                StringBuilder nullAttrWhere = new StringBuilder();</span>
+
+<span class="nc" id="L253">                where.append(&quot; (SELECT * FROM &quot;).append(searchView.name);</span>
+
+<span class="nc bnc" id="L255" title="All 4 branches missed.">                if (svs.nonMandatorySchemas || obs.nonMandatorySchemas) {</span>
+<span class="nc" id="L256">                    attrs.forEach(field -&gt; {</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">                        if (attrWhere.length() == 0) {</span>
+<span class="nc" id="L258">                            attrWhere.append(&quot; WHERE &quot;);</span>
+                        } else {
+<span class="nc" id="L260">                            attrWhere.append(&quot; OR &quot;);</span>
+                        }
+<span class="nc" id="L262">                        attrWhere.append(&quot;schema_id='&quot;).append(field).append('\'');</span>
+
+<span class="nc" id="L264">                        nullAttrWhere.append(&quot; UNION SELECT any_id, &quot;).</span>
+<span class="nc" id="L265">                                append('\'').</span>
+<span class="nc" id="L266">                                append(field).</span>
+<span class="nc" id="L267">                                append(&quot;' AS schema_id, &quot;).</span>
+<span class="nc" id="L268">                                append(&quot;null AS booleanvalue, &quot;).</span>
+<span class="nc" id="L269">                                append(&quot;null AS datevalue, &quot;).</span>
+<span class="nc" id="L270">                                append(&quot;null AS doublevalue, &quot;).</span>
+<span class="nc" id="L271">                                append(&quot;null AS longvalue, &quot;).</span>
+<span class="nc" id="L272">                                append(&quot;null AS stringvalue FROM &quot;).append(svs.field().name).</span>
+<span class="nc" id="L273">                                append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L274">                                append(&quot;any_id NOT IN (&quot;).</span>
+<span class="nc" id="L275">                                append(&quot;SELECT any_id FROM &quot;).</span>
+<span class="nc" id="L276">                                append(svs.asSearchViewSupport().attr().name).append(' ').append(searchView.alias).</span>
+<span class="nc" id="L277">                                append(&quot; WHERE &quot;).append(&quot;schema_id='&quot;).append(field).append(&quot;')&quot;);</span>
+<span class="nc" id="L278">                    });</span>
+<span class="nc" id="L279">                    where.append(attrWhere).append(nullAttrWhere);</span>
+                }
+
+<span class="nc" id="L282">                where.append(')');</span>
+<span class="nc" id="L283">            } else {</span>
+<span class="nc" id="L284">                where.append(searchView.name);</span>
+            }
+<span class="nc" id="L286">            where.append(' ').append(searchView.alias);</span>
+<span class="nc" id="L287">        });</span>
+<span class="nc" id="L288">    }</span>
+
+    private StringBuilder buildWhere(
+            final SearchSupport svs,
+            final OrderBySupport obs) {
+
+<span class="nc" id="L294">        StringBuilder where = new StringBuilder(&quot; u&quot;);</span>
+<span class="nc" id="L295">        processOBS(svs, obs, where);</span>
+<span class="nc" id="L296">        where.append(&quot; WHERE &quot;);</span>
+<span class="nc" id="L297">        obs.views.forEach(searchView -&gt; where.append(&quot;u.any_id=&quot;).append(searchView.alias).append(&quot;.any_id AND &quot;));</span>
+
+<span class="nc" id="L299">        obs.items.stream().</span>
+<span class="nc" id="L300">                filter(item -&gt; StringUtils.isNotBlank(item.where)).</span>
+<span class="nc" id="L301">                forEachOrdered((item) -&gt; where.append(item.where).append(&quot; AND &quot;));</span>
+
+<span class="nc" id="L303">        return where;</span>
+    }
+
+    private static StringBuilder buildOrderBy(final OrderBySupport obs) {
+<span class="nc" id="L307">        StringBuilder orderBy = new StringBuilder();</span>
+
+<span class="nc" id="L309">        obs.items.forEach(item -&gt; orderBy.append(item.orderBy).append(','));</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">        if (!obs.items.isEmpty()) {</span>
+<span class="nc" id="L311">            orderBy.insert(0, &quot; ORDER BY &quot;);</span>
+<span class="nc" id="L312">            orderBy.deleteCharAt(orderBy.length() - 1);</span>
+        }
+
+<span class="nc" id="L315">        return orderBy;</span>
+    }
+
+    protected static String key(final AttrSchemaType schemaType) {
+        String key;
+<span class="nc bnc" id="L320" title="All 6 branches missed.">        switch (schemaType) {</span>
+            case Boolean:
+<span class="nc" id="L322">                key = &quot;booleanValue&quot;;</span>
+<span class="nc" id="L323">                break;</span>
+
+            case Date:
+<span class="nc" id="L326">                key = &quot;dateValue&quot;;</span>
+<span class="nc" id="L327">                break;</span>
+
+            case Double:
+<span class="nc" id="L330">                key = &quot;doubleValue&quot;;</span>
+<span class="nc" id="L331">                break;</span>
+
+            case Long:
+<span class="nc" id="L334">                key = &quot;longValue&quot;;</span>
+<span class="nc" id="L335">                break;</span>
+
+            case Binary:
+<span class="nc" id="L338">                key = &quot;binaryValue&quot;;</span>
+<span class="nc" id="L339">                break;</span>
+
+            default:
+<span class="nc" id="L342">                key = &quot;stringValue&quot;;</span>
+        }
+
+<span class="nc" id="L345">        return key;</span>
+    }
+
+    protected void parseOrderByForPlainSchema(
+            final SearchSupport svs,
+            final OrderBySupport obs,
+            final OrderBySupport.Item item,
+            final OrderByClause clause,
+            final PlainSchema schema,
+            final String fieldName) {
+
+        // keep track of involvement of non-mandatory schemas in the order by clauses
+<span class="nc bnc" id="L357" title="All 2 branches missed.">        obs.nonMandatorySchemas = !&quot;true&quot;.equals(schema.getMandatoryCondition());</span>
+
+<span class="nc bnc" id="L359" title="All 2 branches missed.">        if (schema.isUniqueConstraint()) {</span>
+<span class="nc" id="L360">            obs.views.add(svs.asSearchViewSupport().uniqueAttr());</span>
+
+<span class="nc" id="L362">            item.select = new StringBuilder().</span>
+<span class="nc" id="L363">                    append(svs.asSearchViewSupport().uniqueAttr().alias).append('.').</span>
+<span class="nc" id="L364">                    append(key(schema.getType())).</span>
+<span class="nc" id="L365">                    append(&quot; AS &quot;).append(fieldName).toString();</span>
+<span class="nc" id="L366">            item.where = new StringBuilder().</span>
+<span class="nc" id="L367">                    append(svs.asSearchViewSupport().uniqueAttr().alias).</span>
+<span class="nc" id="L368">                    append(&quot;.schema_id='&quot;).append(fieldName).append('\'').toString();</span>
+<span class="nc" id="L369">            item.orderBy = fieldName + ' ' + clause.getDirection().name();</span>
+        } else {
+<span class="nc" id="L371">            obs.views.add(svs.asSearchViewSupport().attr());</span>
+
+<span class="nc" id="L373">            item.select = new StringBuilder().</span>
+<span class="nc" id="L374">                    append(svs.asSearchViewSupport().attr().alias).append('.').append(key(schema.getType())).</span>
+<span class="nc" id="L375">                    append(&quot; AS &quot;).append(fieldName).toString();</span>
+<span class="nc" id="L376">            item.where = new StringBuilder().</span>
+<span class="nc" id="L377">                    append(svs.asSearchViewSupport().attr().alias).</span>
+<span class="nc" id="L378">                    append(&quot;.schema_id='&quot;).append(fieldName).append('\'').toString();</span>
+<span class="nc" id="L379">            item.orderBy = fieldName + ' ' + clause.getDirection().name();</span>
+        }
+<span class="nc" id="L381">    }</span>
+
+    protected void parseOrderByForCustom(
+            final SearchSupport svs,
+            final OrderByClause clause,
+            final OrderBySupport.Item item,
+            final OrderBySupport obs) {
+
+        // do nothing by default, meant for subclasses
+<span class="nc" id="L390">    }</span>
+
+    private OrderBySupport parseOrderBy(
+            final SearchSupport svs,
+            final List&lt;OrderByClause&gt; orderBy) {
+
+<span class="nc" id="L396">        AnyUtils anyUtils = anyUtilsFactory.getInstance(svs.anyTypeKind);</span>
+
+<span class="nc" id="L398">        OrderBySupport obs = new OrderBySupport();</span>
+
+<span class="nc" id="L400">        Set&lt;String&gt; orderByUniquePlainSchemas = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L401">        Set&lt;String&gt; orderByNonUniquePlainSchemas = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L402">        orderBy.forEach(clause -&gt; {</span>
+<span class="nc" id="L403">            OrderBySupport.Item item = new OrderBySupport.Item();</span>
+
+<span class="nc" id="L405">            parseOrderByForCustom(svs, clause, item, obs);</span>
+
+<span class="nc bnc" id="L407" title="All 2 branches missed.">            if (item.isEmpty()) {</span>
+<span class="nc bnc" id="L408" title="All 2 branches missed.">                if (anyUtils.getField(clause.getField()) == null) {</span>
+<span class="nc" id="L409">                    PlainSchema schema = schemaDAO.find(clause.getField());</span>
+<span class="nc bnc" id="L410" title="All 2 branches missed.">                    if (schema != null) {</span>
+<span class="nc bnc" id="L411" title="All 2 branches missed.">                        if (schema.isUniqueConstraint()) {</span>
+<span class="nc" id="L412">                            orderByUniquePlainSchemas.add(schema.getKey());</span>
+                        } else {
+<span class="nc" id="L414">                            orderByNonUniquePlainSchemas.add(schema.getKey());</span>
+                        }
+<span class="nc bnc" id="L416" title="All 4 branches missed.">                        if (orderByUniquePlainSchemas.size() &gt; 1 || orderByNonUniquePlainSchemas.size() &gt; 1) {</span>
+<span class="nc" id="L417">                            SyncopeClientException invalidSearch =</span>
+<span class="nc" id="L418">                                    SyncopeClientException.build(ClientExceptionType.InvalidSearchExpression);</span>
+<span class="nc" id="L419">                            invalidSearch.getElements().add(&quot;Order by more than one attribute is not allowed; &quot;</span>
+<span class="nc bnc" id="L420" title="All 2 branches missed.">                                    + &quot;remove one from &quot; + (orderByUniquePlainSchemas.size() &gt; 1</span>
+<span class="nc" id="L421">                                    ? orderByUniquePlainSchemas : orderByNonUniquePlainSchemas));</span>
+<span class="nc" id="L422">                            throw invalidSearch;</span>
+                        }
+<span class="nc" id="L424">                        parseOrderByForPlainSchema(svs, obs, item, clause, schema, clause.getField());</span>
+                    }
+<span class="nc" id="L426">                } else {</span>
+                    // Manage difference among external key attribute and internal JPA @Id
+<span class="nc bnc" id="L428" title="All 2 branches missed.">                    String fieldName = &quot;key&quot;.equals(clause.getField()) ? &quot;id&quot; : clause.getField();</span>
+
+                    // Adjust field name to column name
+<span class="nc bnc" id="L431" title="All 2 branches missed.">                    if (ArrayUtils.contains(RELATIONSHIP_FIELDS, fieldName)) {</span>
+<span class="nc" id="L432">                        fieldName += &quot;_id&quot;;</span>
+                    }
+
+<span class="nc" id="L435">                    obs.views.add(svs.field());</span>
+
+<span class="nc" id="L437">                    item.select = svs.field().alias + '.' + fieldName;</span>
+<span class="nc" id="L438">                    item.where = StringUtils.EMPTY;</span>
+<span class="nc" id="L439">                    item.orderBy = svs.field().alias + '.' + fieldName + ' ' + clause.getDirection().name();</span>
+                }
+            }
+
+<span class="nc bnc" id="L443" title="All 2 branches missed.">            if (item.isEmpty()) {</span>
+<span class="nc" id="L444">                LOG.warn(&quot;Cannot build any valid clause from {}&quot;, clause);</span>
+            } else {
+<span class="nc" id="L446">                obs.items.add(item);</span>
+            }
+<span class="nc" id="L448">        });</span>
+
+<span class="nc" id="L450">        return obs;</span>
+    }
+
+    protected void getQueryForCustomConds(
+            final SearchCond cond,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs,
+            final boolean not,
+            final StringBuilder query) {
+
+        // do nothing by default, leave it open for subclasses
+<span class="nc" id="L461">    }</span>
+
+    private Pair&lt;StringBuilder, Set&lt;String&gt;&gt; getQuery(
+            final SearchCond cond, final List&lt;Object&gt; parameters, final SearchSupport svs) {
+
+<span class="nc bnc" id="L466" title="All 2 branches missed.">        boolean not = cond.getType() == SearchCond.Type.NOT_LEAF;</span>
+
+<span class="nc" id="L468">        StringBuilder query = new StringBuilder();</span>
+<span class="nc" id="L469">        Set&lt;String&gt; involvedPlainAttrs = new HashSet&lt;&gt;();</span>
+
+<span class="nc bnc" id="L471" title="All 4 branches missed.">        switch (cond.getType()) {</span>
+            case LEAF:
+            case NOT_LEAF:
+<span class="nc" id="L474">                cond.getLeaf(AnyTypeCond.class).</span>
+<span class="nc bnc" id="L475" title="All 2 branches missed.">                        filter(leaf -&gt; AnyTypeKind.ANY_OBJECT == svs.anyTypeKind).</span>
+<span class="nc" id="L476">                        ifPresent(leaf -&gt; query.append(getQuery(leaf, not, parameters, svs)));</span>
+
+<span class="nc" id="L478">                cond.getLeaf(RelationshipTypeCond.class).</span>
+<span class="nc bnc" id="L479" title="All 2 branches missed.">                        filter(leaf -&gt; AnyTypeKind.GROUP != svs.anyTypeKind).</span>
+<span class="nc" id="L480">                        ifPresent(leaf -&gt; query.append(getQuery(leaf, not, parameters, svs)));</span>
+
+<span class="nc" id="L482">                cond.getLeaf(RelationshipCond.class).</span>
+<span class="nc bnc" id="L483" title="All 2 branches missed.">                        filter(leaf -&gt; AnyTypeKind.GROUP != svs.anyTypeKind).</span>
+<span class="nc" id="L484">                        ifPresent(leaf -&gt; query.append(getQuery(leaf, not, parameters, svs)));</span>
+
+<span class="nc" id="L486">                cond.getLeaf(MembershipCond.class).</span>
+<span class="nc bnc" id="L487" title="All 2 branches missed.">                        filter(leaf -&gt; AnyTypeKind.GROUP != svs.anyTypeKind).</span>
+<span class="nc" id="L488">                        ifPresent(leaf -&gt; query.append(getQuery(leaf, not, parameters, svs)));</span>
+
+<span class="nc" id="L490">                cond.getLeaf(MemberCond.class).</span>
+<span class="nc bnc" id="L491" title="All 2 branches missed.">                        filter(leaf -&gt; AnyTypeKind.GROUP == svs.anyTypeKind).</span>
+<span class="nc" id="L492">                        ifPresent(leaf -&gt; query.append(getQuery(leaf, not, parameters, svs)));</span>
+
+<span class="nc" id="L494">                cond.getLeaf(AssignableCond.class).</span>
+<span class="nc" id="L495">                        ifPresent(leaf -&gt; query.append(getQuery(leaf, parameters, svs)));</span>
+
+<span class="nc" id="L497">                cond.getLeaf(RoleCond.class).</span>
+<span class="nc bnc" id="L498" title="All 2 branches missed.">                        filter(leaf -&gt; AnyTypeKind.USER == svs.anyTypeKind).</span>
+<span class="nc" id="L499">                        ifPresent(leaf -&gt; query.append(getQuery(leaf, not, parameters, svs)));</span>
+
+<span class="nc" id="L501">                cond.getLeaf(PrivilegeCond.class).</span>
+<span class="nc bnc" id="L502" title="All 2 branches missed.">                        filter(leaf -&gt; AnyTypeKind.USER == svs.anyTypeKind).</span>
+<span class="nc" id="L503">                        ifPresent(leaf -&gt; query.append(getQuery(leaf, not, parameters, svs)));</span>
+
+<span class="nc" id="L505">                cond.getLeaf(DynRealmCond.class).</span>
+<span class="nc" id="L506">                        ifPresent(leaf -&gt; query.append(getQuery(leaf, not, parameters, svs)));</span>
+
+<span class="nc" id="L508">                cond.getLeaf(ResourceCond.class).</span>
+<span class="nc" id="L509">                        ifPresent(leaf -&gt; query.append(getQuery(leaf, not, parameters, svs)));</span>
+
+<span class="nc" id="L511">                Optional&lt;AnyCond&gt; anyCond = cond.getLeaf(AnyCond.class);</span>
+<span class="nc bnc" id="L512" title="All 2 branches missed.">                if (anyCond.isPresent()) {</span>
+<span class="nc" id="L513">                    query.append(getQuery(anyCond.get(), not, parameters, svs));</span>
+                } else {
+<span class="nc" id="L515">                    cond.getLeaf(AttrCond.class).ifPresent(leaf -&gt; {</span>
+<span class="nc" id="L516">                        query.append(getQuery(leaf, not, parameters, svs));</span>
+                        try {
+<span class="nc" id="L518">                            involvedPlainAttrs.add(check(leaf, svs.anyTypeKind).getLeft().getKey());</span>
+<span class="nc" id="L519">                        } catch (IllegalArgumentException e) {</span>
+                            // ignore
+<span class="nc" id="L521">                        }</span>
+<span class="nc" id="L522">                    });</span>
+                }
+
+                // allow for additional search conditions
+<span class="nc" id="L526">                getQueryForCustomConds(cond, parameters, svs, not, query);</span>
+<span class="nc" id="L527">                break;</span>
+
+            case AND:
+<span class="nc" id="L530">                Pair&lt;StringBuilder, Set&lt;String&gt;&gt; leftAndInfo = getQuery(cond.getLeft(), parameters, svs);</span>
+<span class="nc" id="L531">                involvedPlainAttrs.addAll(leftAndInfo.getRight());</span>
+
+<span class="nc" id="L533">                Pair&lt;StringBuilder, Set&lt;String&gt;&gt; rigthAndInfo = getQuery(cond.getRight(), parameters, svs);</span>
+<span class="nc" id="L534">                involvedPlainAttrs.addAll(rigthAndInfo.getRight());</span>
+
+<span class="nc" id="L536">                String andSubQuery = leftAndInfo.getLeft().toString();</span>
+                // Add extra parentheses
+<span class="nc" id="L538">                andSubQuery = andSubQuery.replaceFirst(&quot;WHERE &quot;, &quot;WHERE (&quot;);</span>
+<span class="nc" id="L539">                query.append(andSubQuery).</span>
+<span class="nc" id="L540">                        append(&quot; AND any_id IN ( &quot;).</span>
+<span class="nc" id="L541">                        append(rigthAndInfo.getLeft()).</span>
+<span class="nc" id="L542">                        append(&quot;))&quot;);</span>
+<span class="nc" id="L543">                break;</span>
+
+            case OR:
+<span class="nc" id="L546">                Pair&lt;StringBuilder, Set&lt;String&gt;&gt; leftOrInfo = getQuery(cond.getLeft(), parameters, svs);</span>
+<span class="nc" id="L547">                involvedPlainAttrs.addAll(leftOrInfo.getRight());</span>
+
+<span class="nc" id="L549">                Pair&lt;StringBuilder, Set&lt;String&gt;&gt; rigthOrInfo = getQuery(cond.getRight(), parameters, svs);</span>
+<span class="nc" id="L550">                involvedPlainAttrs.addAll(rigthOrInfo.getRight());</span>
+
+<span class="nc" id="L552">                String orSubQuery = leftOrInfo.getKey().toString();</span>
+                // Add extra parentheses
+<span class="nc" id="L554">                orSubQuery = orSubQuery.replaceFirst(&quot;WHERE &quot;, &quot;WHERE (&quot;);</span>
+<span class="nc" id="L555">                query.append(orSubQuery).</span>
+<span class="nc" id="L556">                        append(&quot; OR any_id IN ( &quot;).</span>
+<span class="nc" id="L557">                        append(rigthOrInfo.getKey()).</span>
+<span class="nc" id="L558">                        append(&quot;))&quot;);</span>
+<span class="nc" id="L559">                break;</span>
+
+            default:
+        }
+
+<span class="nc" id="L564">        return Pair.of(query, involvedPlainAttrs);</span>
+    }
+
+    protected String getQuery(
+            final AnyTypeCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+<span class="nc" id="L573">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L574">                append(svs.field().name).append(&quot; WHERE type_id&quot;);</span>
+
+<span class="nc bnc" id="L576" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L577">            query.append(&quot;&lt;&gt;&quot;);</span>
+        } else {
+<span class="nc" id="L579">            query.append('=');</span>
+        }
+
+<span class="nc" id="L582">        query.append('?').append(setParameter(parameters, cond.getAnyTypeKey()));</span>
+
+<span class="nc" id="L584">        return query.toString();</span>
+    }
+
+    protected String getQuery(
+            final RelationshipTypeCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+<span class="nc" id="L593">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L594">                append(svs.field().name).append(&quot; WHERE &quot;);</span>
+
+<span class="nc bnc" id="L596" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L597">            query.append(&quot;any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L599">            query.append(&quot;any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L602">        query.append(&quot;SELECT any_id &quot;).append(&quot;FROM &quot;).</span>
+<span class="nc" id="L603">                append(svs.relationship().name).</span>
+<span class="nc" id="L604">                append(&quot; WHERE type=?&quot;).append(setParameter(parameters, cond.getRelationshipTypeKey())).</span>
+<span class="nc" id="L605">                append(&quot; UNION SELECT right_any_id AS any_id FROM &quot;).</span>
+<span class="nc" id="L606">                append(svs.relationship().name).</span>
+<span class="nc" id="L607">                append(&quot; WHERE type=?&quot;).append(setParameter(parameters, cond.getRelationshipTypeKey())).</span>
+<span class="nc" id="L608">                append(')');</span>
+
+<span class="nc" id="L610">        return query.toString();</span>
+    }
+
+    protected String getQuery(
+            final RelationshipCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+        String rightAnyObjectKey;
+        try {
+<span class="nc" id="L621">            rightAnyObjectKey = check(cond);</span>
+<span class="nc" id="L622">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L623">            return EMPTY_QUERY;</span>
+<span class="nc" id="L624">        }</span>
+
+<span class="nc" id="L626">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L627">                append(svs.field().name).append(&quot; WHERE &quot;);</span>
+
+<span class="nc bnc" id="L629" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L630">            query.append(&quot;any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L632">            query.append(&quot;any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L635">        query.append(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L636">                append(svs.relationship().name).append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L637">                append(&quot;right_any_id=?&quot;).append(setParameter(parameters, rightAnyObjectKey)).</span>
+<span class="nc" id="L638">                append(')');</span>
+
+<span class="nc" id="L640">        return query.toString();</span>
+    }
+
+    protected String getQuery(
+            final MembershipCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+        List&lt;String&gt; groupKeys;
+        try {
+<span class="nc" id="L651">            groupKeys = check(cond);</span>
+<span class="nc" id="L652">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L653">            return EMPTY_QUERY;</span>
+<span class="nc" id="L654">        }</span>
+
+<span class="nc" id="L656">        String where = groupKeys.stream().</span>
+<span class="nc" id="L657">                map(key -&gt; &quot;group_id=?&quot; + setParameter(parameters, key)).</span>
+<span class="nc" id="L658">                collect(Collectors.joining(&quot; OR &quot;));</span>
+
+<span class="nc" id="L660">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L661">                append(svs.field().name).append(&quot; WHERE (&quot;);</span>
+
+<span class="nc bnc" id="L663" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L664">            query.append(&quot;any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L666">            query.append(&quot;any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L669">        query.append(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L670">                append(svs.membership().name).append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L671">                append(where).</span>
+<span class="nc" id="L672">                append(&quot;) &quot;);</span>
+
+<span class="nc bnc" id="L674" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L675">            query.append(&quot;AND any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L677">            query.append(&quot;OR any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L680">        query.append(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L681">                append(svs.dyngroupmembership().name).append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L682">                append(where).</span>
+<span class="nc" id="L683">                append(&quot;))&quot;);</span>
+
+<span class="nc" id="L685">        return query.toString();</span>
+    }
+
+    protected String getQuery(
+            final RoleCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+<span class="nc" id="L694">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L695">                append(svs.field().name).append(&quot; WHERE (&quot;);</span>
+
+<span class="nc bnc" id="L697" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L698">            query.append(&quot;any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L700">            query.append(&quot;any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L703">        query.append(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L704">                append(svs.role().name).append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L705">                append(&quot;role_id=?&quot;).append(setParameter(parameters, cond.getRole())).</span>
+<span class="nc" id="L706">                append(&quot;) &quot;);</span>
+
+<span class="nc bnc" id="L708" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L709">            query.append(&quot;AND any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L711">            query.append(&quot;OR any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L714">        query.append(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L715">                append(SearchSupport.dynrolemembership().name).append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L716">                append(&quot;role_id=?&quot;).append(setParameter(parameters, cond.getRole())).</span>
+<span class="nc" id="L717">                append(&quot;))&quot;);</span>
+
+<span class="nc" id="L719">        return query.toString();</span>
+    }
+
+    protected String getQuery(
+            final PrivilegeCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+<span class="nc" id="L728">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L729">                append(svs.field().name).append(&quot; WHERE (&quot;);</span>
+
+<span class="nc bnc" id="L731" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L732">            query.append(&quot;any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L734">            query.append(&quot;any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L737">        query.append(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L738">                append(svs.priv().name).append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L739">                append(&quot;privilege_id=?&quot;).append(setParameter(parameters, cond.getPrivilege())).</span>
+<span class="nc" id="L740">                append(&quot;) &quot;);</span>
+
+<span class="nc bnc" id="L742" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L743">            query.append(&quot;AND any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L745">            query.append(&quot;OR any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L748">        query.append(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L749">                append(svs.dynpriv().name).append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L750">                append(&quot;privilege_id=?&quot;).append(setParameter(parameters, cond.getPrivilege())).</span>
+<span class="nc" id="L751">                append(&quot;))&quot;);</span>
+
+<span class="nc" id="L753">        return query.toString();</span>
+    }
+
+    protected String getQuery(
+            final DynRealmCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+<span class="nc" id="L762">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L763">                append(svs.field().name).append(&quot; WHERE (&quot;);</span>
+
+<span class="nc bnc" id="L765" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L766">            query.append(&quot;any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L768">            query.append(&quot;any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L771">        query.append(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L772">                append(SearchSupport.dynrealmmembership().name).append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L773">                append(&quot;dynRealm_id=?&quot;).append(setParameter(parameters, cond.getDynRealm())).</span>
+<span class="nc" id="L774">                append(&quot;))&quot;);</span>
+
+<span class="nc" id="L776">        return query.toString();</span>
+    }
+
+    protected String getQuery(
+            final ResourceCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+<span class="nc" id="L785">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L786">                append(svs.field().name).append(&quot; WHERE &quot;);</span>
+
+<span class="nc bnc" id="L788" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L789">            query.append(&quot;any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L791">            query.append(&quot;any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L794">        query.append(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L795">                append(svs.resource().name).</span>
+<span class="nc" id="L796">                append(&quot; WHERE resource_id=?&quot;).</span>
+<span class="nc" id="L797">                append(setParameter(parameters, cond.getResourceKey()));</span>
+
+<span class="nc bnc" id="L799" title="All 4 branches missed.">        if (svs.anyTypeKind == AnyTypeKind.USER || svs.anyTypeKind == AnyTypeKind.ANY_OBJECT) {</span>
+<span class="nc" id="L800">            query.append(&quot; UNION SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L801">                    append(svs.groupResource().name).</span>
+<span class="nc" id="L802">                    append(&quot; WHERE resource_id=?&quot;).</span>
+<span class="nc" id="L803">                    append(setParameter(parameters, cond.getResourceKey()));</span>
+        }
+
+<span class="nc" id="L806">        query.append(')');</span>
+
+<span class="nc" id="L808">        return query.toString();</span>
+    }
+
+    protected String getQuery(
+            final AssignableCond cond,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+        Realm realm;
+        try {
+<span class="nc" id="L818">            realm = check(cond);</span>
+<span class="nc" id="L819">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L820">            return EMPTY_QUERY;</span>
+<span class="nc" id="L821">        }</span>
+
+<span class="nc" id="L823">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L824">                append(svs.field().name).append(&quot; WHERE (&quot;);</span>
+<span class="nc bnc" id="L825" title="All 2 branches missed.">        if (cond.isFromGroup()) {</span>
+<span class="nc" id="L826">            realmDAO.findDescendants(realm).forEach(current -&gt; query.append(&quot;realm_id=?&quot;)</span>
+<span class="nc" id="L827">                    .append(setParameter(parameters, current.getKey())).append(&quot; OR &quot;));</span>
+<span class="nc" id="L828">            query.setLength(query.length() - 4);</span>
+        } else {
+<span class="nc bnc" id="L830" title="All 2 branches missed.">            for (Realm current = realm; current.getParent() != null; current = current.getParent()) {</span>
+<span class="nc" id="L831">                query.append(&quot;realm_id=?&quot;).append(setParameter(parameters, current.getKey())).append(&quot; OR &quot;);</span>
+            }
+<span class="nc" id="L833">            query.append(&quot;realm_id=?&quot;).append(setParameter(parameters, realmDAO.getRoot().getKey()));</span>
+        }
+<span class="nc" id="L835">        query.append(')');</span>
+
+<span class="nc" id="L837">        return query.toString();</span>
+    }
+
+    protected String getQuery(
+            final MemberCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+        String memberKey;
+        try {
+<span class="nc" id="L848">            memberKey = check(cond);</span>
+<span class="nc" id="L849">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L850">            return EMPTY_QUERY;</span>
+<span class="nc" id="L851">        }</span>
+
+<span class="nc" id="L853">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L854">                append(svs.field().name).append(&quot; WHERE &quot;);</span>
+
+<span class="nc bnc" id="L856" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L857">            query.append(&quot;any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L859">            query.append(&quot;any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L862">        query.append(&quot;SELECT DISTINCT group_id AS any_id FROM &quot;).</span>
+<span class="nc" id="L863">                append(new SearchSupport(AnyTypeKind.USER).membership().name).append(&quot; WHERE (&quot;).</span>
+<span class="nc" id="L864">                append(&quot;any_id=?&quot;).append(setParameter(parameters, memberKey)).</span>
+<span class="nc" id="L865">                append(&quot;) &quot;);</span>
+
+<span class="nc bnc" id="L867" title="All 2 branches missed.">        if (not) {</span>
+<span class="nc" id="L868">            query.append(&quot;AND any_id NOT IN (&quot;);</span>
+        } else {
+<span class="nc" id="L870">            query.append(&quot;OR any_id IN (&quot;);</span>
+        }
+
+<span class="nc" id="L873">        query.append(&quot;SELECT DISTINCT group_id AS any_id FROM &quot;).</span>
+<span class="nc" id="L874">                append(new SearchSupport(AnyTypeKind.ANY_OBJECT).membership().name).append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L875">                append(&quot;any_id=?&quot;).append(setParameter(parameters, memberKey)).</span>
+<span class="nc" id="L876">                append(&quot;))&quot;);</span>
+
+<span class="nc" id="L878">        return query.toString();</span>
+    }
+
+    private static void fillAttrQuery(
+            final StringBuilder query,
+            final PlainAttrValue attrValue,
+            final PlainSchema schema,
+            final AttrCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+        // This first branch is required for handling with not conditions given on multivalue fields (SYNCOPE-1419)
+<span class="nc bnc" id="L891" title="All 6 branches missed.">        if (not &amp;&amp; schema.isMultivalue()</span>
+                &amp;&amp; !(cond instanceof AnyCond)
+<span class="nc bnc" id="L893" title="All 4 branches missed.">                &amp;&amp; cond.getType() != AttrCond.Type.ISNULL &amp;&amp; cond.getType() != AttrCond.Type.ISNOTNULL) {</span>
+
+<span class="nc" id="L895">            query.append(&quot;any_id NOT IN (SELECT DISTINCT any_id FROM &quot;);</span>
+<span class="nc bnc" id="L896" title="All 2 branches missed.">            if (schema.isUniqueConstraint()) {</span>
+<span class="nc" id="L897">                query.append(svs.asSearchViewSupport().uniqueAttr().name);</span>
+            } else {
+<span class="nc" id="L899">                query.append(svs.asSearchViewSupport().attr().name);</span>
+            }
+<span class="nc" id="L901">            query.append(&quot; WHERE schema_id='&quot;).append(schema.getKey());</span>
+<span class="nc" id="L902">            fillAttrQuery(query, attrValue, schema, cond, false, parameters, svs);</span>
+<span class="nc" id="L903">            query.append(')');</span>
+        } else {
+            // activate ignoreCase only for EQ and LIKE operators
+<span class="nc bnc" id="L906" title="All 4 branches missed.">            boolean ignoreCase = AttrCond.Type.ILIKE == cond.getType() || AttrCond.Type.IEQ == cond.getType();</span>
+
+<span class="nc bnc" id="L908" title="All 2 branches missed.">            String column = (cond instanceof AnyCond) ? cond.getSchema() : key(schema.getType());</span>
+<span class="nc bnc" id="L909" title="All 6 branches missed.">            if ((schema.getType() == AttrSchemaType.String || schema.getType() == AttrSchemaType.Enum) &amp;&amp; ignoreCase) {</span>
+<span class="nc" id="L910">                column = &quot;LOWER (&quot; + column + ')';</span>
+            }
+<span class="nc bnc" id="L912" title="All 2 branches missed.">            if (!(cond instanceof AnyCond)) {</span>
+<span class="nc" id="L913">                column = &quot;' AND &quot; + column;</span>
+            }
+
+<span class="nc bnc" id="L916" title="All 9 branches missed.">            switch (cond.getType()) {</span>
+
+                case ISNULL:
+<span class="nc bnc" id="L919" title="All 2 branches missed.">                    query.append(column).append(not</span>
+<span class="nc" id="L920">                            ? &quot; IS NOT NULL&quot;</span>
+<span class="nc" id="L921">                            : &quot; IS NULL&quot;);</span>
+<span class="nc" id="L922">                    break;</span>
+
+                case ISNOTNULL:
+<span class="nc bnc" id="L925" title="All 2 branches missed.">                    query.append(column).append(not</span>
+<span class="nc" id="L926">                            ? &quot; IS NULL&quot;</span>
+<span class="nc" id="L927">                            : &quot; IS NOT NULL&quot;);</span>
+<span class="nc" id="L928">                    break;</span>
+
+                case ILIKE:
+                case LIKE:
+<span class="nc bnc" id="L932" title="All 4 branches missed.">                    if (schema.getType() == AttrSchemaType.String || schema.getType() == AttrSchemaType.Enum) {</span>
+<span class="nc" id="L933">                        query.append(column);</span>
+<span class="nc bnc" id="L934" title="All 2 branches missed.">                        if (not) {</span>
+<span class="nc" id="L935">                            query.append(&quot; NOT &quot;);</span>
+                        }
+<span class="nc" id="L937">                        query.append(&quot; LIKE &quot;);</span>
+<span class="nc bnc" id="L938" title="All 2 branches missed.">                        if (ignoreCase) {</span>
+<span class="nc" id="L939">                            query.append(&quot;LOWER(?&quot;).append(setParameter(parameters, cond.getExpression())).append(')');</span>
+                        } else {
+<span class="nc" id="L941">                            query.append('?').append(setParameter(parameters, cond.getExpression()));</span>
+                        }
+                    } else {
+<span class="nc bnc" id="L944" title="All 2 branches missed.">                        if (!(cond instanceof AnyCond)) {</span>
+<span class="nc" id="L945">                            query.append(&quot;' AND&quot;);</span>
+                        }
+<span class="nc" id="L947">                        query.append(&quot; 1=2&quot;);</span>
+<span class="nc" id="L948">                        LOG.error(&quot;LIKE is only compatible with string or enum schemas&quot;);</span>
+                    }
+<span class="nc" id="L950">                    break;</span>
+
+                case IEQ:
+                case EQ:
+<span class="nc" id="L954">                    query.append(column);</span>
+<span class="nc bnc" id="L955" title="All 2 branches missed.">                    if (not) {</span>
+<span class="nc" id="L956">                        query.append(&quot;&lt;&gt;&quot;);</span>
+                    } else {
+<span class="nc" id="L958">                        query.append('=');</span>
+                    }
+<span class="nc bnc" id="L960" title="All 2 branches missed.">                    if ((schema.getType() == AttrSchemaType.String</span>
+<span class="nc bnc" id="L961" title="All 4 branches missed.">                            || schema.getType() == AttrSchemaType.Enum) &amp;&amp; ignoreCase) {</span>
+<span class="nc" id="L962">                        query.append(&quot;LOWER(?&quot;).append(setParameter(parameters, attrValue.getValue())).append(')');</span>
+                    } else {
+<span class="nc" id="L964">                        query.append('?').append(setParameter(parameters, attrValue.getValue()));</span>
+                    }
+<span class="nc" id="L966">                    break;</span>
+
+                case GE:
+<span class="nc" id="L969">                    query.append(column);</span>
+<span class="nc bnc" id="L970" title="All 2 branches missed.">                    if (not) {</span>
+<span class="nc" id="L971">                        query.append('&lt;');</span>
+                    } else {
+<span class="nc" id="L973">                        query.append(&quot;&gt;=&quot;);</span>
+                    }
+<span class="nc" id="L975">                    query.append('?').append(setParameter(parameters, attrValue.getValue()));</span>
+<span class="nc" id="L976">                    break;</span>
+
+                case GT:
+<span class="nc" id="L979">                    query.append(column);</span>
+<span class="nc bnc" id="L980" title="All 2 branches missed.">                    if (not) {</span>
+<span class="nc" id="L981">                        query.append(&quot;&lt;=&quot;);</span>
+                    } else {
+<span class="nc" id="L983">                        query.append('&gt;');</span>
+                    }
+<span class="nc" id="L985">                    query.append('?').append(setParameter(parameters, attrValue.getValue()));</span>
+<span class="nc" id="L986">                    break;</span>
+
+                case LE:
+<span class="nc" id="L989">                    query.append(column);</span>
+<span class="nc bnc" id="L990" title="All 2 branches missed.">                    if (not) {</span>
+<span class="nc" id="L991">                        query.append('&gt;');</span>
+                    } else {
+<span class="nc" id="L993">                        query.append(&quot;&lt;=&quot;);</span>
+                    }
+<span class="nc" id="L995">                    query.append('?').append(setParameter(parameters, attrValue.getValue()));</span>
+<span class="nc" id="L996">                    break;</span>
+
+                case LT:
+<span class="nc" id="L999">                    query.append(column);</span>
+<span class="nc bnc" id="L1000" title="All 2 branches missed.">                    if (not) {</span>
+<span class="nc" id="L1001">                        query.append(&quot;&gt;=&quot;);</span>
+                    } else {
+<span class="nc" id="L1003">                        query.append('&lt;');</span>
+                    }
+<span class="nc" id="L1005">                    query.append('?').append(setParameter(parameters, attrValue.getValue()));</span>
+<span class="nc" id="L1006">                    break;</span>
+
+                default:
+            }
+        }
+<span class="nc" id="L1011">    }</span>
+
+    protected String getQuery(
+            final AttrCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+        Pair&lt;PlainSchema, PlainAttrValue&gt; checked;
+        try {
+<span class="nc" id="L1021">            checked = check(cond, svs.anyTypeKind);</span>
+<span class="nc" id="L1022">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L1023">            return EMPTY_QUERY;</span>
+<span class="nc" id="L1024">        }</span>
+
+<span class="nc" id="L1026">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;);</span>
+<span class="nc bnc" id="L1027" title="All 3 branches missed.">        switch (cond.getType()) {</span>
+            case ISNOTNULL:
+<span class="nc bnc" id="L1029" title="All 2 branches missed.">                query.append(checked.getLeft().isUniqueConstraint()</span>
+<span class="nc" id="L1030">                        ? svs.asSearchViewSupport().uniqueAttr().name</span>
+<span class="nc" id="L1031">                        : svs.asSearchViewSupport().attr().name).</span>
+<span class="nc" id="L1032">                        append(&quot; WHERE schema_id=&quot;).append('\'').append(checked.getLeft().getKey()).append('\'');</span>
+<span class="nc" id="L1033">                break;</span>
+
+            case ISNULL:
+<span class="nc" id="L1036">                query.append(svs.field().name).</span>
+<span class="nc" id="L1037">                        append(&quot; WHERE any_id NOT IN &quot;).</span>
+<span class="nc" id="L1038">                        append('(').</span>
+<span class="nc" id="L1039">                        append(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc bnc" id="L1040" title="All 2 branches missed.">                        append(checked.getLeft().isUniqueConstraint()</span>
+<span class="nc" id="L1041">                                ? svs.asSearchViewSupport().uniqueAttr().name</span>
+<span class="nc" id="L1042">                                : svs.asSearchViewSupport().attr().name).</span>
+<span class="nc" id="L1043">                        append(&quot; WHERE schema_id=&quot;).append('\'').append(checked.getLeft().getKey()).append('\'').</span>
+<span class="nc" id="L1044">                        append(')');</span>
+<span class="nc" id="L1045">                break;</span>
+
+            default:
+<span class="nc bnc" id="L1048" title="All 6 branches missed.">                if (not &amp;&amp; !(cond instanceof AnyCond) &amp;&amp; checked.getLeft().isMultivalue()) {</span>
+<span class="nc" id="L1049">                    query.append(svs.field().name).append(&quot; WHERE &quot;);</span>
+                } else {
+<span class="nc bnc" id="L1051" title="All 2 branches missed.">                    if (checked.getLeft().isUniqueConstraint()) {</span>
+<span class="nc" id="L1052">                        query.append(svs.asSearchViewSupport().uniqueAttr().name);</span>
+                    } else {
+<span class="nc" id="L1054">                        query.append(svs.asSearchViewSupport().attr().name);</span>
+                    }
+<span class="nc" id="L1056">                    query.append(&quot; WHERE schema_id='&quot;).append(checked.getLeft().getKey());</span>
+                }
+<span class="nc" id="L1058">                fillAttrQuery(query, checked.getRight(), checked.getLeft(), cond, not, parameters, svs);</span>
+        }
+
+<span class="nc" id="L1061">        return query.toString();</span>
+    }
+
+    protected String getQuery(
+            final AnyCond cond,
+            final boolean not,
+            final List&lt;Object&gt; parameters,
+            final SearchSupport svs) {
+
+        Triple&lt;PlainSchema, PlainAttrValue, AnyCond&gt; checked;
+        try {
+<span class="nc" id="L1072">            checked = check(cond, svs.anyTypeKind);</span>
+<span class="nc" id="L1073">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L1074">            return EMPTY_QUERY;</span>
+<span class="nc" id="L1075">        }</span>
+
+<span class="nc" id="L1077">        StringBuilder query = new StringBuilder(&quot;SELECT DISTINCT any_id FROM &quot;).</span>
+<span class="nc" id="L1078">                append(svs.field().name).append(&quot; WHERE &quot;);</span>
+
+<span class="nc" id="L1080">        fillAttrQuery(query, checked.getMiddle(), checked.getLeft(), checked.getRight(), not, parameters, svs);</span>
+
+<span class="nc" id="L1082">        return query.toString();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

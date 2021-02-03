@@ -1,0 +1,487 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPATaskDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPATaskDAO.java</span></div><h1>JPATaskDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+import javax.persistence.DiscriminatorValue;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Query;
+import javax.persistence.TypedQuery;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.syncope.common.lib.types.AnyTypeKind;
+import org.apache.syncope.common.lib.types.TaskType;
+import org.apache.syncope.core.persistence.api.dao.RemediationDAO;
+import org.apache.syncope.core.persistence.api.dao.TaskDAO;
+import org.apache.syncope.core.persistence.api.dao.search.OrderByClause;
+import org.apache.syncope.core.persistence.api.entity.Entity;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.Notification;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.api.entity.task.PullTask;
+import org.apache.syncope.core.persistence.api.entity.task.PushTask;
+import org.apache.syncope.core.persistence.api.entity.task.SchedTask;
+import org.apache.syncope.core.persistence.api.entity.task.Task;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPANotificationTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPAPropagationTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPAPushTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPASchedTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPAPullTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.AbstractTask;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPATaskExec;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ReflectionUtils;
+
+@Repository
+<span class="nc" id="L56">public class JPATaskDAO extends AbstractDAO&lt;Task&gt; implements TaskDAO {</span>
+
+    @Autowired
+    private RemediationDAO remediationDAO;
+
+    @Override
+    public Class&lt;? extends Task&gt; getEntityReference(final TaskType type) {
+<span class="nc" id="L63">        Class&lt;? extends Task&gt; result = null;</span>
+
+<span class="nc bnc" id="L65" title="All 6 branches missed.">        switch (type) {</span>
+            case NOTIFICATION:
+<span class="nc" id="L67">                result = JPANotificationTask.class;</span>
+<span class="nc" id="L68">                break;</span>
+
+            case PROPAGATION:
+<span class="nc" id="L71">                result = JPAPropagationTask.class;</span>
+<span class="nc" id="L72">                break;</span>
+
+            case PUSH:
+<span class="nc" id="L75">                result = JPAPushTask.class;</span>
+<span class="nc" id="L76">                break;</span>
+
+            case SCHEDULED:
+<span class="nc" id="L79">                result = JPASchedTask.class;</span>
+<span class="nc" id="L80">                break;</span>
+
+            case PULL:
+<span class="nc" id="L83">                result = JPAPullTask.class;</span>
+<span class="nc" id="L84">                break;</span>
+
+            default:
+        }
+
+<span class="nc" id="L89">        return result;</span>
+    }
+
+    private static String getEntityTableName(final TaskType type) {
+<span class="nc" id="L93">        String result = null;</span>
+
+<span class="nc bnc" id="L95" title="All 6 branches missed.">        switch (type) {</span>
+            case NOTIFICATION:
+<span class="nc" id="L97">                result = JPANotificationTask.class.getAnnotation(DiscriminatorValue.class).value();</span>
+<span class="nc" id="L98">                break;</span>
+
+            case PROPAGATION:
+<span class="nc" id="L101">                result = JPAPropagationTask.class.getAnnotation(DiscriminatorValue.class).value();</span>
+<span class="nc" id="L102">                break;</span>
+
+            case PUSH:
+<span class="nc" id="L105">                result = JPAPushTask.class.getAnnotation(DiscriminatorValue.class).value();</span>
+<span class="nc" id="L106">                break;</span>
+
+            case SCHEDULED:
+<span class="nc" id="L109">                result = JPASchedTask.class.getAnnotation(DiscriminatorValue.class).value();</span>
+<span class="nc" id="L110">                break;</span>
+
+            case PULL:
+<span class="nc" id="L113">                result = JPAPullTask.class.getAnnotation(DiscriminatorValue.class).value();</span>
+<span class="nc" id="L114">                break;</span>
+
+            default:
+        }
+
+<span class="nc" id="L119">        return result;</span>
+    }
+
+    @Transactional(readOnly = true)
+    @SuppressWarnings(&quot;unchecked&quot;)
+    @Override
+    public &lt;T extends Task&gt; T find(final String key) {
+<span class="nc" id="L126">        return (T) entityManager().find(AbstractTask.class, key);</span>
+    }
+
+    @Override
+    public List&lt;SchedTask&gt; findByDelegate(final Implementation delegate) {
+<span class="nc" id="L131">        TypedQuery&lt;SchedTask&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L132">                &quot;SELECT e FROM &quot; + JPASchedTask.class.getSimpleName()</span>
+                + &quot; e WHERE e.jobDelegate=:delegate&quot;, SchedTask.class);
+<span class="nc" id="L134">        query.setParameter(&quot;delegate&quot;, delegate);</span>
+
+<span class="nc" id="L136">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;PullTask&gt; findByReconFilterBuilder(final Implementation reconFilterBuilder) {
+<span class="nc" id="L141">        TypedQuery&lt;PullTask&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L142">                &quot;SELECT e FROM &quot; + JPAPullTask.class.getSimpleName()</span>
+                + &quot; e WHERE e.reconFilterBuilder=:reconFilterBuilder&quot;, PullTask.class);
+<span class="nc" id="L144">        query.setParameter(&quot;reconFilterBuilder&quot;, reconFilterBuilder);</span>
+
+<span class="nc" id="L146">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;PullTask&gt; findByPullActions(final Implementation pullActions) {
+<span class="nc" id="L151">        TypedQuery&lt;PullTask&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L152">                &quot;SELECT e FROM &quot; + JPAPullTask.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE :pullActions MEMBER OF e.actions&quot;, PullTask.class);
+<span class="nc" id="L154">        query.setParameter(&quot;pullActions&quot;, pullActions);</span>
+
+<span class="nc" id="L156">        return query.getResultList();</span>
+    }
+
+    @Override
+    public List&lt;PushTask&gt; findByPushActions(final Implementation pushActions) {
+<span class="nc" id="L161">        TypedQuery&lt;PushTask&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L162">                &quot;SELECT e FROM &quot; + JPAPushTask.class.getSimpleName() + &quot; e &quot;</span>
+                + &quot;WHERE :pushActions MEMBER OF e.actions&quot;, PushTask.class);
+<span class="nc" id="L164">        query.setParameter(&quot;pushActions&quot;, pushActions);</span>
+
+<span class="nc" id="L166">        return query.getResultList();</span>
+    }
+
+    private &lt;T extends Task&gt; StringBuilder buildFindAllQueryJPA(final TaskType type) {
+<span class="nc" id="L170">        StringBuilder builder = new StringBuilder(&quot;SELECT t FROM &quot;).</span>
+<span class="nc" id="L171">                append(getEntityReference(type).getSimpleName()).</span>
+<span class="nc" id="L172">                append(&quot; t WHERE &quot;);</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        if (type == TaskType.SCHEDULED) {</span>
+<span class="nc" id="L174">            builder.append(&quot;t.id NOT IN (SELECT t.id FROM &quot;).</span>
+<span class="nc" id="L175">                    append(JPAPushTask.class.getSimpleName()).append(&quot; t) &quot;).</span>
+<span class="nc" id="L176">                    append(&quot;AND &quot;).</span>
+<span class="nc" id="L177">                    append(&quot;t.id NOT IN (SELECT t.id FROM &quot;).</span>
+<span class="nc" id="L178">                    append(JPAPullTask.class.getSimpleName()).append(&quot; t)&quot;);</span>
+        } else {
+<span class="nc" id="L180">            builder.append(&quot;1=1&quot;);</span>
+        }
+
+<span class="nc" id="L183">        return builder.append(' ');</span>
+    }
+
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public &lt;T extends Task&gt; List&lt;T&gt; findToExec(final TaskType type) {
+<span class="nc" id="L189">        StringBuilder queryString = buildFindAllQueryJPA(type).append(&quot;AND &quot;);</span>
+
+<span class="nc bnc" id="L191" title="All 2 branches missed.">        if (type == TaskType.NOTIFICATION) {</span>
+<span class="nc" id="L192">            queryString.append(&quot;t.executed = false &quot;);</span>
+        } else {
+<span class="nc" id="L194">            queryString.append(&quot;t.executions IS EMPTY &quot;);</span>
+        }
+<span class="nc" id="L196">        queryString.append(&quot;ORDER BY t.id DESC&quot;);</span>
+
+<span class="nc" id="L198">        Query query = entityManager().createQuery(queryString.toString());</span>
+<span class="nc" id="L199">        return query.getResultList();</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public &lt;T extends Task&gt; List&lt;T&gt; findAll(final TaskType type) {
+<span class="nc" id="L205">        return findAll(type, null, null, null, null, -1, -1, List.of());</span>
+    }
+
+    private static StringBuilder buildFindAllQuery(
+        final TaskType type,
+        final ExternalResource resource,
+        final Notification notification,
+        final AnyTypeKind anyTypeKind,
+        final String entityKey,
+        final boolean orderByTaskExecInfo,
+        final List&lt;Object&gt; queryParameters) {
+
+<span class="nc bnc" id="L217" title="All 8 branches missed.">        if (resource != null</span>
+                &amp;&amp; type != TaskType.PROPAGATION &amp;&amp; type != TaskType.PUSH &amp;&amp; type != TaskType.PULL) {
+
+<span class="nc" id="L220">            throw new IllegalArgumentException(type + &quot; is not related to &quot; + ExternalResource.class.getSimpleName());</span>
+        }
+
+<span class="nc bnc" id="L223" title="All 8 branches missed.">        if ((anyTypeKind != null || entityKey != null)</span>
+                &amp;&amp; type != TaskType.PROPAGATION &amp;&amp; type != TaskType.NOTIFICATION) {
+
+<span class="nc" id="L226">            throw new IllegalArgumentException(type + &quot; is not related to users, groups or any objects&quot;);</span>
+        }
+
+<span class="nc bnc" id="L229" title="All 4 branches missed.">        if (notification != null &amp;&amp; type != TaskType.NOTIFICATION) {</span>
+<span class="nc" id="L230">            throw new IllegalArgumentException(type + &quot; is not related to notifications&quot;);</span>
+        }
+
+<span class="nc" id="L233">        StringBuilder queryString = new StringBuilder(&quot;SELECT &quot;).append(AbstractTask.TABLE).append(&quot;.*&quot;);</span>
+
+<span class="nc bnc" id="L235" title="All 2 branches missed.">        if (orderByTaskExecInfo) {</span>
+<span class="nc" id="L236">            queryString.append(',').append(JPATaskExec.TABLE).append(&quot;.startDate AS startDate&quot;).</span>
+<span class="nc" id="L237">                    append(',').append(JPATaskExec.TABLE).append(&quot;.endDate AS endDate&quot;).</span>
+<span class="nc" id="L238">                    append(',').append(JPATaskExec.TABLE).append(&quot;.status AS status&quot;).</span>
+<span class="nc" id="L239">                    append(&quot; FROM &quot;).append(AbstractTask.TABLE).</span>
+<span class="nc" id="L240">                    append(',').append(JPATaskExec.TABLE).append(',').append(&quot;(SELECT &quot;).</span>
+<span class="nc" id="L241">                    append(JPATaskExec.TABLE).append(&quot;.task_id, &quot;).</span>
+<span class="nc" id="L242">                    append(&quot;MAX(&quot;).append(JPATaskExec.TABLE).append(&quot;.startDate) AS startDate&quot;).</span>
+<span class="nc" id="L243">                    append(&quot; FROM &quot;).append(JPATaskExec.TABLE).</span>
+<span class="nc" id="L244">                    append(&quot; GROUP BY &quot;).append(JPATaskExec.TABLE).append(&quot;.task_id) GRP&quot;).</span>
+<span class="nc" id="L245">                    append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L246">                    append(AbstractTask.TABLE).append(&quot;.id=&quot;).append(JPATaskExec.TABLE).append(&quot;.task_id&quot;).</span>
+<span class="nc" id="L247">                    append(&quot; AND &quot;).append(AbstractTask.TABLE).append(&quot;.id=&quot;).append(&quot;GRP.task_id&quot;).</span>
+<span class="nc" id="L248">                    append(&quot; AND &quot;).append(JPATaskExec.TABLE).append(&quot;.startDate=&quot;).append(&quot;GRP.startDate&quot;).</span>
+<span class="nc" id="L249">                    append(&quot; AND &quot;).append(AbstractTask.TABLE).append(&quot;.DTYPE = ?1&quot;);</span>
+        } else {
+<span class="nc" id="L251">            queryString.append(&quot;, null AS startDate, null AS endDate, null AS status FROM &quot;).append(AbstractTask.TABLE).</span>
+<span class="nc" id="L252">                    append(&quot; WHERE &quot;).append(AbstractTask.TABLE).append(&quot;.DTYPE = ?1&quot;);</span>
+        }
+
+<span class="nc" id="L255">        queryParameters.add(getEntityTableName(type));</span>
+<span class="nc bnc" id="L256" title="All 2 branches missed.">        if (type == TaskType.SCHEDULED) {</span>
+<span class="nc" id="L257">            queryString.append(&quot; AND &quot;).</span>
+<span class="nc" id="L258">                    append(AbstractTask.TABLE).</span>
+<span class="nc" id="L259">                    append(&quot;.id NOT IN (SELECT &quot;).append(AbstractTask.TABLE).append(&quot;.id FROM &quot;).</span>
+<span class="nc" id="L260">                    append(AbstractTask.TABLE).append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L261">                    append(AbstractTask.TABLE).append(&quot;.DTYPE = ?2)&quot;).</span>
+<span class="nc" id="L262">                    append(&quot; AND &quot;).</span>
+<span class="nc" id="L263">                    append(AbstractTask.TABLE).</span>
+<span class="nc" id="L264">                    append(&quot;.id NOT IN (SELECT id FROM &quot;).</span>
+<span class="nc" id="L265">                    append(AbstractTask.TABLE).append(&quot; WHERE &quot;).</span>
+<span class="nc" id="L266">                    append(AbstractTask.TABLE).append(&quot;.DTYPE = ?3)&quot;);</span>
+
+<span class="nc" id="L268">            queryParameters.add(JPAPushTask.class.getAnnotation(DiscriminatorValue.class).value());</span>
+<span class="nc" id="L269">            queryParameters.add(JPAPullTask.class.getAnnotation(DiscriminatorValue.class).value());</span>
+        }
+<span class="nc" id="L271">        queryString.append(' ');</span>
+
+<span class="nc bnc" id="L273" title="All 2 branches missed.">        if (resource != null) {</span>
+<span class="nc" id="L274">            queryParameters.add(resource.getKey());</span>
+
+<span class="nc" id="L276">            queryString.append(&quot; AND &quot;).</span>
+<span class="nc" id="L277">                    append(AbstractTask.TABLE).</span>
+<span class="nc" id="L278">                    append(&quot;.resource_id=?&quot;).append(queryParameters.size());</span>
+        }
+<span class="nc bnc" id="L280" title="All 2 branches missed.">        if (notification != null) {</span>
+<span class="nc" id="L281">            queryParameters.add(notification.getKey());</span>
+
+<span class="nc" id="L283">            queryString.append(&quot; AND &quot;).</span>
+<span class="nc" id="L284">                    append(AbstractTask.TABLE).</span>
+<span class="nc" id="L285">                    append(&quot;.notification_id=?&quot;).append(queryParameters.size());</span>
+        }
+<span class="nc bnc" id="L287" title="All 4 branches missed.">        if (anyTypeKind != null &amp;&amp; entityKey != null) {</span>
+<span class="nc" id="L288">            queryParameters.add(anyTypeKind.name());</span>
+<span class="nc" id="L289">            queryParameters.add(entityKey);</span>
+
+<span class="nc" id="L291">            queryString.append(&quot; AND &quot;).</span>
+<span class="nc" id="L292">                    append(AbstractTask.TABLE).</span>
+<span class="nc" id="L293">                    append(&quot;.anyTypeKind=?&quot;).append(queryParameters.size() - 1).</span>
+<span class="nc" id="L294">                    append(&quot; AND &quot;).</span>
+<span class="nc" id="L295">                    append(AbstractTask.TABLE).</span>
+<span class="nc" id="L296">                    append(&quot;.entityKey=?&quot;).append(queryParameters.size());</span>
+        }
+
+<span class="nc" id="L299">        return queryString;</span>
+    }
+
+    private static String toOrderByStatement(final Class&lt;? extends Task&gt; beanClass,
+                                             final List&lt;OrderByClause&gt; orderByClauses) {
+
+<span class="nc" id="L305">        StringBuilder statement = new StringBuilder();</span>
+
+<span class="nc" id="L307">        statement.append(&quot; ORDER BY &quot;);</span>
+
+<span class="nc" id="L309">        StringBuilder subStatement = new StringBuilder();</span>
+<span class="nc" id="L310">        orderByClauses.forEach(clause -&gt; {</span>
+<span class="nc" id="L311">            String field = clause.getField().trim();</span>
+<span class="nc bnc" id="L312" title="All 4 branches missed.">            switch (field) {</span>
+                case &quot;latestExecStatus&quot;:
+<span class="nc" id="L314">                    field = &quot;status&quot;;</span>
+<span class="nc" id="L315">                    break;</span>
+
+                case &quot;start&quot;:
+<span class="nc" id="L318">                    field = &quot;startDate&quot;;</span>
+<span class="nc" id="L319">                    break;</span>
+
+                case &quot;end&quot;:
+<span class="nc" id="L322">                    field = &quot;endDate&quot;;</span>
+<span class="nc" id="L323">                    break;</span>
+
+                default:
+<span class="nc" id="L326">                    Field beanField = ReflectionUtils.findField(beanClass, field);</span>
+<span class="nc bnc" id="L327" title="All 2 branches missed.">                    if (beanField != null</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">                            &amp;&amp; (beanField.getAnnotation(ManyToOne.class) != null</span>
+<span class="nc bnc" id="L329" title="All 2 branches missed.">                            || beanField.getAnnotation(OneToMany.class) != null)) {</span>
+<span class="nc" id="L330">                        field += &quot;_id&quot;;</span>
+                    }
+            }
+
+<span class="nc" id="L334">            subStatement.append(field).append(' ').append(clause.getDirection().name()).append(',');</span>
+<span class="nc" id="L335">        });</span>
+
+<span class="nc bnc" id="L337" title="All 2 branches missed.">        if (subStatement.length() == 0) {</span>
+<span class="nc" id="L338">            statement.append(&quot;id DESC&quot;);</span>
+        } else {
+<span class="nc" id="L340">            subStatement.deleteCharAt(subStatement.length() - 1);</span>
+<span class="nc" id="L341">            statement.append(subStatement);</span>
+        }
+
+<span class="nc" id="L344">        return statement.toString();</span>
+    }
+
+    @Override
+    @SuppressWarnings(&quot;unchecked&quot;)
+    public &lt;T extends Task&gt; List&lt;T&gt; findAll(
+            final TaskType type,
+            final ExternalResource resource,
+            final Notification notification,
+            final AnyTypeKind anyTypeKind,
+            final String entityKey,
+            final int page,
+            final int itemsPerPage,
+            final List&lt;OrderByClause&gt; orderByClauses) {
+
+<span class="nc" id="L359">        List&lt;Object&gt; queryParameters = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L361">        boolean orderByTaskExecInfo = orderByClauses.stream().</span>
+<span class="nc bnc" id="L362" title="All 2 branches missed.">                anyMatch(clause -&gt; clause.getField().equals(&quot;start&quot;)</span>
+<span class="nc bnc" id="L363" title="All 2 branches missed.">                || clause.getField().equals(&quot;end&quot;)</span>
+<span class="nc bnc" id="L364" title="All 2 branches missed.">                || clause.getField().equals(&quot;latestExecStatus&quot;)</span>
+<span class="nc bnc" id="L365" title="All 2 branches missed.">                || clause.getField().equals(&quot;status&quot;));</span>
+
+<span class="nc" id="L367">        StringBuilder queryString = buildFindAllQuery(</span>
+                type,
+                resource,
+                notification,
+                anyTypeKind,
+                entityKey,
+                orderByTaskExecInfo,
+                queryParameters);
+
+<span class="nc bnc" id="L376" title="All 2 branches missed.">        if (orderByTaskExecInfo) {</span>
+            // UNION with tasks without executions...
+<span class="nc" id="L378">            queryString.insert(0, &quot;SELECT T.id FROM ((&quot;).append(&quot;) UNION ALL (&quot;).</span>
+<span class="nc" id="L379">                    append(buildFindAllQuery(</span>
+                            type,
+                            resource,
+                            notification,
+                            anyTypeKind,
+                            entityKey,
+                            false,
+                            queryParameters)).
+<span class="nc" id="L387">                    append(&quot; AND id NOT IN &quot;).</span>
+<span class="nc" id="L388">                    append(&quot;(SELECT task_id AS id FROM &quot;).append(JPATaskExec.TABLE).append(')').</span>
+<span class="nc" id="L389">                    append(&quot;)) T&quot;);</span>
+        } else {
+<span class="nc" id="L391">            queryString.insert(0, &quot;SELECT T.id FROM (&quot;).append(&quot;) T&quot;);</span>
+        }
+
+<span class="nc" id="L394">        queryString.append(toOrderByStatement(getEntityReference(type), orderByClauses));</span>
+
+<span class="nc" id="L396">        Query query = entityManager().createNativeQuery(queryString.toString());</span>
+
+<span class="nc bnc" id="L398" title="All 2 branches missed.">        for (int i = 1; i &lt;= queryParameters.size(); i++) {</span>
+<span class="nc" id="L399">            query.setParameter(i, queryParameters.get(i - 1));</span>
+        }
+
+<span class="nc bnc" id="L402" title="All 2 branches missed.">        query.setFirstResult(itemsPerPage * (page &lt;= 0 ? 0 : page - 1));</span>
+
+<span class="nc bnc" id="L404" title="All 2 branches missed.">        if (itemsPerPage &gt; 0) {</span>
+<span class="nc" id="L405">            query.setMaxResults(itemsPerPage);</span>
+        }
+
+<span class="nc" id="L408">        return buildResult(query.getResultList());</span>
+    }
+
+    @Override
+    public int count(
+            final TaskType type,
+            final ExternalResource resource,
+            final Notification notification,
+            final AnyTypeKind anyTypeKind,
+            final String entityKey) {
+
+<span class="nc" id="L419">        List&lt;Object&gt; queryParameters = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L421">        StringBuilder queryString =</span>
+<span class="nc" id="L422">                buildFindAllQuery(type, resource, notification, anyTypeKind, entityKey, false, queryParameters);</span>
+
+<span class="nc" id="L424">        Query query = entityManager().createNativeQuery(StringUtils.replaceOnce(</span>
+<span class="nc" id="L425">                queryString.toString(),</span>
+                &quot;SELECT &quot; + AbstractTask.TABLE + &quot;.*, null AS startDate, null AS endDate, null AS status&quot;,
+                &quot;SELECT COUNT(&quot; + AbstractTask.TABLE + &quot;.id)&quot;));
+
+<span class="nc bnc" id="L429" title="All 2 branches missed.">        for (int i = 1; i &lt;= queryParameters.size(); i++) {</span>
+<span class="nc" id="L430">            query.setParameter(i, queryParameters.get(i - 1));</span>
+        }
+
+<span class="nc" id="L433">        return ((Number) query.getSingleResult()).intValue();</span>
+    }
+
+    @Transactional(rollbackFor = { Throwable.class })
+    @Override
+    public &lt;T extends Task&gt; T save(final T task) {
+<span class="nc" id="L439">        return entityManager().merge(task);</span>
+    }
+
+    @Override
+    public void delete(final String id) {
+<span class="nc" id="L444">        Task task = find(id);</span>
+<span class="nc bnc" id="L445" title="All 2 branches missed.">        if (task == null) {</span>
+<span class="nc" id="L446">            return;</span>
+        }
+
+<span class="nc" id="L449">        delete(task);</span>
+<span class="nc" id="L450">    }</span>
+
+    @Override
+    public void delete(final Task task) {
+<span class="nc bnc" id="L454" title="All 2 branches missed.">        if (task instanceof PullTask) {</span>
+<span class="nc" id="L455">            remediationDAO.findByPullTask((PullTask) task).forEach(remediation -&gt; remediation.setPullTask(null));</span>
+        }
+
+<span class="nc" id="L458">        entityManager().remove(task);</span>
+<span class="nc" id="L459">    }</span>
+
+    @Override
+    public void deleteAll(final ExternalResource resource, final TaskType type) {
+<span class="nc" id="L463">        findAll(type, resource, null, null, null, -1, -1, List.of()).</span>
+<span class="nc" id="L464">                stream().map(Entity::getKey).forEach(this::delete);</span>
+<span class="nc" id="L465">    }</span>
+
+    private &lt;T extends Task&gt; List&lt;T&gt; buildResult(final List&lt;Object&gt; raw) {
+<span class="nc" id="L468">        List&lt;T&gt; result = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L470" title="All 2 branches missed.">        for (Object anyKey : raw) {</span>
+<span class="nc bnc" id="L471" title="All 2 branches missed.">            String actualKey = anyKey instanceof Object[]</span>
+<span class="nc" id="L472">                    ? (String) ((Object[]) anyKey)[0]</span>
+<span class="nc" id="L473">                    : ((String) anyKey);</span>
+
+            @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L476">            T task = find(actualKey);</span>
+<span class="nc bnc" id="L477" title="All 2 branches missed.">            if (task == null) {</span>
+<span class="nc" id="L478">                LOG.error(&quot;Could not find task with id {}, even if returned by native query&quot;, actualKey);</span>
+<span class="nc bnc" id="L479" title="All 2 branches missed.">            } else if (!result.contains(task)) {</span>
+<span class="nc" id="L480">                result.add(task);</span>
+            }
+<span class="nc" id="L482">        }</span>
+
+<span class="nc" id="L484">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

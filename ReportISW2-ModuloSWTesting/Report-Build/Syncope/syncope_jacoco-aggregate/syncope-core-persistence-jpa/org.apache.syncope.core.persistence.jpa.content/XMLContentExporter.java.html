@@ -1,0 +1,587 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>XMLContentExporter.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.content</a> &gt; <span class="el_source">XMLContentExporter.java</span></div><h1>XMLContentExporter.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.content;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.sql.Blob;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.persistence.CollectionTable;
+import javax.persistence.Column;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.JoinTable;
+import javax.persistence.Table;
+import javax.persistence.metamodel.Attribute;
+import javax.persistence.metamodel.EntityType;
+import javax.persistence.metamodel.PluralAttribute;
+import javax.sql.DataSource;
+import javax.xml.XMLConstants;
+import javax.xml.bind.DatatypeConverter;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.sax.SAXTransformerFactory;
+import javax.xml.transform.sax.TransformerHandler;
+import javax.xml.transform.stream.StreamResult;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.openjpa.lib.util.collections.BidiMap;
+import org.apache.openjpa.lib.util.collections.DualHashBidiMap;
+import org.apache.syncope.core.persistence.api.DomainHolder;
+import org.apache.syncope.core.provisioning.api.utils.FormatUtils;
+import org.apache.syncope.core.persistence.api.content.ContentExporter;
+import org.apache.syncope.core.persistence.api.dao.LoggerDAO;
+import org.apache.syncope.core.persistence.api.dao.RealmDAO;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAccessToken;
+import org.apache.syncope.core.persistence.jpa.entity.JPARealm;
+import org.apache.syncope.core.persistence.jpa.entity.JPAReportExec;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAMembership;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAPlainAttrValue;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAARelationship;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAAnyObject;
+import org.apache.syncope.core.persistence.jpa.entity.task.JPATaskExec;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUMembership;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUPlainAttr;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUPlainAttrUniqueValue;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUPlainAttrValue;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAURelationship;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUser;
+import org.apache.syncope.core.spring.ApplicationContextProvider;
+import org.apache.tika.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.orm.jpa.EntityManagerFactoryUtils;
+import org.springframework.stereotype.Component;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.AttributesImpl;
+
+/**
+ * Export internal storage content as XML.
+ */
+@Component
+<span class="nc" id="L107">public class XMLContentExporter implements ContentExporter {</span>
+
+<span class="nc" id="L109">    private static final Logger LOG = LoggerFactory.getLogger(XMLContentExporter.class);</span>
+
+<span class="nc" id="L111">    private static final Set&lt;String&gt; TABLE_PREFIXES_TO_BE_EXCLUDED = Stream.of(</span>
+            &quot;QRTZ_&quot;, &quot;LOGGING&quot;, &quot;NotificationTask_recipients&quot;, LoggerDAO.AUDIT_TABLE, JPAReportExec.TABLE,
+            JPATaskExec.TABLE, JPAUser.TABLE, JPAUPlainAttr.TABLE, JPAUPlainAttrValue.TABLE,
+            JPAUPlainAttrUniqueValue.TABLE, JPAURelationship.TABLE, JPAUMembership.TABLE,
+            JPAAnyObject.TABLE, JPAAPlainAttr.TABLE, JPAAPlainAttrValue.TABLE, JPAAPlainAttrUniqueValue.TABLE,
+            JPAARelationship.TABLE, JPAAMembership.TABLE, JPAAccessToken.TABLE
+<span class="nc" id="L117">    ).collect(Collectors.toCollection(HashSet::new));</span>
+
+<span class="nc" id="L119">    private static final Map&lt;String, String&gt; TABLES_TO_BE_FILTERED =</span>
+<span class="nc" id="L120">            Map.of(&quot;TASK&quot;, &quot;DTYPE &lt;&gt; 'PropagationTask' AND DTYPE &lt;&gt; 'NotificationTask'&quot;);</span>
+
+<span class="nc" id="L122">    private static final Map&lt;String, Set&lt;String&gt;&gt; COLUMNS_TO_BE_NULLIFIED =</span>
+<span class="nc" id="L123">            Map.of(&quot;SYNCOPEGROUP&quot;, Set.of(&quot;USEROWNER_ID&quot;));</span>
+
+    @Autowired
+    private DomainHolder domainHolder;
+
+    @Autowired
+    private RealmDAO realmDAO;
+
+    private static boolean isTableAllowed(final String tableName) {
+<span class="nc" id="L132">        return TABLE_PREFIXES_TO_BE_EXCLUDED.stream().</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                allMatch(prefix -&gt; !tableName.toUpperCase().startsWith(prefix.toUpperCase()));</span>
+    }
+
+    private static List&lt;String&gt; sortByForeignKeys(final String dbSchema, final Connection conn,
+            final Set&lt;String&gt; tableNames)
+            throws SQLException {
+
+<span class="nc" id="L140">        Set&lt;MultiParentNode&lt;String&gt;&gt; roots = new HashSet&lt;&gt;();</span>
+
+<span class="nc" id="L142">        DatabaseMetaData meta = conn.getMetaData();</span>
+
+<span class="nc" id="L144">        Map&lt;String, MultiParentNode&lt;String&gt;&gt; exploited = new TreeMap&lt;&gt;(String.CASE_INSENSITIVE_ORDER);</span>
+<span class="nc" id="L145">        Set&lt;String&gt; pkTableNames = new HashSet&lt;&gt;();</span>
+
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        for (String tableName : tableNames) {</span>
+<span class="nc" id="L148">            MultiParentNode&lt;String&gt; node = exploited.get(tableName);</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">            if (node == null) {</span>
+<span class="nc" id="L150">                node = new MultiParentNode&lt;&gt;(tableName);</span>
+<span class="nc" id="L151">                roots.add(node);</span>
+<span class="nc" id="L152">                exploited.put(tableName, node);</span>
+            }
+
+<span class="nc" id="L155">            pkTableNames.clear();</span>
+
+<span class="nc" id="L157">            ResultSet rs = null;</span>
+            try {
+<span class="nc" id="L159">                rs = meta.getImportedKeys(conn.getCatalog(), dbSchema, tableName);</span>
+
+                // this is to avoid repetition
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                while (rs.next()) {</span>
+<span class="nc" id="L163">                    pkTableNames.add(rs.getString(&quot;PKTABLE_NAME&quot;));</span>
+                }
+            } finally {
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                if (rs != null) {</span>
+                    try {
+<span class="nc" id="L168">                        rs.close();</span>
+<span class="nc" id="L169">                    } catch (SQLException e) {</span>
+<span class="nc" id="L170">                        LOG.error(&quot;While closing tables result set&quot;, e);</span>
+<span class="nc" id="L171">                    }</span>
+                }
+            }
+
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            for (String pkTableName : pkTableNames) {</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">                if (!tableName.equalsIgnoreCase(pkTableName)) {</span>
+<span class="nc" id="L177">                    MultiParentNode&lt;String&gt; pkNode = exploited.get(pkTableName);</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">                    if (pkNode == null) {</span>
+<span class="nc" id="L179">                        pkNode = new MultiParentNode&lt;&gt;(pkTableName);</span>
+<span class="nc" id="L180">                        roots.add(pkNode);</span>
+<span class="nc" id="L181">                        exploited.put(pkTableName, pkNode);</span>
+                    }
+
+<span class="nc" id="L184">                    pkNode.addChild(node);</span>
+
+<span class="nc bnc" id="L186" title="All 2 branches missed.">                    if (roots.contains(node)) {</span>
+<span class="nc" id="L187">                        roots.remove(node);</span>
+                    }
+                }
+<span class="nc" id="L190">            }</span>
+<span class="nc" id="L191">        }</span>
+
+<span class="nc" id="L193">        List&lt;String&gt; sortedTableNames = new ArrayList&lt;&gt;(tableNames.size());</span>
+<span class="nc" id="L194">        MultiParentNodeOp.traverseTree(roots, sortedTableNames);</span>
+
+        // remove from sortedTableNames any table possibly added during lookup 
+        // but matching some item in this.tablePrefixesToBeExcluded
+<span class="nc" id="L198">        sortedTableNames.retainAll(tableNames);</span>
+
+<span class="nc" id="L200">        LOG.debug(&quot;Tables after retainAll {}&quot;, sortedTableNames);</span>
+
+<span class="nc" id="L202">        Collections.reverse(sortedTableNames);</span>
+
+<span class="nc" id="L204">        return sortedTableNames;</span>
+    }
+
+    private static String getValues(final ResultSet rs, final String columnName, final Integer columnType)
+            throws SQLException {
+
+<span class="nc" id="L210">        String res = null;</span>
+
+        try {
+<span class="nc bnc" id="L213" title="All 5 branches missed.">            switch (columnType) {</span>
+                case Types.BINARY:
+                case Types.VARBINARY:
+                case Types.LONGVARBINARY:
+<span class="nc" id="L217">                    InputStream is = rs.getBinaryStream(columnName);</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">                    if (is != null) {</span>
+<span class="nc" id="L219">                        res = DatatypeConverter.printHexBinary(IOUtils.toByteArray(is));</span>
+                    }
+                    break;
+
+                case Types.BLOB:
+<span class="nc" id="L224">                    Blob blob = rs.getBlob(columnName);</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">                    if (blob != null) {</span>
+<span class="nc" id="L226">                        res = DatatypeConverter.printHexBinary(IOUtils.toByteArray(blob.getBinaryStream()));</span>
+                    }
+                    break;
+
+                case Types.BIT:
+                case Types.BOOLEAN:
+<span class="nc bnc" id="L232" title="All 2 branches missed.">                    res = rs.getBoolean(columnName) ? &quot;1&quot; : &quot;0&quot;;</span>
+<span class="nc" id="L233">                    break;</span>
+
+                case Types.DATE:
+                case Types.TIME:
+                case Types.TIMESTAMP:
+<span class="nc" id="L238">                    Timestamp timestamp = rs.getTimestamp(columnName);</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">                    if (timestamp != null) {</span>
+<span class="nc" id="L240">                        res = FormatUtils.format(new Date(timestamp.getTime()));</span>
+                    }
+                    break;
+
+                default:
+<span class="nc" id="L245">                    res = rs.getString(columnName);</span>
+            }
+<span class="nc" id="L247">        } catch (IOException e) {</span>
+<span class="nc" id="L248">            LOG.error(&quot;Error retrieving hexadecimal string&quot;, e);</span>
+<span class="nc" id="L249">        }</span>
+
+<span class="nc" id="L251">        return res;</span>
+    }
+
+    private String columnName(final Supplier&lt;Stream&lt;Attribute&lt;?, ?&gt;&gt;&gt; attrs, final String columnName) {
+<span class="nc" id="L255">        String name = attrs.get().map(attr -&gt; {</span>
+<span class="nc bnc" id="L256" title="All 2 branches missed.">            if (attr.getName().equalsIgnoreCase(columnName)) {</span>
+<span class="nc" id="L257">                return attr.getName();</span>
+            }
+
+<span class="nc" id="L260">            Field field = (Field) attr.getJavaMember();</span>
+<span class="nc" id="L261">            Column column = field.getAnnotation(Column.class);</span>
+<span class="nc bnc" id="L262" title="All 4 branches missed.">            if (column != null &amp;&amp; column.name().equalsIgnoreCase(columnName)) {</span>
+<span class="nc" id="L263">                return column.name();</span>
+            }
+
+<span class="nc" id="L266">            return null;</span>
+<span class="nc" id="L267">        }).filter(Objects::nonNull).findFirst().orElse(columnName);</span>
+
+<span class="nc bnc" id="L269" title="All 2 branches missed.">        if (StringUtils.endsWithIgnoreCase(name, &quot;_ID&quot;)) {</span>
+<span class="nc" id="L270">            String left = StringUtils.substringBefore(name, &quot;_&quot;);</span>
+<span class="nc" id="L271">            String prefix = attrs.get().filter(attr -&gt; left.equalsIgnoreCase(attr.getName())).findFirst().</span>
+<span class="nc" id="L272">                    map(Attribute::getName).orElse(left);</span>
+<span class="nc" id="L273">            name = prefix + &quot;_id&quot;;</span>
+        }
+
+<span class="nc" id="L276">        return name;</span>
+    }
+
+    private boolean isTask(final String tableName) {
+<span class="nc" id="L280">        return &quot;TASK&quot;.equalsIgnoreCase(tableName);</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    private void exportTable(
+            final TransformerHandler handler,
+            final Connection conn,
+            final String tableName,
+            final String whereClause,
+            final BidiMap&lt;String, EntityType&lt;?&gt;&gt; entities,
+            final Set&lt;EntityType&lt;?&gt;&gt; taskEntities,
+            final Map&lt;String, Pair&lt;String, String&gt;&gt; relationTables) throws SQLException, SAXException {
+
+<span class="nc" id="L293">        LOG.debug(&quot;Export table {}&quot;, tableName);</span>
+
+<span class="nc" id="L295">        PreparedStatement stmt = null;</span>
+<span class="nc" id="L296">        ResultSet rs = null;</span>
+        try {
+<span class="nc" id="L298">            StringBuilder orderBy = new StringBuilder();</span>
+
+<span class="nc" id="L300">            DatabaseMetaData meta = conn.getMetaData();</span>
+
+            // retrieve primary keys to perform an ordered select
+<span class="nc" id="L303">            ResultSet pkeyRS = null;</span>
+            try {
+<span class="nc" id="L305">                pkeyRS = meta.getPrimaryKeys(null, null, tableName);</span>
+<span class="nc bnc" id="L306" title="All 2 branches missed.">                while (pkeyRS.next()) {</span>
+<span class="nc" id="L307">                    String columnName = pkeyRS.getString(&quot;COLUMN_NAME&quot;);</span>
+<span class="nc bnc" id="L308" title="All 2 branches missed.">                    if (columnName != null) {</span>
+<span class="nc bnc" id="L309" title="All 2 branches missed.">                        if (orderBy.length() &gt; 0) {</span>
+<span class="nc" id="L310">                            orderBy.append(',');</span>
+                        }
+
+<span class="nc" id="L313">                        orderBy.append(columnName);</span>
+                    }
+<span class="nc" id="L315">                }</span>
+            } finally {
+<span class="nc bnc" id="L317" title="All 2 branches missed.">                if (pkeyRS != null) {</span>
+                    try {
+<span class="nc" id="L319">                        pkeyRS.close();</span>
+<span class="nc" id="L320">                    } catch (SQLException e) {</span>
+<span class="nc" id="L321">                        LOG.error(&quot;While closing result set&quot;, e);</span>
+<span class="nc" id="L322">                    }</span>
+                }
+            }
+
+            // ------------------------------------
+<span class="nc" id="L327">            StringBuilder query = new StringBuilder();</span>
+<span class="nc" id="L328">            query.append(&quot;SELECT * FROM &quot;).append(tableName).append(&quot; a&quot;);</span>
+<span class="nc bnc" id="L329" title="All 2 branches missed.">            if (StringUtils.isNotBlank(whereClause)) {</span>
+<span class="nc" id="L330">                query.append(&quot; WHERE &quot;).append(whereClause);</span>
+            }
+<span class="nc bnc" id="L332" title="All 2 branches missed.">            if (orderBy.length() &gt; 0) {</span>
+<span class="nc" id="L333">                query.append(&quot; ORDER BY &quot;).append(orderBy);</span>
+            }
+<span class="nc" id="L335">            stmt = conn.prepareStatement(query.toString());</span>
+
+<span class="nc" id="L337">            List&lt;Map&lt;String, String&gt;&gt; rows = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L339">            Optional&lt;EntityType&lt;?&gt;&gt; entity = entities.entrySet().stream().</span>
+<span class="nc" id="L340">                    filter(entry -&gt; entry.getKey().equalsIgnoreCase(tableName)).</span>
+<span class="nc" id="L341">                    findFirst().</span>
+<span class="nc" id="L342">                    map(Map.Entry::getValue);</span>
+
+<span class="nc bnc" id="L344" title="All 2 branches missed.">            String outputTableName = entity.isPresent()</span>
+<span class="nc" id="L345">                    ? entities.getKey(entity.get())</span>
+<span class="nc" id="L346">                    : relationTables.keySet().stream().filter(key -&gt; tableName.equalsIgnoreCase(key)).findFirst().</span>
+<span class="nc" id="L347">                            orElse(tableName);</span>
+<span class="nc bnc" id="L348" title="All 2 branches missed.">            if (isTask(tableName)) {</span>
+<span class="nc" id="L349">                outputTableName = &quot;Task&quot;;</span>
+            }
+
+<span class="nc" id="L352">            rs = stmt.executeQuery();</span>
+<span class="nc bnc" id="L353" title="All 2 branches missed.">            while (rs.next()) {</span>
+<span class="nc" id="L354">                Map&lt;String, String&gt; row = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L355">                rows.add(row);</span>
+
+<span class="nc" id="L357">                ResultSetMetaData rsMeta = rs.getMetaData();</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">                for (int i = 0; i &lt; rsMeta.getColumnCount(); i++) {</span>
+<span class="nc" id="L359">                    String columnName = rsMeta.getColumnName(i + 1);</span>
+<span class="nc" id="L360">                    Integer columnType = rsMeta.getColumnType(i + 1);</span>
+
+                    // Retrieve value taking care of binary values.
+<span class="nc" id="L363">                    String value = getValues(rs, columnName, columnType);</span>
+<span class="nc bnc" id="L364" title="All 4 branches missed.">                    if (value != null &amp;&amp; (!COLUMNS_TO_BE_NULLIFIED.containsKey(tableName)</span>
+<span class="nc bnc" id="L365" title="All 2 branches missed.">                            || !COLUMNS_TO_BE_NULLIFIED.get(tableName).contains(columnName))) {</span>
+
+<span class="nc" id="L367">                        String name = columnName;</span>
+<span class="nc bnc" id="L368" title="All 2 branches missed.">                        if (entity.isPresent()) {</span>
+<span class="nc" id="L369">                            name = columnName(</span>
+<span class="nc" id="L370">                                    () -&gt; (Stream&lt;Attribute&lt;?, ?&gt;&gt;) entity.get().getAttributes().stream(), columnName);</span>
+                        }
+
+<span class="nc bnc" id="L373" title="All 2 branches missed.">                        if (isTask(tableName)) {</span>
+<span class="nc" id="L374">                            name = columnName(</span>
+<span class="nc" id="L375">                                    () -&gt; taskEntities.stream().flatMap(e -&gt; e.getAttributes().stream()), columnName);</span>
+                        }
+
+<span class="nc bnc" id="L378" title="All 2 branches missed.">                        if (relationTables.containsKey(outputTableName)) {</span>
+<span class="nc" id="L379">                            Pair&lt;String, String&gt; relationColumns = relationTables.get(outputTableName);</span>
+<span class="nc bnc" id="L380" title="All 2 branches missed.">                            if (name.equalsIgnoreCase(relationColumns.getLeft())) {</span>
+<span class="nc" id="L381">                                name = relationColumns.getLeft();</span>
+<span class="nc bnc" id="L382" title="All 2 branches missed.">                            } else if (name.equalsIgnoreCase(relationColumns.getRight())) {</span>
+<span class="nc" id="L383">                                name = relationColumns.getRight();</span>
+                            }
+                        }
+
+<span class="nc" id="L387">                        row.put(name, value);</span>
+<span class="nc" id="L388">                        LOG.debug(&quot;Add for table {}: {}=\&quot;{}\&quot;&quot;, outputTableName, name, value);</span>
+                    }
+                }
+<span class="nc" id="L391">            }</span>
+
+<span class="nc bnc" id="L393" title="All 2 branches missed.">            if (tableName.equalsIgnoreCase(JPARealm.TABLE)) {</span>
+<span class="nc" id="L394">                List&lt;Map&lt;String, String&gt;&gt; realmRows = new ArrayList&lt;&gt;(rows);</span>
+<span class="nc" id="L395">                rows.clear();</span>
+<span class="nc" id="L396">                realmDAO.findAll().forEach(realm -&gt; realmRows.stream().filter(row -&gt; {</span>
+<span class="nc" id="L397">                    String id = row.get(&quot;ID&quot;);</span>
+<span class="nc bnc" id="L398" title="All 2 branches missed.">                    if (id == null) {</span>
+<span class="nc" id="L399">                        id = row.get(&quot;id&quot;);</span>
+                    }
+<span class="nc" id="L401">                    return realm.getKey().equals(id);</span>
+<span class="nc" id="L402">                }).findFirst().ifPresent(rows::add));</span>
+            }
+
+<span class="nc bnc" id="L405" title="All 2 branches missed.">            for (Map&lt;String, String&gt; row : rows) {</span>
+<span class="nc" id="L406">                AttributesImpl attrs = new AttributesImpl();</span>
+<span class="nc" id="L407">                row.forEach((key, value) -&gt; attrs.addAttribute(&quot;&quot;, &quot;&quot;, key, &quot;CDATA&quot;, value));</span>
+
+<span class="nc" id="L409">                handler.startElement(&quot;&quot;, &quot;&quot;, outputTableName, attrs);</span>
+<span class="nc" id="L410">                handler.endElement(&quot;&quot;, &quot;&quot;, outputTableName);</span>
+<span class="nc" id="L411">            }</span>
+        } finally {
+<span class="nc bnc" id="L413" title="All 2 branches missed.">            if (rs != null) {</span>
+                try {
+<span class="nc" id="L415">                    rs.close();</span>
+<span class="nc" id="L416">                } catch (SQLException e) {</span>
+<span class="nc" id="L417">                    LOG.error(&quot;While closing result set&quot;, e);</span>
+<span class="nc" id="L418">                }</span>
+            }
+<span class="nc bnc" id="L420" title="All 2 branches missed.">            if (stmt != null) {</span>
+                try {
+<span class="nc" id="L422">                    stmt.close();</span>
+<span class="nc" id="L423">                } catch (SQLException e) {</span>
+<span class="nc" id="L424">                    LOG.error(&quot;While closing statement&quot;, e);</span>
+<span class="nc" id="L425">                }</span>
+            }
+        }
+<span class="nc" id="L428">    }</span>
+
+    private Set&lt;EntityType&lt;?&gt;&gt; taskEntities(final Set&lt;EntityType&lt;?&gt;&gt; entityTypes) {
+<span class="nc" id="L431">        return entityTypes.stream().filter(e -&gt; e.getName().endsWith(&quot;Task&quot;)).collect(Collectors.toSet());</span>
+    }
+
+    private BidiMap&lt;String, EntityType&lt;?&gt;&gt; entities(final Set&lt;EntityType&lt;?&gt;&gt; entityTypes) {
+<span class="nc" id="L435">        BidiMap&lt;String, EntityType&lt;?&gt;&gt; entities = new DualHashBidiMap&lt;&gt;();</span>
+<span class="nc" id="L436">        entityTypes.forEach(entity -&gt; {</span>
+<span class="nc" id="L437">            Table table = entity.getBindableJavaType().getAnnotation(Table.class);</span>
+<span class="nc bnc" id="L438" title="All 2 branches missed.">            if (table != null) {</span>
+<span class="nc" id="L439">                entities.put(table.name(), entity);</span>
+            }
+<span class="nc" id="L441">        });</span>
+
+<span class="nc" id="L443">        return entities;</span>
+    }
+
+    private Map&lt;String, Pair&lt;String, String&gt;&gt; relationTables(final BidiMap&lt;String, EntityType&lt;?&gt;&gt; entities) {
+<span class="nc" id="L447">        Map&lt;String, Pair&lt;String, String&gt;&gt; relationTables = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L448">        entities.values().stream().forEach(e -&gt; e.getAttributes().stream().</span>
+<span class="nc bnc" id="L449" title="All 2 branches missed.">                filter(a -&gt; a.getPersistentAttributeType() != Attribute.PersistentAttributeType.BASIC).</span>
+<span class="nc" id="L450">                forEach(a -&gt; {</span>
+<span class="nc" id="L451">                    String attrName = a.getName();</span>
+
+<span class="nc" id="L453">                    Field field = (Field) a.getJavaMember();</span>
+<span class="nc" id="L454">                    Column column = field.getAnnotation(Column.class);</span>
+<span class="nc bnc" id="L455" title="All 2 branches missed.">                    if (column != null) {</span>
+<span class="nc" id="L456">                        attrName = column.name();</span>
+                    }
+
+<span class="nc" id="L459">                    CollectionTable collectionTable = field.getAnnotation(CollectionTable.class);</span>
+<span class="nc bnc" id="L460" title="All 2 branches missed.">                    if (collectionTable != null) {</span>
+<span class="nc" id="L461">                        relationTables.put(</span>
+<span class="nc" id="L462">                                collectionTable.name(),</span>
+<span class="nc" id="L463">                                Pair.of(attrName, collectionTable.joinColumns()[0].name()));</span>
+                    }
+
+<span class="nc" id="L466">                    JoinTable joinTable = field.getAnnotation(JoinTable.class);</span>
+<span class="nc bnc" id="L467" title="All 2 branches missed.">                    if (joinTable != null) {</span>
+<span class="nc" id="L468">                        String tableName = joinTable.name();</span>
+<span class="nc bnc" id="L469" title="All 2 branches missed.">                        if (StringUtils.isBlank(tableName)) {</span>
+<span class="nc" id="L470">                            tableName = entities.getKey(e) + &quot;_&quot;</span>
+<span class="nc" id="L471">                                    + entities.getKey((EntityType) ((PluralAttribute) a).getElementType());</span>
+                        }
+
+<span class="nc" id="L474">                        relationTables.put(</span>
+                                tableName,
+<span class="nc" id="L476">                                Pair.of(joinTable.joinColumns()[0].name(),</span>
+<span class="nc" id="L477">                                        joinTable.inverseJoinColumns()[0].name()));</span>
+                    }
+<span class="nc" id="L479">                }));</span>
+
+<span class="nc" id="L481">        return relationTables;</span>
+    }
+
+    @Override
+    public void export(
+            final String domain,
+            final OutputStream os,
+            final String uwfPrefix,
+            final String gwfPrefix,
+            final String awfPrefix)
+            throws SAXException, TransformerConfigurationException {
+
+<span class="nc bnc" id="L493" title="All 2 branches missed.">        if (StringUtils.isNotBlank(uwfPrefix)) {</span>
+<span class="nc" id="L494">            TABLE_PREFIXES_TO_BE_EXCLUDED.add(uwfPrefix);</span>
+        }
+<span class="nc bnc" id="L496" title="All 2 branches missed.">        if (StringUtils.isNotBlank(gwfPrefix)) {</span>
+<span class="nc" id="L497">            TABLE_PREFIXES_TO_BE_EXCLUDED.add(gwfPrefix);</span>
+        }
+<span class="nc bnc" id="L499" title="All 2 branches missed.">        if (StringUtils.isNotBlank(awfPrefix)) {</span>
+<span class="nc" id="L500">            TABLE_PREFIXES_TO_BE_EXCLUDED.add(awfPrefix);</span>
+        }
+
+<span class="nc" id="L503">        StreamResult streamResult = new StreamResult(os);</span>
+<span class="nc" id="L504">        SAXTransformerFactory transformerFactory = (SAXTransformerFactory) SAXTransformerFactory.newInstance();</span>
+<span class="nc" id="L505">        transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);</span>
+
+<span class="nc" id="L507">        TransformerHandler handler = transformerFactory.newTransformerHandler();</span>
+<span class="nc" id="L508">        Transformer serializer = handler.getTransformer();</span>
+<span class="nc" id="L509">        serializer.setOutputProperty(OutputKeys.ENCODING, StandardCharsets.UTF_8.name());</span>
+<span class="nc" id="L510">        serializer.setOutputProperty(OutputKeys.INDENT, &quot;yes&quot;);</span>
+<span class="nc" id="L511">        handler.setResult(streamResult);</span>
+<span class="nc" id="L512">        handler.startDocument();</span>
+<span class="nc" id="L513">        handler.startElement(&quot;&quot;, &quot;&quot;, ROOT_ELEMENT, new AttributesImpl());</span>
+
+<span class="nc" id="L515">        DataSource dataSource = domainHolder.getDomains().get(domain);</span>
+<span class="nc bnc" id="L516" title="All 2 branches missed.">        if (dataSource == null) {</span>
+<span class="nc" id="L517">            throw new IllegalArgumentException(&quot;Could not find DataSource for domain &quot; + domain);</span>
+        }
+
+<span class="nc bnc" id="L520" title="All 2 branches missed.">        String schema = ApplicationContextProvider.getBeanFactory().containsBean(domain + &quot;DatabaseSchema&quot;)</span>
+<span class="nc" id="L521">                ? ApplicationContextProvider.getBeanFactory().getBean(domain + &quot;DatabaseSchema&quot;, String.class)</span>
+<span class="nc" id="L522">                : null;</span>
+
+<span class="nc" id="L524">        Connection conn = null;</span>
+<span class="nc" id="L525">        ResultSet rs = null;</span>
+        try {
+<span class="nc" id="L527">            conn = DataSourceUtils.getConnection(dataSource);</span>
+<span class="nc" id="L528">            final DatabaseMetaData meta = conn.getMetaData();</span>
+
+<span class="nc bnc" id="L530" title="All 2 branches missed.">            rs = meta.getTables(null, StringUtils.isBlank(schema) ? null : schema, null,</span>
+                    new String[] { &quot;TABLE&quot; });
+
+<span class="nc" id="L533">            final Set&lt;String&gt; tableNames = new TreeSet&lt;&gt;(String.CASE_INSENSITIVE_ORDER);</span>
+
+<span class="nc bnc" id="L535" title="All 2 branches missed.">            while (rs.next()) {</span>
+<span class="nc" id="L536">                String tableName = rs.getString(&quot;TABLE_NAME&quot;);</span>
+<span class="nc" id="L537">                LOG.debug(&quot;Found table {}&quot;, tableName);</span>
+<span class="nc bnc" id="L538" title="All 2 branches missed.">                if (isTableAllowed(tableName)) {</span>
+<span class="nc" id="L539">                    tableNames.add(tableName);</span>
+                }
+<span class="nc" id="L541">            }</span>
+
+<span class="nc" id="L543">            LOG.debug(&quot;Tables to be exported {}&quot;, tableNames);</span>
+
+<span class="nc" id="L545">            EntityManagerFactory emf = EntityManagerFactoryUtils.findEntityManagerFactory(</span>
+<span class="nc" id="L546">                    ApplicationContextProvider.getBeanFactory(), domain);</span>
+<span class="nc bnc" id="L547" title="All 2 branches missed.">            Set&lt;EntityType&lt;?&gt;&gt; entityTypes = emf == null ? Set.of() : emf.getMetamodel().getEntities();</span>
+<span class="nc" id="L548">            BidiMap&lt;String, EntityType&lt;?&gt;&gt; entities = entities(entityTypes);</span>
+
+            // then sort tables based on foreign keys and dump
+<span class="nc bnc" id="L551" title="All 2 branches missed.">            for (String tableName : sortByForeignKeys(schema, conn, tableNames)) {</span>
+                try {
+<span class="nc" id="L553">                    exportTable(</span>
+<span class="nc" id="L554">                            handler, conn, tableName, TABLES_TO_BE_FILTERED.get(tableName.toUpperCase()),</span>
+<span class="nc" id="L555">                            entities, taskEntities(entityTypes), relationTables(entities));</span>
+<span class="nc" id="L556">                } catch (Exception e) {</span>
+<span class="nc" id="L557">                    LOG.error(&quot;Failure exporting table {}&quot;, tableName, e);</span>
+<span class="nc" id="L558">                }</span>
+<span class="nc" id="L559">            }</span>
+<span class="nc" id="L560">        } catch (SQLException e) {</span>
+<span class="nc" id="L561">            LOG.error(&quot;While exporting database content&quot;, e);</span>
+        } finally {
+<span class="nc bnc" id="L563" title="All 2 branches missed.">            if (rs != null) {</span>
+                try {
+<span class="nc" id="L565">                    rs.close();</span>
+<span class="nc" id="L566">                } catch (SQLException e) {</span>
+<span class="nc" id="L567">                    LOG.error(&quot;While closing tables result set&quot;, e);</span>
+<span class="nc" id="L568">                }</span>
+            }
+
+<span class="nc" id="L571">            DataSourceUtils.releaseConnection(conn, dataSource);</span>
+<span class="nc bnc" id="L572" title="All 2 branches missed.">            if (conn != null) {</span>
+                try {
+<span class="nc bnc" id="L574" title="All 2 branches missed.">                    if (!conn.isClosed()) {</span>
+<span class="nc" id="L575">                        conn.close();</span>
+                    }
+<span class="nc" id="L577">                } catch (SQLException e) {</span>
+<span class="nc" id="L578">                    LOG.error(&quot;While releasing connection&quot;, e);</span>
+<span class="nc" id="L579">                }</span>
+            }
+        }
+
+<span class="nc" id="L583">        handler.endElement(&quot;&quot;, &quot;&quot;, ROOT_ELEMENT);</span>
+<span class="nc" id="L584">        handler.endDocument();</span>
+<span class="nc" id="L585">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

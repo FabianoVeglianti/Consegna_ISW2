@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPASchedTask.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.task</a> &gt; <span class="el_source">JPASchedTask.java</span></div><h1>JPASchedTask.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.task;
+
+import java.util.Date;
+import javax.persistence.DiscriminatorValue;
+import javax.persistence.Entity;
+import javax.persistence.OneToOne;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.common.lib.types.IdRepoImplementationType;
+import org.apache.syncope.core.persistence.api.entity.Implementation;
+import org.apache.syncope.core.persistence.api.entity.task.SchedTask;
+import org.apache.syncope.core.persistence.jpa.entity.JPAImplementation;
+import org.apache.syncope.core.persistence.jpa.validation.entity.SchedTaskCheck;
+
+@Entity
+@DiscriminatorValue(&quot;SchedTask&quot;)
+@SchedTaskCheck
+<span class="nc" id="L37">public class JPASchedTask extends AbstractTask implements SchedTask {</span>
+
+    private static final long serialVersionUID = 7596236684832602180L;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date startAt;
+
+    private String cronExpression;
+
+    @OneToOne(optional = false)
+    private JPAImplementation jobDelegate;
+
+    @NotNull
+    private String name;
+
+    private String description;
+
+<span class="nc" id="L54">    @NotNull</span>
+<span class="nc" id="L55">    private Boolean active = true;</span>
+
+    @Override
+    public Date getStartAt() {
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (startAt != null) {</span>
+<span class="nc" id="L60">            return new Date(startAt.getTime());</span>
+        }
+<span class="nc" id="L62">        return null;</span>
+    }
+
+    @Override
+    public void setStartAt(final Date start) {
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if (start != null) {</span>
+<span class="nc" id="L68">            this.startAt = new Date(start.getTime());</span>
+        } else {
+<span class="nc" id="L70">            this.startAt = null;</span>
+        }
+<span class="nc" id="L72">    }</span>
+
+    @Override
+    public String getCronExpression() {
+<span class="nc" id="L76">        return cronExpression;</span>
+    }
+
+    @Override
+    public void setCronExpression(final String cronExpression) {
+<span class="nc" id="L81">        this.cronExpression = cronExpression;</span>
+<span class="nc" id="L82">    }</span>
+
+    @Override
+    public Implementation getJobDelegate() {
+<span class="nc" id="L86">        return jobDelegate;</span>
+    }
+
+    @Override
+    public void setJobDelegate(final Implementation jobDelegate) {
+<span class="nc" id="L91">        checkType(jobDelegate, JPAImplementation.class);</span>
+<span class="nc" id="L92">        checkImplementationType(jobDelegate, IdRepoImplementationType.TASKJOB_DELEGATE);</span>
+<span class="nc" id="L93">        this.jobDelegate = (JPAImplementation) jobDelegate;</span>
+<span class="nc" id="L94">    }</span>
+
+    @Override
+    public String getDescription() {
+<span class="nc" id="L98">        return description;</span>
+    }
+
+    @Override
+    public void setDescription(final String description) {
+<span class="nc" id="L103">        this.description = description;</span>
+<span class="nc" id="L104">    }</span>
+
+    @Override
+    public String getName() {
+<span class="nc" id="L108">        return name;</span>
+    }
+
+    @Override
+    public void setName(final String name) {
+<span class="nc" id="L113">        this.name = name;</span>
+<span class="nc" id="L114">    }</span>
+
+    @Override
+    public boolean isActive() {
+<span class="nc" id="L118">        return active;</span>
+    }
+
+    @Override
+    public void setActive(final boolean active) {
+<span class="nc" id="L123">        this.active = active;</span>
+<span class="nc" id="L124">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

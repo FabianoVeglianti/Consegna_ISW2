@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAConnInstanceDAO.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.dao</a> &gt; <span class="el_source">JPAConnInstanceDAO.java</span></div><h1>JPAConnInstanceDAO.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.dao;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.persistence.TypedQuery;
+import org.apache.syncope.common.lib.types.IdMEntitlement;
+import org.apache.syncope.core.persistence.api.dao.ConnInstanceDAO;
+import org.apache.syncope.core.persistence.api.dao.ExternalResourceDAO;
+import org.apache.syncope.core.persistence.api.dao.NotFoundException;
+import org.apache.syncope.core.persistence.api.entity.Entity;
+import org.apache.syncope.core.persistence.api.entity.ConnInstance;
+import org.apache.syncope.core.persistence.jpa.entity.JPAConnInstance;
+import org.apache.syncope.core.provisioning.api.ConnectorRegistry;
+import org.apache.syncope.core.spring.security.AuthContextUtils;
+import org.apache.syncope.core.spring.security.DelegatedAdministrationException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+@Repository
+<span class="nc" id="L41">public class JPAConnInstanceDAO extends AbstractDAO&lt;ConnInstance&gt; implements ConnInstanceDAO {</span>
+
+    @Autowired
+    @Lazy
+    private ExternalResourceDAO resourceDAO;
+
+    @Autowired
+    private ConnectorRegistry connRegistry;
+
+    @Transactional(readOnly = true)
+    @Override
+    public ConnInstance find(final String key) {
+<span class="nc" id="L53">        return entityManager().find(JPAConnInstance.class, key);</span>
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public ConnInstance authFind(final String key) {
+<span class="nc" id="L59">        ConnInstance connInstance = find(key);</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (connInstance == null) {</span>
+<span class="nc" id="L61">            return null;</span>
+        }
+
+<span class="nc" id="L64">        Set&lt;String&gt; authRealms = AuthContextUtils.getAuthorizations().get(IdMEntitlement.CONNECTOR_READ);</span>
+<span class="nc bnc" id="L65" title="All 4 branches missed.">        if (authRealms == null || authRealms.isEmpty()</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">                || !authRealms.stream().anyMatch(</span>
+<span class="nc" id="L67">                        realm -&gt; connInstance.getAdminRealm().getFullPath().startsWith(realm))) {</span>
+
+<span class="nc" id="L69">            throw new DelegatedAdministrationException(</span>
+<span class="nc" id="L70">                    connInstance.getAdminRealm().getFullPath(),</span>
+<span class="nc" id="L71">                    ConnInstance.class.getSimpleName(),</span>
+<span class="nc" id="L72">                    connInstance.getKey());</span>
+        }
+
+<span class="nc" id="L75">        return connInstance;</span>
+    }
+
+    @Override
+    public List&lt;ConnInstance&gt; findAll() {
+<span class="nc" id="L80">        final Set&lt;String&gt; authRealms = AuthContextUtils.getAuthorizations().get(IdMEntitlement.CONNECTOR_LIST);</span>
+<span class="nc bnc" id="L81" title="All 4 branches missed.">        if (authRealms == null || authRealms.isEmpty()) {</span>
+<span class="nc" id="L82">            return List.of();</span>
+        }
+
+<span class="nc" id="L85">        TypedQuery&lt;ConnInstance&gt; query = entityManager().createQuery(</span>
+<span class="nc" id="L86">                &quot;SELECT e FROM &quot; + JPAConnInstance.class.getSimpleName() + &quot; e&quot;, ConnInstance.class);</span>
+
+<span class="nc" id="L88">        return query.getResultList().stream().filter(connInstance -&gt; authRealms.stream().</span>
+<span class="nc" id="L89">                anyMatch(realm -&gt; connInstance.getAdminRealm().getFullPath().startsWith(realm))).</span>
+<span class="nc" id="L90">                collect(Collectors.toList());</span>
+    }
+
+    @Override
+    public ConnInstance save(final ConnInstance connector) {
+<span class="nc" id="L95">        final ConnInstance merged = entityManager().merge(connector);</span>
+
+<span class="nc" id="L97">        merged.getResources().forEach(resource -&gt; {</span>
+            try {
+<span class="nc" id="L99">                connRegistry.registerConnector(resource);</span>
+<span class="nc" id="L100">            } catch (NotFoundException e) {</span>
+<span class="nc" id="L101">                LOG.error(&quot;While registering connector for resource&quot;, e);</span>
+<span class="nc" id="L102">            }</span>
+<span class="nc" id="L103">        });</span>
+
+<span class="nc" id="L105">        return merged;</span>
+    }
+
+    @Override
+    public void delete(final String key) {
+<span class="nc" id="L110">        ConnInstance connInstance = find(key);</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        if (connInstance == null) {</span>
+<span class="nc" id="L112">            return;</span>
+        }
+
+<span class="nc" id="L115">        connInstance.getResources().stream().</span>
+<span class="nc" id="L116">                map(Entity::getKey).collect(Collectors.toList()).</span>
+<span class="nc" id="L117">                forEach(resource -&gt; resourceDAO.delete(resource));</span>
+
+<span class="nc" id="L119">        entityManager().remove(connInstance);</span>
+
+<span class="nc" id="L121">        connRegistry.unregisterConnector(key);</span>
+<span class="nc" id="L122">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

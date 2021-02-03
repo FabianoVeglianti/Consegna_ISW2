@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAOrgUnit.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.resource</a> &gt; <span class="el_source">JPAOrgUnit.java</span></div><h1>JPAOrgUnit.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.resource;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import javax.persistence.Cacheable;
+import javax.persistence.CascadeType;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.Lob;
+import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.api.entity.resource.OrgUnitItem;
+import org.apache.syncope.core.persistence.api.entity.resource.OrgUnit;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractGeneratedKeyEntity;
+import org.apache.syncope.core.provisioning.api.serialization.POJOHelper;
+import org.identityconnectors.framework.common.objects.ObjectClass;
+import org.identityconnectors.framework.common.objects.SyncToken;
+
+@Entity
+@Table(name = JPAOrgUnit.TABLE)
+@Cacheable
+<span class="nc" id="L44">public class JPAOrgUnit extends AbstractGeneratedKeyEntity implements OrgUnit {</span>
+
+    private static final long serialVersionUID = 8236319635989067603L;
+
+    public static final String TABLE = &quot;OrgUnit&quot;;
+
+    @OneToOne
+    private JPAExternalResource resource;
+
+    @NotNull
+    private String objectClass;
+
+    @Lob
+    private String serializedSyncToken;
+
+<span class="nc" id="L59">    @NotNull</span>
+<span class="nc" id="L60">    private Boolean ignoreCaseMatch = false;</span>
+
+    @NotNull
+    private String connObjectLink;
+
+<span class="nc" id="L65">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER, mappedBy = &quot;orgUnit&quot;)</span>
+    private List&lt;JPAOrgUnitItem&gt; items = new ArrayList&lt;&gt;();
+
+    @Override
+    public ExternalResource getResource() {
+<span class="nc" id="L70">        return resource;</span>
+    }
+
+    @Override
+    public void setResource(final ExternalResource resource) {
+<span class="nc" id="L75">        checkType(resource, JPAExternalResource.class);</span>
+<span class="nc" id="L76">        this.resource = (JPAExternalResource) resource;</span>
+<span class="nc" id="L77">    }</span>
+
+    @Override
+    public ObjectClass getObjectClass() {
+<span class="nc" id="L81">        return Optional.ofNullable(objectClass).map(ObjectClass::new).orElse(null);</span>
+    }
+
+    @Override
+    public void setObjectClass(final ObjectClass objectClass) {
+<span class="nc" id="L86">        this.objectClass = Optional.ofNullable(objectClass).map(ObjectClass::getObjectClassValue).orElse(null);</span>
+<span class="nc" id="L87">    }</span>
+
+    @Override
+    public SyncToken getSyncToken() {
+<span class="nc" id="L91">        return Optional.ofNullable(serializedSyncToken)</span>
+<span class="nc" id="L92">            .map(syncToken -&gt; POJOHelper.deserialize(syncToken, SyncToken.class)).orElse(null);</span>
+    }
+
+    @Override
+    public String getSerializedSyncToken() {
+<span class="nc" id="L97">        return this.serializedSyncToken;</span>
+    }
+
+    @Override
+    public void setSyncToken(final SyncToken syncToken) {
+<span class="nc" id="L102">        this.serializedSyncToken = Optional.ofNullable(syncToken).map(POJOHelper::serialize).orElse(null);</span>
+<span class="nc" id="L103">    }</span>
+
+    @Override
+    public boolean isIgnoreCaseMatch() {
+<span class="nc" id="L107">        return ignoreCaseMatch;</span>
+    }
+
+    @Override
+    public void setIgnoreCaseMatch(final boolean ignoreCaseMatch) {
+<span class="nc" id="L112">        this.ignoreCaseMatch = ignoreCaseMatch;</span>
+<span class="nc" id="L113">    }</span>
+
+    @Override
+    public String getConnObjectLink() {
+<span class="nc" id="L117">        return connObjectLink;</span>
+    }
+
+    @Override
+    public void setConnObjectLink(final String connObjectLink) {
+<span class="nc" id="L122">        this.connObjectLink = connObjectLink;</span>
+<span class="nc" id="L123">    }</span>
+
+    @Override
+    public boolean add(final OrgUnitItem item) {
+<span class="nc" id="L127">        checkType(item, JPAOrgUnitItem.class);</span>
+<span class="nc bnc" id="L128" title="All 4 branches missed.">        return items.contains((JPAOrgUnitItem) item) || items.add((JPAOrgUnitItem) item);</span>
+    }
+
+    @Override
+    public List&lt;? extends OrgUnitItem&gt; getItems() {
+<span class="nc" id="L133">        return items;</span>
+    }
+
+    @Override
+    public Optional&lt;? extends OrgUnitItem&gt; getConnObjectKeyItem() {
+<span class="nc" id="L138">        return getItems().stream().filter(OrgUnitItem::isConnObjectKey).findFirst();</span>
+    }
+
+    @Override
+    public void setConnObjectKeyItem(final OrgUnitItem item) {
+<span class="nc" id="L143">        item.setConnObjectKey(true);</span>
+<span class="nc" id="L144">        this.add(item);</span>
+<span class="nc" id="L145">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="it"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>JPAGroup.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">My_tests</a> &gt; <a href="../index.html" class="el_bundle">syncope-core-persistence-jpa</a> &gt; <a href="index.source.html" class="el_package">org.apache.syncope.core.persistence.jpa.entity.group</a> &gt; <span class="el_source">JPAGroup.java</span></div><h1>JPAGroup.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * &quot;License&quot;); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.syncope.core.persistence.jpa.entity.group;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import javax.persistence.Cacheable;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import org.apache.syncope.core.spring.ApplicationContextProvider;
+import org.apache.syncope.core.persistence.api.dao.AnyTypeDAO;
+import org.apache.syncope.core.persistence.api.entity.AnyType;
+import org.apache.syncope.core.persistence.api.entity.AnyTypeClass;
+import org.apache.syncope.core.persistence.api.entity.anyobject.ADynGroupMembership;
+import org.apache.syncope.core.persistence.api.entity.group.GPlainAttr;
+import org.apache.syncope.core.persistence.api.entity.group.Group;
+import org.apache.syncope.core.persistence.api.entity.group.TypeExtension;
+import org.apache.syncope.core.persistence.api.entity.resource.ExternalResource;
+import org.apache.syncope.core.persistence.api.entity.user.UDynGroupMembership;
+import org.apache.syncope.core.persistence.api.entity.user.User;
+import org.apache.syncope.core.persistence.jpa.entity.AbstractAny;
+import org.apache.syncope.core.persistence.jpa.entity.JPAAnyTypeClass;
+import org.apache.syncope.core.persistence.jpa.entity.anyobject.JPAADynGroupMembership;
+import org.apache.syncope.core.persistence.jpa.validation.entity.GroupCheck;
+import org.apache.syncope.core.persistence.jpa.entity.resource.JPAExternalResource;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUDynGroupMembership;
+import org.apache.syncope.core.persistence.jpa.entity.user.JPAUser;
+
+@Entity
+@Table(name = JPAGroup.TABLE)
+@Cacheable
+@GroupCheck
+<span class="nc" id="L61">public class JPAGroup extends AbstractAny&lt;GPlainAttr&gt; implements Group {</span>
+
+    private static final long serialVersionUID = -5281258853142421875L;
+
+    public static final String TABLE = &quot;SyncopeGroup&quot;;
+
+    @Column(unique = true)
+    @NotNull
+    private String name;
+
+    protected User userOwner;
+
+    protected Group groupOwner;
+
+<span class="nc" id="L75">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = &quot;owner&quot;)</span>
+    @Valid
+    private List&lt;JPAGPlainAttr&gt; plainAttrs = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L79">    @ManyToMany(fetch = FetchType.LAZY)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;group_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;resource_id&quot;),
+            uniqueConstraints = @UniqueConstraint(columnNames = { &quot;group_id&quot;, &quot;resource_id&quot; }))
+    private List&lt;JPAExternalResource&gt; resources = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L87">    @ManyToMany(fetch = FetchType.LAZY)</span>
+    @JoinTable(joinColumns =
+            @JoinColumn(name = &quot;group_id&quot;),
+            inverseJoinColumns =
+            @JoinColumn(name = &quot;anyTypeClass_id&quot;),
+            uniqueConstraints = @UniqueConstraint(columnNames = { &quot;group_id&quot;, &quot;anyTypeClass_id&quot; }))
+    private List&lt;JPAAnyTypeClass&gt; auxClasses = new ArrayList&lt;&gt;();
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = &quot;group&quot;)
+    @Valid
+    private JPAUDynGroupMembership uDynMembership;
+
+<span class="nc" id="L99">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER, mappedBy = &quot;group&quot;)</span>
+    private List&lt;JPAADynGroupMembership&gt; aDynMemberships = new ArrayList&lt;&gt;();
+
+<span class="nc" id="L102">    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER, mappedBy = &quot;group&quot;)</span>
+    private List&lt;JPATypeExtension&gt; typeExtensions = new ArrayList&lt;&gt;();
+
+    @Override
+    public String getName() {
+<span class="nc" id="L107">        return name;</span>
+    }
+
+    @Override
+    public void setName(final String name) {
+<span class="nc" id="L112">        this.name = name;</span>
+<span class="nc" id="L113">    }</span>
+
+    @Override
+    public AnyType getType() {
+<span class="nc" id="L117">        return ApplicationContextProvider.getBeanFactory().getBean(AnyTypeDAO.class).findGroup();</span>
+    }
+
+    @Override
+    public void setType(final AnyType type) {
+        // nothing to do
+<span class="nc" id="L123">    }</span>
+
+    @Override
+    public boolean add(final ExternalResource resource) {
+<span class="nc" id="L127">        checkType(resource, JPAExternalResource.class);</span>
+<span class="nc bnc" id="L128" title="All 4 branches missed.">        return resources.contains((JPAExternalResource) resource) || resources.add((JPAExternalResource) resource);</span>
+    }
+
+    @Override
+    public List&lt;? extends ExternalResource&gt; getResources() {
+<span class="nc" id="L133">        return resources;</span>
+    }
+
+    @Override
+    public User getUserOwner() {
+<span class="nc" id="L138">        return userOwner;</span>
+    }
+
+    @Override
+    public void setUserOwner(final User userOwner) {
+<span class="nc" id="L143">        checkType(userOwner, JPAUser.class);</span>
+<span class="nc" id="L144">        this.userOwner = (JPAUser) userOwner;</span>
+<span class="nc" id="L145">    }</span>
+
+    @Override
+    public Group getGroupOwner() {
+<span class="nc" id="L149">        return groupOwner;</span>
+    }
+
+    @Override
+    public void setGroupOwner(final Group group) {
+<span class="nc" id="L154">        checkType(group, JPAGroup.class);</span>
+<span class="nc" id="L155">        this.groupOwner = (JPAGroup) group;</span>
+<span class="nc" id="L156">    }</span>
+
+    @Override
+    public boolean add(final GPlainAttr attr) {
+<span class="nc" id="L160">        checkType(attr, JPAGPlainAttr.class);</span>
+<span class="nc" id="L161">        return plainAttrs.add((JPAGPlainAttr) attr);</span>
+    }
+
+    @Override
+    public boolean remove(final GPlainAttr attr) {
+<span class="nc" id="L166">        checkType(attr, JPAGPlainAttr.class);</span>
+<span class="nc" id="L167">        return getPlainAttrs().remove((JPAGPlainAttr) attr);</span>
+    }
+
+    @Override
+    public Optional&lt;? extends GPlainAttr&gt; getPlainAttr(final String plainSchema) {
+<span class="nc" id="L172">        return getPlainAttrs().stream().filter(plainAttr</span>
+<span class="nc bnc" id="L173" title="All 4 branches missed.">                -&gt; plainAttr != null &amp;&amp; plainAttr.getSchema() != null</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">                &amp;&amp; plainSchema.equals(plainAttr.getSchema().getKey())).findFirst();</span>
+    }
+
+    @Override
+    public List&lt;? extends GPlainAttr&gt; getPlainAttrs() {
+<span class="nc" id="L179">        return plainAttrs;</span>
+    }
+
+    @Override
+    public UDynGroupMembership getUDynMembership() {
+<span class="nc" id="L184">        return uDynMembership;</span>
+    }
+
+    @Override
+    public void setUDynMembership(final UDynGroupMembership uDynMembership) {
+<span class="nc" id="L189">        checkType(uDynMembership, JPAUDynGroupMembership.class);</span>
+<span class="nc" id="L190">        this.uDynMembership = (JPAUDynGroupMembership) uDynMembership;</span>
+<span class="nc" id="L191">    }</span>
+
+    @Override
+    public boolean add(final AnyTypeClass auxClass) {
+<span class="nc" id="L195">        checkType(auxClass, JPAAnyTypeClass.class);</span>
+<span class="nc bnc" id="L196" title="All 4 branches missed.">        return auxClasses.contains((JPAAnyTypeClass) auxClass) || this.auxClasses.add((JPAAnyTypeClass) auxClass);</span>
+    }
+
+    @Override
+    public List&lt;? extends AnyTypeClass&gt; getAuxClasses() {
+<span class="nc" id="L201">        return auxClasses;</span>
+    }
+
+    @Override
+    public boolean add(final ADynGroupMembership dynGroupMembership) {
+<span class="nc" id="L206">        checkType(dynGroupMembership, JPAADynGroupMembership.class);</span>
+<span class="nc" id="L207">        return this.aDynMemberships.add((JPAADynGroupMembership) dynGroupMembership);</span>
+    }
+
+    @Override
+    public Optional&lt;? extends ADynGroupMembership&gt; getADynMembership(final AnyType anyType) {
+<span class="nc" id="L212">        return aDynMemberships.stream().</span>
+<span class="nc bnc" id="L213" title="All 4 branches missed.">                filter(dynGroupMembership -&gt; anyType != null &amp;&amp; anyType.equals(dynGroupMembership.getAnyType())).</span>
+<span class="nc" id="L214">                findFirst();</span>
+    }
+
+    @Override
+    public List&lt;? extends ADynGroupMembership&gt; getADynMemberships() {
+<span class="nc" id="L219">        return aDynMemberships;</span>
+    }
+
+    @Override
+    public boolean add(final TypeExtension typeExtension) {
+<span class="nc" id="L224">        checkType(typeExtension, JPATypeExtension.class);</span>
+<span class="nc" id="L225">        return this.typeExtensions.add((JPATypeExtension) typeExtension);</span>
+    }
+
+    @Override
+    public Optional&lt;? extends TypeExtension&gt; getTypeExtension(final AnyType anyType) {
+<span class="nc" id="L230">        return typeExtensions.stream().</span>
+<span class="nc" id="L231">                filter(typeExtension -&gt; typeExtension.getAnyType().equals(anyType)).</span>
+<span class="nc" id="L232">                findFirst();</span>
+    }
+
+    @Override
+    public List&lt;? extends TypeExtension&gt; getTypeExtensions() {
+<span class="nc" id="L237">        return typeExtensions;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>
